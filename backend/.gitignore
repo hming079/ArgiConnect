@@ -33,3 +33,13 @@ build/
 .vscode/
 
 docs/
+
+# Cho phép lưu tất cả các file migration chính thức (.sql)
+!src/main/resources/db/migration/*.sql
+
+# Bỏ qua các file nháp hoặc file tạm của hệ điều hành phát sinh trong thư mục này
+src/main/resources/db/migration/*~
+src/main/resources/db/migration/*.bak
+src/main/resources/db/migration/.DS_Store
+
+scripts/
