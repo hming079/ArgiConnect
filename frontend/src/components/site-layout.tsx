@@ -13,13 +13,13 @@ interface NavLink {
 
 const commonLinks: NavLink[] = [
   { to: "/", label: "Trang chu" },
-  { to: "/categories", label: "Danh muc" },
   { to: "/rescue", label: "Giai cuu" },
 ];
 
 const roleLinks: Record<UserRole, NavLink[]> = {
   FARMER: [
     { to: "/farmer", label: "Tong quan nong dan" },
+    { to: "/categories", label: "Danh muc" },
     { to: "/farmer/batches", label: "Lo nong san" },
     { to: "/farmer/rescue-requests", label: "Yeu cau giai cuu" },
   ],
@@ -28,9 +28,11 @@ const roleLinks: Record<UserRole, NavLink[]> = {
     { to: "/products", label: "Nong san" },
     { to: "/orders", label: "Don hang" },
   ],
-  LOGISTICS: [{ to: "/shipments", label: "Van chuyen" }],
+  LOGISTICS: [{ to: "/shipments", label: "Van chuyen" }, { to: "/categories", label: "Danh muc" }],
+
   ADMIN: [
     { to: "/admin", label: "Quan tri" },
+    { to: "/categories", label: "Danh muc" },
     { to: "/admin/rescue-requests", label: "Duyet giai cuu" },
     { to: "/coordination", label: "Dieu phoi" },
     { to: "/analytics", label: "Phan tich" },

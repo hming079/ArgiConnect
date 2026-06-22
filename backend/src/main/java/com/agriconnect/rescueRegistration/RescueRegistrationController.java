@@ -44,6 +44,13 @@ public class RescueRegistrationController {
         return ResponseEntity.ok(service.getById(id));
     }
 
+    @GetMapping("/my")
+    @PreAuthorize("hasRole('FARMER')")
+    @Operation(summary = "List my rescue registrations", description = "Required role: FARMER")
+    public ResponseEntity<List<RescueRegistration>> getMyRegistrations() {
+        return ResponseEntity.ok(service.getMyRegistrations());
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('FARMER')")
     @Operation(summary = "Register a crop batch for rescue", description = "Required role: FARMER; batch ownership is enforced")
@@ -56,6 +63,14 @@ public class RescueRegistrationController {
     public ResponseEntity<RescueRegistration> update(
             @PathVariable Long id, @RequestBody RescueRegistration registration) {
         return ResponseEntity.ok(service.update(id, registration));
+    }
+
+    @PutMapping("/my/{id}")
+    @PreAuthorize("hasRole('FARMER')")
+    @Operation(summary = "Update my pending rescue registration", description = "Required role: FARMER; ownership is enforced")
+    public ResponseEntity<RescueRegistration> updateMy(
+            @PathVariable Long id, @RequestBody RescueRegistration registration) {
+        return ResponseEntity.ok(service.updateMy(id, registration));
     }
 
     @PatchMapping("/{id}/approve")
@@ -76,6 +91,14 @@ public class RescueRegistrationController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/my/{id}")
+    @PreAuthorize("hasRole('FARMER')")
+    @Operation(summary = "Cancel my pending rescue registration", description = "Required role: FARMER; ownership is enforced")
+    public ResponseEntity<Void> deleteMy(@PathVariable Long id) {
+        service.deleteMy(id);
         return ResponseEntity.noContent().build();
     }
 }

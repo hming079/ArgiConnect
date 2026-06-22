@@ -10,4 +10,5 @@ public interface RescueRegistrationRepository extends JpaRepository<RescueRegist
     List<RescueRegistration> findByBatchId(Long batchId);
     List<RescueRegistration> findByRescuePointId(Long rescuePointId);
     List<RescueRegistration> findByStatus(RescueRegistrationStatus status);
+    List<RescueRegistration> findByBatchIdIn(List<Long> batchIds);
 }

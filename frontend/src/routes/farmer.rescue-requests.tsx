@@ -1,132 +1,107 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { AlertTriangle, ArrowLeft, Send, CheckCircle2 } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { AlertCircle, AlertTriangle, ArrowLeft, CheckCircle2, RefreshCw, Send, Trash2 } from "lucide-react";
+import type { RescueRegistrationStatus } from "@/api/rescueRegistrationApi";
 import { PageShell } from "@/components/site-layout";
-import { farmerBatches, rescueRequests, formatVND } from "@/lib/mock-data";
+import { Button } from "@/components/ui/button";
+import { useCropBatches } from "@/hooks/use-crops";
+import { useCreateRescueRegistration, useDeleteMyRescueRegistration, useMyRescueRegistrations, useUpdateMyRescueRegistration } from "@/hooks/use-rescue-registrations";
+import { useRescuePoints } from "@/hooks/use-rescue-points";
 
 export const Route = createFileRoute("/farmer/rescue-requests")({
   head: () => ({ meta: [{ title: "Đăng ký giải cứu nông sản – AgriConnect" }] }),
-  component: Page,
+  component: FarmerRescueRequests,
 });
 
-function Page() {
-  const [batchId, setBatchId] = useState(farmerBatches[0]?.id ?? "");
-  const [reason, setReason] = useState("");
-  const [qty, setQty] = useState(1000);
-  const [urgency, setUrgency] = useState<"normal" | "high" | "rescue">("high");
-  const [sent, setSent] = useState(false);
-  const myRequests = rescueRequests;
+function FarmerRescueRequests() {
+  const batchesQuery = useCropBatches(undefined, true);
+  const pointsQuery = useRescuePoints();
+  const registrationsQuery = useMyRescueRegistrations();
+  const createRegistration = useCreateRescueRegistration();
+  const updateRegistration = useUpdateMyRescueRegistration();
+  const deleteRegistration = useDeleteMyRescueRegistration();
+  const batches = batchesQuery.data ?? [];
+  const points = (pointsQuery.data ?? []).filter((point) => point.status === "ACTIVE");
+  const registrations = registrationsQuery.data ?? [];
+  const [batchId, setBatchId] = useState(0);
+  const [rescuePointId, setRescuePointId] = useState(0);
+  const [pointEdits, setPointEdits] = useState<Record<number, number>>({});
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setSent(true);
-    setTimeout(() => setSent(false), 4000);
-    setReason("");
+  useEffect(() => { if (!batchId && batches[0]) setBatchId(batches[0].id); }, [batchId, batches]);
+  useEffect(() => { if (!rescuePointId && points[0]) setRescuePointId(points[0].id); }, [points, rescuePointId]);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!batchId || !rescuePointId) return;
+    try {
+      setError(""); setMessage("");
+      await createRegistration.mutateAsync({ batchId, rescuePointId, status: "PENDING" });
+      setMessage("Đã gửi đăng ký giải cứu. Admin sẽ xem xét yêu cầu.");
+    } catch { setError("Không thể gửi đăng ký. Hãy kiểm tra lô và thử lại."); }
   }
 
-  const selected = farmerBatches.find((b) => b.id === batchId);
+  async function updatePoint(id: number, currentPointId: number) {
+    try {
+      setError("");
+      await updateRegistration.mutateAsync({ id, rescuePointId: pointEdits[id] ?? currentPointId });
+      setMessage("Đã cập nhật điểm giải cứu.");
+    } catch { setError("Chỉ đăng ký đang chờ duyệt mới có thể cập nhật."); }
+  }
 
-  return (
-    <PageShell>
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-        <Link to="/farmer" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Dashboard nông dân
-        </Link>
-        <div className="mt-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-destructive">
-          <AlertTriangle className="h-3.5 w-3.5" /> Yêu cầu giải cứu
-        </div>
-        <h1 className="mt-1 text-3xl font-bold">Gửi yêu cầu giải cứu nông sản</h1>
-        <p className="mt-1 text-muted-foreground">
-          Yêu cầu sẽ được Admin xem xét, phê duyệt và phân bổ vào điểm giải cứu phù hợp.
-        </p>
+  async function cancel(id: number) {
+    if (!window.confirm("Hủy đăng ký giải cứu này?")) return;
+    try { setError(""); await deleteRegistration.mutateAsync(id); setMessage("Đã hủy đăng ký."); }
+    catch { setError("Chỉ đăng ký đang chờ duyệt mới có thể hủy."); }
+  }
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-          <form onSubmit={submit} className="rounded-2xl border border-border bg-card p-6 shadow-card">
-            {sent && (
-              <div className="mb-5 flex items-center gap-2 rounded-xl border border-primary/40 bg-primary-soft/40 p-3 text-sm text-primary">
-                <CheckCircle2 className="h-4 w-4" /> Yêu cầu đã gửi! Mã: YC-{Math.floor(Math.random() * 9000 + 1000)}
-              </div>
-            )}
-            <div className="space-y-5">
-              <div>
-                <label className="text-sm font-semibold">Chọn lô nông sản</label>
-                <select value={batchId} onChange={(e) => setBatchId(e.target.value)} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary">
-                  {farmerBatches.map((b) => (
-                    <option key={b.id} value={b.id}>{b.id} — {b.name} ({(b.quantityKg - b.soldKg).toLocaleString("vi-VN")} kg tồn)</option>
-                  ))}
-                </select>
-                {selected && (
-                  <div className="mt-3 flex items-center gap-3 rounded-xl border border-border bg-muted/40 p-3">
-                    <img src={selected.image} alt="" className="h-14 w-14 rounded-lg object-cover" />
-                    <div className="flex-1 text-sm">
-                      <div className="font-semibold">{selected.name}</div>
-                      <div className="text-xs text-muted-foreground">{selected.location} · Thu hoạch {selected.harvestDate}</div>
-                    </div>
-                    <div className="text-right text-sm">
-                      <div className="font-bold text-primary">{formatVND(selected.expectedPrice)}/kg</div>
-                      <div className="text-xs text-muted-foreground">Tồn: {(selected.quantityKg - selected.soldKg).toLocaleString("vi-VN")} kg</div>
-                    </div>
-                  </div>
-                )}
-              </div>
+  const pending = batchesQuery.isPending || pointsQuery.isPending || registrationsQuery.isPending;
+  const failed = batchesQuery.isError || pointsQuery.isError || registrationsQuery.isError;
 
-              <div>
-                <label className="text-sm font-semibold">Sản lượng cần giải cứu (kg)</label>
-                <input type="number" min={1} value={qty} onChange={(e) => setQty(+e.target.value)} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary" />
-              </div>
+  return <PageShell>
+    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+      <Link to="/farmer" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Dashboard nông dân</Link>
+      <div className="mt-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-destructive"><AlertTriangle className="h-3.5 w-3.5" /> Yêu cầu giải cứu</div>
+      <h1 className="mt-1 text-3xl font-bold">Quản lý đăng ký giải cứu</h1>
+      <p className="mt-1 text-muted-foreground">Gửi lô đến điểm giải cứu và theo dõi quyết định của Admin.</p>
+      {message && <div className="mt-5 flex items-center gap-2 rounded-xl bg-primary-soft p-3 text-sm text-primary"><CheckCircle2 className="h-4 w-4" /> {message}</div>}
+      {error && <div className="mt-5 flex items-center gap-2 rounded-xl bg-destructive/10 p-3 text-sm text-destructive"><AlertCircle className="h-4 w-4" /> {error}</div>}
+      {failed && <Button className="mt-5" onClick={() => { void batchesQuery.refetch(); void pointsQuery.refetch(); void registrationsQuery.refetch(); }}><RefreshCw className="mr-2 h-4 w-4" /> Tải lại dữ liệu</Button>}
 
-              <div>
-                <label className="text-sm font-semibold">Lý do cần giải cứu</label>
-                <textarea required value={reason} onChange={(e) => setReason(e.target.value)} rows={4} placeholder="Ví dụ: Thương lái huỷ đơn đột ngột, mưa kéo dài làm quả nhanh chín, vào vụ rộ vượt dự kiến…" className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary" />
-              </div>
+      <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_1.4fr]">
+        <form onSubmit={submit} className="h-fit rounded-2xl border border-border bg-card p-6 shadow-card">
+          <h2 className="text-lg font-semibold">Đăng ký mới</h2>
+          <div className="mt-5 space-y-4">
+            <label className="block text-sm font-semibold">Lô nông sản<select required value={batchId} onChange={(e) => setBatchId(Number(e.target.value))} className="mt-2 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm">{batches.map((batch) => <option key={batch.id} value={batch.id}>Lô #{batch.id} — {batch.quantity} {batch.unit}</option>)}</select></label>
+            <label className="block text-sm font-semibold">Điểm giải cứu<select required value={rescuePointId} onChange={(e) => setRescuePointId(Number(e.target.value))} className="mt-2 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm">{points.map((point) => <option key={point.id} value={point.id}>{point.name} — {point.province}</option>)}</select></label>
+            <Button type="submit" className="w-full rounded-full" disabled={pending || !batches.length || !points.length || createRegistration.isPending}><Send className="mr-2 h-4 w-4" /> {createRegistration.isPending ? "Đang gửi…" : "Gửi đăng ký"}</Button>
+            {!pending && !batches.length && <p className="text-sm text-muted-foreground">Bạn chưa có lô nông sản.</p>}
+            {!pending && !points.length && <p className="text-sm text-muted-foreground">Chưa có điểm giải cứu hoạt động.</p>}
+          </div>
+        </form>
 
-              <div>
-                <label className="text-sm font-semibold">Mức độ khẩn cấp</label>
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  {([
-                    { v: "normal", l: "Bình thường", c: "border-primary text-primary" },
-                    { v: "high", l: "Cao", c: "border-accent text-accent" },
-                    { v: "rescue", l: "Khẩn cấp", c: "border-destructive text-destructive" },
-                  ] as const).map((o) => (
-                    <button type="button" key={o.v} onClick={() => setUrgency(o.v)} className={`rounded-xl border-2 px-3 py-2.5 text-sm font-semibold ${urgency === o.v ? o.c + " bg-muted/40" : "border-border text-muted-foreground"}`}>
-                      {o.l}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft hover:opacity-95">
-                <Send className="h-4 w-4" /> Gửi yêu cầu giải cứu
-              </button>
-            </div>
-          </form>
-
-          <aside className="rounded-2xl border border-border bg-card p-6 shadow-card">
-            <h3 className="text-lg font-semibold">Yêu cầu của tôi</h3>
-            <ul className="mt-4 space-y-3">
-              {myRequests.slice(0, 5).map((r) => (
-                <li key={r.id} className="rounded-xl border border-border p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs">{r.id}</span>
-                    <StatusBadge s={r.status} />
-                  </div>
-                  <div className="mt-1 text-sm font-medium">{r.productName}</div>
-                  <div className="text-xs text-muted-foreground">{r.quantityKg.toLocaleString("vi-VN")} kg · {r.createdAt}</div>
-                </li>
-              ))}
-            </ul>
-          </aside>
-        </div>
+        <section className="rounded-2xl border border-border bg-card p-6 shadow-card">
+          <h2 className="text-lg font-semibold">Đăng ký của tôi</h2>
+          <div className="mt-4 space-y-3">
+            {registrations.map((registration) => <article key={registration.id} className="rounded-xl border border-border p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-mono text-xs">#{registration.id} · Lô #{registration.batchId}</span><StatusBadge status={registration.status} /></div>
+              <div className="mt-3 text-sm">Điểm: <strong>{pointsQuery.data?.find((point) => point.id === registration.rescuePointId)?.name ?? `#${registration.rescuePointId}`}</strong></div>
+              <div className="mt-1 text-xs text-muted-foreground">Gửi lúc: {formatDate(registration.submittedAt)}</div>
+              {registration.status === "PENDING" && <div className="mt-3 flex flex-wrap gap-2"><select value={pointEdits[registration.id] ?? registration.rescuePointId} onChange={(e) => setPointEdits((current) => ({ ...current, [registration.id]: Number(e.target.value) }))} className="min-w-48 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm">{points.map((point) => <option key={point.id} value={point.id}>{point.name}</option>)}</select><Button size="sm" variant="outline" onClick={() => void updatePoint(registration.id, registration.rescuePointId)}>Cập nhật</Button><Button size="sm" variant="destructive" onClick={() => void cancel(registration.id)}><Trash2 className="mr-1 h-3.5 w-3.5" /> Hủy</Button></div>}
+            </article>)}
+            {!pending && registrations.length === 0 && <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">Chưa có đăng ký nào.</p>}
+          </div>
+        </section>
       </div>
-    </PageShell>
-  );
+    </div>
+  </PageShell>;
 }
 
-function StatusBadge({ s }: { s: "pending" | "approved" | "rejected" }) {
-  const map = {
-    pending: { l: "Chờ duyệt", c: "bg-accent/20 text-accent" },
-    approved: { l: "Đã duyệt", c: "bg-primary-soft text-primary" },
-    rejected: { l: "Từ chối", c: "bg-destructive/15 text-destructive" },
-  } as const;
-  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${map[s].c}`}>{map[s].l}</span>;
+function StatusBadge({ status }: { status: RescueRegistrationStatus }) {
+  const styles = { PENDING: "bg-accent/20 text-accent-foreground", APPROVED: "bg-primary-soft text-primary", REJECTED: "bg-destructive/15 text-destructive" };
+  const labels = { PENDING: "Chờ duyệt", APPROVED: "Đã duyệt", REJECTED: "Từ chối" };
+  return <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${styles[status]}`}>{labels[status]}</span>;
 }
+
+function formatDate(value: string | null) { return value ? new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(new Date(value)) : "—"; }

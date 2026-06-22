@@ -39,6 +39,13 @@ public class RescueRegistrationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Rescue registration not found with id: " + id));
     }
 
+    public List<RescueRegistration> getMyRegistrations() {
+        List<Long> batchIds = cropBatchRepository.findByFarmerId(currentUser.getId()).stream()
+                .map(CropBatch::getId)
+                .toList();
+        return batchIds.isEmpty() ? List.of() : repository.findByBatchIdIn(batchIds);
+    }
+
     public RescueRegistration create(RescueRegistration registration) {
         CropBatch batch = cropBatchRepository.findById(registration.getBatchId())
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -61,6 +68,12 @@ public class RescueRegistrationService {
         return repository.save(registration);
     }
 
+    public RescueRegistration updateMy(Long id, RescueRegistration request) {
+        RescueRegistration registration = getOwnedPending(id);
+        registration.setRescuePointId(request.getRescuePointId());
+        return repository.save(registration);
+    }
+
     public RescueRegistration review(Long id, RescueRegistrationStatus status) {
         if (status == RescueRegistrationStatus.PENDING) {
             throw new IllegalArgumentException("Review status must be APPROVED or REJECTED");
@@ -75,5 +88,22 @@ public class RescueRegistrationService {
 
     public void delete(Long id) {
         repository.delete(getById(id));
+    }
+
+    public void deleteMy(Long id) {
+        repository.delete(getOwnedPending(id));
+    }
+
+    private RescueRegistration getOwnedPending(Long id) {
+        RescueRegistration registration = getById(id);
+        CropBatch batch = cropBatchRepository.findById(registration.getBatchId())
+                .orElseThrow(() -> new ResourceNotFoundException("Crop batch not found with id: " + registration.getBatchId()));
+        if (!batch.getFarmerId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Farmers can only manage their own rescue registrations");
+        }
+        if (registration.getStatus() != RescueRegistrationStatus.PENDING) {
+            throw new AccessDeniedException("Only pending rescue registrations can be changed");
+        }
+        return registration;
     }
 }

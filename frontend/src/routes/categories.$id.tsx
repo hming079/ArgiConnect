@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Calendar,
   Clock,
+  LifeBuoy,
   MapPin,
   Package,
   Pencil,
@@ -13,9 +14,10 @@ import {
   Sprout,
   Trash2,
 } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import type { CropBatch, CropBatchInput } from "@/api/cropApi";
+import type { RescuePoint } from "@/api/rescuePointApi";
 import { PageShell } from "@/components/site-layout";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -23,6 +25,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { useCreateCropBatch, useCrop, useCropBatches, useDeleteCropBatch, useUpdateCropBatch } from "@/hooks/use-crops";
+import { useCreateRescueRegistration } from "@/hooks/use-rescue-registrations";
+import { useRescuePoints } from "@/hooks/use-rescue-points";
 import { getCropImage } from "@/lib/crop-images";
 
 export const Route = createFileRoute("/categories/$id")({
@@ -53,8 +57,12 @@ function CropDetailPage() {
   const createBatch = useCreateCropBatch();
   const updateBatch = useUpdateCropBatch();
   const deleteBatch = useDeleteCropBatch();
+  const rescuePointsQuery = useRescuePoints();
+  const createRegistration = useCreateRescueRegistration();
   const [editor, setEditor] = useState<BatchEditor | null>(null);
+  const [batchToRegister, setBatchToRegister] = useState<CropBatch | null>(null);
   const [mutationError, setMutationError] = useState("");
+  const [notice, setNotice] = useState("");
 
   async function removeBatch(batch: CropBatch) {
     if (!isFarmer || !window.confirm(`Xóa lô #${batch.id}?`)) return;
@@ -168,6 +176,7 @@ function CropDetailPage() {
             </Button>
           )}
           {mutationError && <p className="mt-3 text-sm text-destructive">{mutationError}</p>}
+          {notice && <p className="mt-3 text-sm font-medium text-primary">{notice}</p>}
         </div>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-3">
@@ -218,10 +227,10 @@ function CropDetailPage() {
           <>
             <div className="mt-6 grid gap-3 lg:hidden">
               {batchesQuery.data.map((batch) => (
-                <BatchCard key={batch.id} batch={batch} editable={isFarmer} onEdit={() => setEditor({ mode: "edit", batch })} onDelete={() => void removeBatch(batch)} />
+                <BatchCard key={batch.id} batch={batch} editable={isFarmer} onEdit={() => setEditor({ mode: "edit", batch })} onDelete={() => void removeBatch(batch)} onRegister={() => { setMutationError(""); setNotice(""); setBatchToRegister(batch); }} />
               ))}
             </div>
-            <BatchTable batches={batchesQuery.data} editable={isFarmer} onEdit={(batch) => setEditor({ mode: "edit", batch })} onDelete={(batch) => void removeBatch(batch)} />
+            <BatchTable batches={batchesQuery.data} editable={isFarmer} onEdit={(batch) => setEditor({ mode: "edit", batch })} onDelete={(batch) => void removeBatch(batch)} onRegister={(batch) => { setMutationError(""); setNotice(""); setBatchToRegister(batch); }} />
           </>
         )}
       </div>
@@ -246,6 +255,32 @@ function CropDetailPage() {
                   setEditor(null);
                 } catch {
                   setMutationError("Không thể lưu lô nông sản. Vui lòng kiểm tra dữ liệu và thử lại.");
+                }
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={batchToRegister !== null} onOpenChange={(open) => { if (!open) setBatchToRegister(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Đăng ký giải cứu lô #{batchToRegister?.id}</DialogTitle>
+            <DialogDescription>Chọn điểm giải cứu tiếp nhận lô nông sản này.</DialogDescription>
+          </DialogHeader>
+          {batchToRegister && (
+            <RescueRegistrationForm
+              points={rescuePointsQuery.data ?? []}
+              loading={rescuePointsQuery.isPending}
+              pending={createRegistration.isPending}
+              onCancel={() => setBatchToRegister(null)}
+              onSubmit={async (rescuePointId) => {
+                try {
+                  setMutationError("");
+                  await createRegistration.mutateAsync({ batchId: batchToRegister.id, rescuePointId, status: "PENDING" });
+                  setNotice(`Đã gửi đăng ký giải cứu cho lô #${batchToRegister.id}.`);
+                  setBatchToRegister(null);
+                } catch {
+                  setMutationError("Không thể gửi đăng ký giải cứu. Vui lòng thử lại.");
                 }
               }}
             />
@@ -297,7 +332,7 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function BatchCard({ batch, editable, onEdit, onDelete }: { batch: CropBatch; editable: boolean; onEdit: () => void; onDelete: () => void }) {
+function BatchCard({ batch, editable, onEdit, onDelete, onRegister }: { batch: CropBatch; editable: boolean; onEdit: () => void; onDelete: () => void; onRegister: () => void }) {
   return (
     <article className="rounded-2xl border border-border bg-card p-4 shadow-card">
       <div className="flex items-start justify-between gap-3">
@@ -315,12 +350,12 @@ function BatchCard({ batch, editable, onEdit, onDelete }: { batch: CropBatch; ed
         <DataCell label="Tỉnh" value={batch.province || "—"} />
         <DataCell label="Nông dân" value={batch.farmerName} />
       </div>
-      {editable && <BatchActions onEdit={onEdit} onDelete={onDelete} />}
+      {editable && <BatchActions onEdit={onEdit} onDelete={onDelete} onRegister={onRegister} />}
     </article>
   );
 }
 
-function BatchTable({ batches, editable, onEdit, onDelete }: { batches: CropBatch[]; editable: boolean; onEdit: (batch: CropBatch) => void; onDelete: (batch: CropBatch) => void }) {
+function BatchTable({ batches, editable, onEdit, onDelete, onRegister }: { batches: CropBatch[]; editable: boolean; onEdit: (batch: CropBatch) => void; onDelete: (batch: CropBatch) => void; onRegister: (batch: CropBatch) => void }) {
   return (
     <div className="mt-6 hidden overflow-hidden rounded-2xl border border-border bg-card shadow-card lg:block">
       <table className="w-full text-sm">
@@ -361,7 +396,7 @@ function BatchTable({ batches, editable, onEdit, onDelete }: { batches: CropBatc
               <td className="px-4 py-3">
                 <StatusBadge status={batch.status} />
               </td>
-              {editable && <td className="px-4 py-3"><BatchActions onEdit={() => onEdit(batch)} onDelete={() => onDelete(batch)} /></td>}
+              {editable && <td className="px-4 py-3"><BatchActions onEdit={() => onEdit(batch)} onDelete={() => onDelete(batch)} onRegister={() => onRegister(batch)} /></td>}
             </tr>
           ))}
         </tbody>
@@ -370,12 +405,43 @@ function BatchTable({ batches, editable, onEdit, onDelete }: { batches: CropBatc
   );
 }
 
-function BatchActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+function BatchActions({ onEdit, onDelete, onRegister }: { onEdit: () => void; onDelete: () => void; onRegister: () => void }) {
   return (
-    <div className="mt-3 flex justify-end gap-2">
+    <div className="mt-3 flex flex-wrap justify-end gap-2">
+      <Button type="button" size="sm" onClick={onRegister}><LifeBuoy className="mr-1 h-3.5 w-3.5" /> Giải cứu</Button>
       <Button type="button" variant="outline" size="sm" onClick={onEdit}><Pencil className="mr-1 h-3.5 w-3.5" /> Sửa</Button>
       <Button type="button" variant="destructive" size="sm" onClick={onDelete}><Trash2 className="mr-1 h-3.5 w-3.5" /> Xóa</Button>
     </div>
+  );
+}
+
+function RescueRegistrationForm({ points, loading, pending, onCancel, onSubmit }: { points: RescuePoint[]; loading: boolean; pending: boolean; onCancel: () => void; onSubmit: (rescuePointId: number) => Promise<void> }) {
+  const activePoints = points.filter((point) => point.status === "ACTIVE");
+  const [rescuePointId, setRescuePointId] = useState<number>(activePoints[0]?.id ?? 0);
+  useEffect(() => {
+    if (activePoints.length > 0 && !activePoints.some((point) => point.id === rescuePointId)) setRescuePointId(activePoints[0].id);
+  }, [activePoints, rescuePointId]);
+  const submit = (event: FormEvent) => { event.preventDefault(); if (rescuePointId > 0) void onSubmit(rescuePointId); };
+
+  return (
+    <form className="space-y-4" onSubmit={submit}>
+      {loading ? (
+        <div className="h-9 animate-pulse rounded-md bg-muted" />
+      ) : activePoints.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Hiện chưa có điểm giải cứu đang hoạt động.</p>
+      ) : (
+        <div className="space-y-2">
+          <Label>Điểm giải cứu</Label>
+          <select className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={rescuePointId} onChange={(event) => setRescuePointId(Number(event.target.value))}>
+            {activePoints.map((point) => <option key={point.id} value={point.id}>{point.name} — {point.province}</option>)}
+          </select>
+        </div>
+      )}
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onCancel}>Hủy</Button>
+        <Button type="submit" disabled={pending || loading || activePoints.length === 0}>{pending ? "Đang gửi…" : "Gửi đăng ký"}</Button>
+      </DialogFooter>
+    </form>
   );
 }
 
