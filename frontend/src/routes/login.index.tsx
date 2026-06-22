@@ -2,11 +2,12 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowRight, CheckCircle2, Eye, EyeOff, Leaf, Lock, Mail, Sprout, ShieldCheck } from "lucide-react";
 
-import { login } from "@/api/authApi";
 import { PageShell } from "@/components/site-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useLogin } from "@/hooks/use-login";
+import { getRoleFromToken, ROLE_HOME } from "@/lib/auth";
 
 export const Route = createFileRoute("/login/")({
   head: () => ({ meta: [{ title: "Đăng nhập – AgriConnect" }] }),
@@ -18,27 +19,18 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const { login, isPending, errorMessage, reset } = useLogin();
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError("");
-    setLoading(true);
+    reset();
 
     try {
-      const res = await login({ email, password });
-      const token = res?.accessToken ?? res?.token ?? res?.data?.accessToken ?? res?.data?.token;
-
-      if (token) {
-        localStorage.setItem("token", token);
-      }
-
-      nav({ to: "/" });
+      const response = await login({ email, password });
+      const role = getRoleFromToken(response.accessToken);
+      await nav({ to: role ? ROLE_HOME[role] : "/", replace: true });
     } catch {
-      setError("Email hoặc mật khẩu chưa đúng. Vui lòng thử lại.");
-    } finally {
-      setLoading(false);
+      // The hook exposes the backend error message to the form.
     }
   }
 
@@ -153,9 +145,9 @@ function LoginPage() {
                   </div>
                 </div>
 
-                {error && (
+                {errorMessage && (
                   <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                    {error}
+                    {errorMessage}
                   </div>
                 )}
 
@@ -169,8 +161,8 @@ function LoginPage() {
                   </a>
                 </div>
 
-                <Button type="submit" className="h-11 w-full rounded-full text-sm font-semibold" disabled={loading}>
-                  {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+                <Button type="submit" className="h-11 w-full rounded-full text-sm font-semibold" disabled={isPending}>
+                  {isPending ? "Đang đăng nhập..." : "Đăng nhập"}
                 </Button>
               </form>
 

@@ -44,6 +44,10 @@ public class JwtService {
         return extractClaim(token, Claims::getSubject);
     }
 
+    public String extractRole(String token) {
+        return extractClaim(token, claims -> claims.get("role", String.class));
+    }
+
     // Kiểm tra xem Token này có phải của User đang truy cập không, và còn hạn không?
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);

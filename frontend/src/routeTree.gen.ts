@@ -15,6 +15,7 @@ import { Route as RescueIndexRouteImport } from './routes/rescue.index'
 import { Route as RescuePointsIndexRouteImport } from './routes/rescue-points.index'
 import { Route as ProductsIndexRouteImport } from './routes/products.index'
 import { Route as OrdersIndexRouteImport } from './routes/orders.index'
+import { Route as LoginIndexRouteImport } from './routes/login.index'
 import { Route as FarmerIndexRouteImport } from './routes/farmer.index'
 import { Route as CoordinationIndexRouteImport } from './routes/coordination.index'
 import { Route as CheckoutIndexRouteImport } from './routes/checkout.index'
@@ -60,6 +61,11 @@ const ProductsIndexRoute = ProductsIndexRouteImport.update({
 const OrdersIndexRoute = OrdersIndexRouteImport.update({
   id: '/orders/',
   path: '/orders/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginIndexRoute = LoginIndexRouteImport.update({
+  id: '/login/',
+  path: '/login/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FarmerIndexRoute = FarmerIndexRouteImport.update({
@@ -161,6 +167,7 @@ export interface FileRoutesByFullPath {
   '/checkout/': typeof CheckoutIndexRoute
   '/coordination/': typeof CoordinationIndexRoute
   '/farmer/': typeof FarmerIndexRoute
+  '/login/': typeof LoginIndexRoute
   '/orders/': typeof OrdersIndexRoute
   '/products/': typeof ProductsIndexRoute
   '/rescue-points/': typeof RescuePointsIndexRoute
@@ -185,6 +192,7 @@ export interface FileRoutesByTo {
   '/checkout': typeof CheckoutIndexRoute
   '/coordination': typeof CoordinationIndexRoute
   '/farmer': typeof FarmerIndexRoute
+  '/login': typeof LoginIndexRoute
   '/orders': typeof OrdersIndexRoute
   '/products': typeof ProductsIndexRoute
   '/rescue-points': typeof RescuePointsIndexRoute
@@ -210,6 +218,7 @@ export interface FileRoutesById {
   '/checkout/': typeof CheckoutIndexRoute
   '/coordination/': typeof CoordinationIndexRoute
   '/farmer/': typeof FarmerIndexRoute
+  '/login/': typeof LoginIndexRoute
   '/orders/': typeof OrdersIndexRoute
   '/products/': typeof ProductsIndexRoute
   '/rescue-points/': typeof RescuePointsIndexRoute
@@ -236,6 +245,7 @@ export interface FileRouteTypes {
     | '/checkout/'
     | '/coordination/'
     | '/farmer/'
+    | '/login/'
     | '/orders/'
     | '/products/'
     | '/rescue-points/'
@@ -260,6 +270,7 @@ export interface FileRouteTypes {
     | '/checkout'
     | '/coordination'
     | '/farmer'
+    | '/login'
     | '/orders'
     | '/products'
     | '/rescue-points'
@@ -284,6 +295,7 @@ export interface FileRouteTypes {
     | '/checkout/'
     | '/coordination/'
     | '/farmer/'
+    | '/login/'
     | '/orders/'
     | '/products/'
     | '/rescue-points/'
@@ -309,6 +321,7 @@ export interface RootRouteChildren {
   CheckoutIndexRoute: typeof CheckoutIndexRoute
   CoordinationIndexRoute: typeof CoordinationIndexRoute
   FarmerIndexRoute: typeof FarmerIndexRoute
+  LoginIndexRoute: typeof LoginIndexRoute
   OrdersIndexRoute: typeof OrdersIndexRoute
   ProductsIndexRoute: typeof ProductsIndexRoute
   RescuePointsIndexRoute: typeof RescuePointsIndexRoute
@@ -358,6 +371,13 @@ declare module '@tanstack/react-router' {
       path: '/orders'
       fullPath: '/orders/'
       preLoaderRoute: typeof OrdersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login/': {
+      id: '/login/'
+      path: '/login'
+      fullPath: '/login/'
+      preLoaderRoute: typeof LoginIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/farmer/': {
@@ -493,6 +513,7 @@ const rootRouteChildren: RootRouteChildren = {
   CheckoutIndexRoute: CheckoutIndexRoute,
   CoordinationIndexRoute: CoordinationIndexRoute,
   FarmerIndexRoute: FarmerIndexRoute,
+  LoginIndexRoute: LoginIndexRoute,
   OrdersIndexRoute: OrdersIndexRoute,
   ProductsIndexRoute: ProductsIndexRoute,
   RescuePointsIndexRoute: RescuePointsIndexRoute,

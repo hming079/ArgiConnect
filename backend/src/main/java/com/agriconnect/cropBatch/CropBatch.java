@@ -14,6 +14,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 @Entity
 @Table(name = "crop_batches")
@@ -28,6 +29,9 @@ public class CropBatch {
 
     @Column(name = "farmer_id", nullable = false) 
     private Long farmerId;
+
+    @Transient
+    private String farmerName;
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal quantity;
@@ -94,6 +98,14 @@ public class CropBatch {
 
     public void setFarmerId(Long farmerId) {
         this.farmerId = farmerId;
+    }
+
+    public String getFarmerName() {
+        return farmerName;
+    }
+
+    public void setFarmerName(String farmerName) {
+        this.farmerName = farmerName;
     }
 
     public BigDecimal getQuantity() {

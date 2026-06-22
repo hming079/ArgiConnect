@@ -3,12 +3,20 @@ package com.agriconnect.shipment;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.security.access.AccessDeniedException;
+
+import com.agriconnect.common.ResourceNotFoundException;
+import com.agriconnect.security.CurrentUser;
 
 @Service
 public class ShipmentService {
     private final ShipmentRepository repository;
+    private final CurrentUser currentUser;
 
-    public ShipmentService(ShipmentRepository repository) { this.repository = repository; }
+    public ShipmentService(ShipmentRepository repository, CurrentUser currentUser) {
+        this.repository = repository;
+        this.currentUser = currentUser;
+    }
 
     public List<Shipment> getAll(Long logisticsUserId, ShipmentStatus status) {
         if (logisticsUserId != null) return repository.findByLogisticsUserId(logisticsUserId);
@@ -18,12 +26,16 @@ public class ShipmentService {
 
     public Shipment getById(Long id) {
         return repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Shipment not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Shipment not found with id: " + id));
     }
 
     public Shipment getByOrderId(Long orderId) {
         return repository.findByOrderId(orderId)
-                .orElseThrow(() -> new RuntimeException("Shipment not found for order: " + orderId));
+                .orElseThrow(() -> new ResourceNotFoundException("Shipment not found for order: " + orderId));
+    }
+
+    public List<Shipment> getMyShipments() {
+        return repository.findByLogisticsUserId(currentUser.getId());
     }
 
     public Shipment create(Shipment shipment) {
@@ -48,6 +60,9 @@ public class ShipmentService {
 
     public Shipment updateStatus(Long id, ShipmentStatus status) {
         Shipment shipment = getById(id);
+        if (!shipment.getLogisticsUserId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Logistics users can only update assigned shipments");
+        }
         shipment.setStatus(status);
         LocalDateTime now = LocalDateTime.now();
         if (status == ShipmentStatus.PICKED_UP && shipment.getShippedAt() == null) {

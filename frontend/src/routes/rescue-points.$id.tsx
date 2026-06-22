@@ -4,6 +4,7 @@ import { ArrowLeft, MapPin, Clock, Building2, ShoppingCart, AlertTriangle, Packa
 import { PageShell } from "@/components/site-layout";
 import { rescuePoints, productBatches, categoryRich, formatVND, batchStatusLabel } from "@/lib/mock-data";
 import { useCart } from "@/hooks/use-cart";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/rescue-points/$id")({
   head: ({ params }) => ({
@@ -27,6 +28,7 @@ function RescuePointDetail() {
   const { id } = Route.useParams();
   const point = rescuePoints.find((p) => p.id === id)!;
   const { add } = useCart();
+  const { role } = useAuth();
 
   const pointBatches = productBatches.filter((b) => b.rescuePointId === id);
   // group by category
@@ -143,7 +145,7 @@ function RescuePointDetail() {
                           <div className="font-medium">{b.harvestDate}</div>
                         </div>
                       </div>
-                      {remaining > 0 && activeCategory && (
+                      {role === "BUYER" && remaining > 0 && activeCategory && (
                         <button
                           onClick={() => add({ id: b.id, name: `Lô ${b.id} · ${activeCategory.name}`, image: activeCategory.image, pricePerKg: b.pricePerKg, location: b.location, qty: 10 })}
                           className="mt-3 inline-flex w-full items-center justify-center gap-1 rounded-full bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90"

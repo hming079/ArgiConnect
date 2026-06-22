@@ -4,6 +4,8 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
+  useNavigate,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -11,6 +13,8 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { useAuth } from "@/hooks/use-auth";
+import { requiredRoleForPath, ROLE_HOME } from "@/lib/auth";
 
 function NotFoundComponent() {
   return (
@@ -118,8 +122,36 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <AuthGuard />
     </QueryClientProvider>
   );
+}
+
+function AuthGuard() {
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const { ready, token, role } = useAuth();
+  const isLoginPage = pathname === "/login" || pathname === "/login/";
+  const requiredRole = requiredRoleForPath(pathname);
+
+  useEffect(() => {
+    if (!ready) return;
+    if (!token || !role) {
+      if (!isLoginPage) void navigate({ to: "/login", replace: true });
+      return;
+    }
+    if (isLoginPage || (requiredRole && requiredRole !== role)) {
+      void navigate({ to: ROLE_HOME[role], replace: true });
+    }
+  }, [isLoginPage, navigate, ready, requiredRole, role, token]);
+
+  if (!ready || (!isLoginPage && (!token || !role)) || (requiredRole && requiredRole !== role)) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-background text-sm text-muted-foreground">
+        Đang kiểm tra đăng nhập...
+      </div>
+    );
+  }
+
+  return <Outlet />;
 }

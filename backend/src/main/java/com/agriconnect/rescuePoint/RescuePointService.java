@@ -3,6 +3,7 @@ package com.agriconnect.rescuePoint;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import com.agriconnect.common.ResourceNotFoundException;
 
 @Service
 public class RescuePointService {
@@ -21,7 +22,7 @@ public class RescuePointService {
 
     public RescuePoint getById(Long id) {
         return rescuePointRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Rescue point not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Rescue point not found with id: " + id));
     }
 
     public RescuePoint create(RescuePoint rescuePoint) {

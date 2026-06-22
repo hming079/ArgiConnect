@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertTriangle, MapPin, Clock, ShoppingCart, ArrowRight, Building2 } from "lucide-react";
+import { AlertTriangle, Map, MapPin, Clock, ShoppingCart, ArrowRight, Building2 } from "lucide-react";
 import { PageShell } from "@/components/site-layout";
 import { productBatches, categoryRich, rescuePoints, campaigns, formatVND } from "@/lib/mock-data";
 import { useCart } from "@/hooks/use-cart";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/rescue/")({
   head: () => ({ meta: [{ title: "Giải cứu nông sản – AgriConnect" }] }),
@@ -16,6 +17,8 @@ function findCategoryByProduct(productId: string) {
 function RescueHubPage() {
   const rescuingBatches = productBatches.filter((b) => b.rescueStatus === "rescuing");
   const { add } = useCart();
+  const { role } = useAuth();
+  const isBuyer = role === "BUYER";
 
   return (
     <PageShell>
@@ -28,6 +31,14 @@ function RescueHubPage() {
           <p className="mt-2 max-w-3xl text-muted-foreground">
             Các lô nông sản và chiến dịch đang cần cộng đồng chung tay tiêu thụ.
           </p>
+          <div className="mt-6 inline-flex rounded-full border border-border bg-card p-1 shadow-card">
+            <Link to="/rescue" className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
+              <Map className="h-4 w-4" /> Khu vực giải cứu
+            </Link>
+            <Link to="/rescue-points" className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground">
+              <Building2 className="h-4 w-4" /> Điểm giải cứu
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -69,12 +80,12 @@ function RescueHubPage() {
                     <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
                       <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
                     </div>
-                    <button
+                    {isBuyer && <button
                       onClick={() => cat && add({ id: b.id, name: `Lô ${b.id} · ${cat.name}`, image: cat.image, pricePerKg: b.pricePerKg, location: b.location, qty: 20 })}
                       className="mt-4 inline-flex w-full items-center justify-center gap-1 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
                     >
                       <ShoppingCart className="h-4 w-4" /> Thêm vào giỏ giải cứu
-                    </button>
+                    </button>}
                   </div>
                 </div>
               );

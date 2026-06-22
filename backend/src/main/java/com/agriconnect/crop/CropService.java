@@ -3,6 +3,7 @@ package com.agriconnect.crop;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import com.agriconnect.common.ResourceNotFoundException;
 
 @Service
 public class CropService {
@@ -19,7 +20,7 @@ public class CropService {
 
     public Crop getCropById(Long id) {
         return cropRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Crop not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Crop not found with id: " + id));
     }
 
     public Crop createCrop(Crop crop) {

@@ -2,6 +2,7 @@ package com.agriconnect.orderItem;
 
 import java.util.List;
 import org.springframework.stereotype.Service;
+import com.agriconnect.common.ResourceNotFoundException;
 
 @Service
 public class OrderItemService {
@@ -17,7 +18,7 @@ public class OrderItemService {
 
     public OrderItem getById(Long id) {
         return repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Order item not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Order item not found with id: " + id));
     }
 
     public OrderItem create(OrderItem item) {
