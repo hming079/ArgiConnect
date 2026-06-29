@@ -69,7 +69,7 @@ function RescuePointsPage() {
         <aside className="space-y-3">
           {points.map((point) => <button key={point.id} onClick={() => setActiveId(point.id)} className={`w-full rounded-2xl border p-4 text-left shadow-card transition ${point.id === activeId ? "border-primary bg-primary-soft/50" : "border-border bg-card hover:border-primary/40"}`}>
             <div className="flex items-start justify-between gap-2"><span className="font-semibold">{point.name}</span><Status status={point.status} /></div>
-            <div className="mt-1 flex items-start gap-1 text-xs text-muted-foreground"><MapPin className="mt-0.5 h-3 w-3 shrink-0" /> {point.address}</div>
+            <div className="mt-1 flex items-start gap-1 text-xs text-muted-foreground"><MapPin className="mt-0.5 h-3 w-3 shrink-0" /> {formatPointAddress(point)}</div>
             <div className="mt-2 text-xs font-medium text-primary">{point.province}</div>
           </button>)}
         </aside>
@@ -79,7 +79,7 @@ function RescuePointsPage() {
             <MapPin className="h-20 w-20 text-primary" /><span className="absolute bottom-5 rounded-full bg-card px-4 py-2 text-sm font-semibold shadow-card">{selected.province}</span>
           </div>
           <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-            <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-xl font-bold">{selected.name}</h2><p className="mt-2 text-sm text-muted-foreground">{selected.address}</p></div><Status status={selected.status} /></div>
+            <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-xl font-bold">{selected.name}</h2><p className="mt-2 text-sm text-muted-foreground">{formatPointAddress(selected)}</p></div><Status status={selected.status} /></div>
             {isAdmin && <div className="mt-5 flex gap-2"><Button variant="outline" onClick={() => { setError(""); setEditor({ mode: "edit", point: selected }); }}><Pencil className="mr-2 h-4 w-4" /> Sửa</Button><Button variant="destructive" onClick={() => void remove(selected)}><Trash2 className="mr-2 h-4 w-4" /> Xóa</Button></div>}
           </div>
         </section>}
@@ -107,12 +107,14 @@ function Status({ status }: { status: RescuePoint["status"] }) {
 }
 
 function PointForm({ point, pending, onCancel, onSave }: { point?: RescuePoint; pending: boolean; onCancel: () => void; onSave: (data: RescuePointInput) => Promise<void> }) {
-  const [form, setForm] = useState<RescuePointInput>({ name: point?.name ?? "", province: point?.province ?? "", address: point?.address ?? "", status: point?.status ?? "ACTIVE" });
+  const [form, setForm] = useState<RescuePointInput>({ name: point?.name ?? "", province: point?.province ?? "", district: point?.district ?? "", ward: point?.ward ?? "", addressDetail: point?.addressDetail ?? "", status: point?.status ?? "ACTIVE" });
   const submit = (event: FormEvent) => { event.preventDefault(); void onSave(form); };
   return <form className="space-y-4" onSubmit={submit}>
     <Field label="Tên điểm"><Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
     <Field label="Tỉnh / thành"><Input required value={form.province} onChange={(e) => setForm({ ...form, province: e.target.value })} /></Field>
-    <Field label="Địa chỉ"><Input required value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></Field>
+    <Field label="Quận / huyện"><Input value={form.district ?? ""} onChange={(e) => setForm({ ...form, district: e.target.value })} /></Field>
+    <Field label="Phường / xã"><Input value={form.ward ?? ""} onChange={(e) => setForm({ ...form, ward: e.target.value })} /></Field>
+    <Field label="Địa chỉ chi tiết"><Input required value={form.addressDetail} onChange={(e) => setForm({ ...form, addressDetail: e.target.value })} /></Field>
     <Field label="Trạng thái"><select className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as RescuePoint["status"] })}><option value="ACTIVE">Đang hoạt động</option><option value="INACTIVE">Tạm ngưng</option></select></Field>
     <DialogFooter><Button type="button" variant="outline" onClick={onCancel}>Hủy</Button><Button type="submit" disabled={pending}>{pending ? "Đang lưu…" : "Lưu"}</Button></DialogFooter>
   </form>;
@@ -120,4 +122,8 @@ function PointForm({ point, pending, onCancel, onSave }: { point?: RescuePoint; 
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <div className="space-y-2"><Label>{label}</Label>{children}</div>;
+}
+
+function formatPointAddress(point: RescuePoint) {
+  return [point.addressDetail, point.ward, point.district, point.province].filter(Boolean).join(", ");
 }

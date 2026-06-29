@@ -34,7 +34,9 @@ public class RescuePointService {
         RescuePoint rescuePoint = getById(id);
         rescuePoint.setName(request.getName());
         rescuePoint.setProvince(request.getProvince());
-        rescuePoint.setAddress(request.getAddress());
+        rescuePoint.setDistrict(request.getDistrict());
+        rescuePoint.setWard(request.getWard());
+        rescuePoint.setAddressDetail(request.getAddressDetail());
         rescuePoint.setStatus(request.getStatus());
         return rescuePointRepository.save(rescuePoint);
     }

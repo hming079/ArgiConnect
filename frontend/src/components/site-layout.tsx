@@ -93,12 +93,12 @@ export function SiteHeader() {
                 onClick={() => void logout()}
                 className="inline-flex items-center gap-2 rounded-lg border border-destructive/30 px-3 py-2 text-sm font-semibold text-destructive hover:bg-destructive/10"
               >
-                <LogOut className="h-4 w-4" /> Dang xuat
+                <LogOut className="h-4 w-4" /> Đăng xuất
               </button>
             </>
           ) : (
             <Link to="/login" className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
-              <LogIn className="h-4 w-4" /> Dang nhap
+              <LogIn className="h-4 w-4" /> Đăng nhập
             </Link>
           )}
         </div>
@@ -138,11 +138,11 @@ export function SiteHeader() {
                 }}
                 className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-destructive hover:bg-destructive/10"
               >
-                <LogOut className="h-4 w-4" /> Dang xuat
+                <LogOut className="h-4 w-4" /> Đăng xuất
               </button>
             ) : (
               <Link to="/login" onClick={() => setOpen(false)} className="rounded-lg px-3 py-2 text-sm font-semibold text-primary">
-                Dang nhap
+                Đăng nhập
               </Link>
             )}
           </nav>

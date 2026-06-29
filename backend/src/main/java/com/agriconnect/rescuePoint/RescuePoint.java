@@ -2,6 +2,8 @@ package com.agriconnect.rescuePoint;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -27,8 +29,15 @@ public class RescuePoint {
     @Column(nullable = false, length = 100)
     private String province;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String address;
+    @Column(length = 100)
+    private String district;
+
+    @Column(length = 100)
+    private String ward;
+
+    @JsonAlias("address")
+    @Column(name = "address_detail", nullable = false, columnDefinition = "TEXT")
+    private String addressDetail;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -61,8 +70,12 @@ public class RescuePoint {
     public void setName(String name) { this.name = name; }
     public String getProvince() { return province; }
     public void setProvince(String province) { this.province = province; }
-    public String getAddress() { return address; }
-    public void setAddress(String address) { this.address = address; }
+    public String getDistrict() { return district; }
+    public void setDistrict(String district) { this.district = district; }
+    public String getWard() { return ward; }
+    public void setWard(String ward) { this.ward = ward; }
+    public String getAddressDetail() { return addressDetail; }
+    public void setAddressDetail(String addressDetail) { this.addressDetail = addressDetail; }
     public RescuePointStatus getStatus() { return status; }
     public void setStatus(RescuePointStatus status) { this.status = status; }
     public LocalDateTime getCreatedAt() { return createdAt; }

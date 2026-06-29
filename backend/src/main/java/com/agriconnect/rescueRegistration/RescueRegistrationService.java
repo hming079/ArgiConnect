@@ -10,6 +10,7 @@ import com.agriconnect.common.ResourceNotFoundException;
 import com.agriconnect.cropBatch.CropBatch;
 import com.agriconnect.cropBatch.CropBatchRepository;
 import com.agriconnect.security.CurrentUser;
+import com.agriconnect.user.Role;
 
 @Service
 public class RescueRegistrationService {
@@ -32,6 +33,21 @@ public class RescueRegistrationService {
         if (rescuePointId != null) return repository.findByRescuePointId(rescuePointId);
         if (status != null) return repository.findByStatus(status);
         return repository.findAll();
+    }
+
+    public List<RescueRegistration> getVisibleRegistrations(Long batchId, Long rescuePointId, RescueRegistrationStatus status) {
+        if (currentUser.getRole() == Role.ADMIN) {
+            return getAll(batchId, rescuePointId, status);
+        }
+
+        if (status != null && status != RescueRegistrationStatus.APPROVED) {
+            return List.of();
+        }
+
+        return repository.findByStatus(RescueRegistrationStatus.APPROVED).stream()
+                .filter(registration -> batchId == null || registration.getBatchId().equals(batchId))
+                .filter(registration -> rescuePointId == null || registration.getRescuePointId().equals(rescuePointId))
+                .toList();
     }
 
     public RescueRegistration getById(Long id) {

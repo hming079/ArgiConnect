@@ -6,13 +6,15 @@ export interface RescuePoint {
   id: number;
   name: string;
   province: string;
-  address: string;
+  district: string | null;
+  ward: string | null;
+  addressDetail: string;
   status: RescuePointStatus;
   createdAt: string | null;
   updatedAt: string | null;
 }
 
-export type RescuePointInput = Pick<RescuePoint, "name" | "province" | "address" | "status">;
+export type RescuePointInput = Pick<RescuePoint, "name" | "province" | "district" | "ward" | "addressDetail" | "status">;
 
 export async function getRescuePoints() {
   const response = await axiosClient.get<RescuePoint[]>("/rescue-points");

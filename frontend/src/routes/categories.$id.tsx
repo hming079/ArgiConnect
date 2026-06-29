@@ -113,7 +113,7 @@ function CropDetailPage() {
   const crop = cropQuery.data;
   const cropImage = getCropImage(crop.name);
   const batches = batchesQuery.data ?? [];
-  const totalQuantity = batches.reduce((sum, batch) => sum + Number(batch.quantity), 0);
+  const totalQuantity = batches.reduce((sum, batch) => sum + Number(batch.currentQuantity), 0);
   const provinces = new Set(batches.map((batch) => batch.province).filter(Boolean)).size;
 
   return (
@@ -339,7 +339,7 @@ function BatchCard({ batch, editable, onEdit, onDelete, onRegister }: { batch: C
         <div>
           <div className="font-mono text-xs text-muted-foreground">Lô #{batch.id}</div>
           <div className="mt-1 font-semibold">
-            {formatNumber(Number(batch.quantity))} {batch.unit}
+            {formatNumber(Number(batch.currentQuantity))} / {formatNumber(Number(batch.initialQuantity))} {batch.unit}
           </div>
         </div>
         <StatusBadge status={batch.status} />
@@ -376,7 +376,7 @@ function BatchTable({ batches, editable, onEdit, onDelete, onRegister }: { batch
             <tr key={batch.id} className="border-t border-border">
               <td className="px-4 py-3 font-mono text-xs">#{batch.id}</td>
               <td className="px-4 py-3 text-right font-semibold">
-                {formatNumber(Number(batch.quantity))} {batch.unit}
+                {formatNumber(Number(batch.currentQuantity))} / {formatNumber(Number(batch.initialQuantity))} {batch.unit}
               </td>
               <td className="px-4 py-3">
                 <span className="inline-flex items-center gap-1 text-xs">
@@ -387,9 +387,7 @@ function BatchTable({ batches, editable, onEdit, onDelete, onRegister }: { batch
               <td className="max-w-64 px-4 py-3">
                 <span className="inline-flex items-start gap-1 text-xs">
                   <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  {batch.location ||
-                    [batch.district, batch.province].filter(Boolean).join(", ") ||
-                    "—"}
+                  {formatBatchAddress(batch) || "—"}
                 </span>
               </td>
               <td className="px-4 py-3 text-xs">{batch.farmerName}</td>
@@ -448,13 +446,16 @@ function RescueRegistrationForm({ points, loading, pending, onCancel, onSubmit }
 function BatchForm({ cropId, defaultUnit, batch, pending, onCancel, onSave }: { cropId: number; defaultUnit: string; batch?: CropBatch; pending: boolean; onCancel: () => void; onSave: (data: CropBatchInput) => Promise<void> }) {
   const [form, setForm] = useState<CropBatchInput>({
     cropId,
-    quantity: batch?.quantity ?? 0,
+    initialQuantity: batch?.initialQuantity ?? 0,
+    currentQuantity: batch?.currentQuantity ?? batch?.initialQuantity ?? 0,
+    unitPrice: batch?.unitPrice ?? 0,
     unit: batch?.unit ?? defaultUnit,
     harvestDate: batch?.harvestDate ?? "",
     expiryDate: batch?.expiryDate ?? "",
     province: batch?.province ?? "",
     district: batch?.district ?? "",
-    location: batch?.location ?? "",
+    ward: batch?.ward ?? "",
+    addressDetail: batch?.addressDetail ?? "",
     status: batch?.status ?? "AT_FARM",
   });
   const field = (name: keyof CropBatchInput, value: string | number) => setForm((current) => ({ ...current, [name]: value }));
@@ -463,13 +464,16 @@ function BatchForm({ cropId, defaultUnit, batch, pending, onCancel, onSave }: { 
   return (
     <form onSubmit={submit} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField label="Sản lượng"><Input type="number" min="0.01" step="0.01" required value={form.quantity} onChange={(e) => field("quantity", Number(e.target.value))} /></FormField>
+        <FormField label="Sản lượng ban đầu"><Input type="number" min="0.01" step="0.01" required value={form.initialQuantity} onChange={(e) => field("initialQuantity", Number(e.target.value))} /></FormField>
+        <FormField label="Sản lượng hiện có"><Input type="number" min="0" step="0.01" required value={form.currentQuantity} onChange={(e) => field("currentQuantity", Number(e.target.value))} /></FormField>
+        <FormField label="Giá / đơn vị"><Input type="number" min="0" step="0.01" required value={form.unitPrice} onChange={(e) => field("unitPrice", Number(e.target.value))} /></FormField>
         <FormField label="Đơn vị"><Input required value={form.unit} onChange={(e) => field("unit", e.target.value)} /></FormField>
         <FormField label="Ngày thu hoạch"><Input type="date" required value={form.harvestDate} onChange={(e) => field("harvestDate", e.target.value)} /></FormField>
         <FormField label="Ngày hết hạn"><Input type="date" required min={form.harvestDate} value={form.expiryDate} onChange={(e) => field("expiryDate", e.target.value)} /></FormField>
-        <FormField label="Tỉnh / thành"><Input value={form.province ?? ""} onChange={(e) => field("province", e.target.value)} /></FormField>
+        <FormField label="Tỉnh / thành"><Input required value={form.province ?? ""} onChange={(e) => field("province", e.target.value)} /></FormField>
         <FormField label="Quận / huyện"><Input value={form.district ?? ""} onChange={(e) => field("district", e.target.value)} /></FormField>
-        <FormField label="Địa điểm" full><Input value={form.location ?? ""} onChange={(e) => field("location", e.target.value)} /></FormField>
+        <FormField label="Phường / xã"><Input value={form.ward ?? ""} onChange={(e) => field("ward", e.target.value)} /></FormField>
+        <FormField label="Địa chỉ chi tiết" full><Input value={form.addressDetail ?? ""} onChange={(e) => field("addressDetail", e.target.value)} /></FormField>
         <div className="space-y-2 sm:col-span-2">
           <Label>Trạng thái</Label>
           <select className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={form.status} onChange={(e) => field("status", e.target.value)}>
@@ -505,4 +509,8 @@ function DataCell({ label, value }: { label: string; value: string }) {
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 }).format(value);
+}
+
+function formatBatchAddress(batch: CropBatch) {
+  return [batch.addressDetail, batch.ward, batch.district, batch.province].filter(Boolean).join(", ");
 }

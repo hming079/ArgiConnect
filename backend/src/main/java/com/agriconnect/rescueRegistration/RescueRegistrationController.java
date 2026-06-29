@@ -30,12 +30,12 @@ public class RescueRegistrationController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<RescueRegistration>> getAll(
             @RequestParam(required = false) Long batchId,
             @RequestParam(required = false) Long rescuePointId,
             @RequestParam(required = false) RescueRegistrationStatus status) {
-        return ResponseEntity.ok(service.getAll(batchId, rescuePointId, status));
+        return ResponseEntity.ok(service.getVisibleRegistrations(batchId, rescuePointId, status));
     }
 
     @GetMapping("/{id}")

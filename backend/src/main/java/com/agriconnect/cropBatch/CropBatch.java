@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -33,8 +35,15 @@ public class CropBatch {
     @Transient
     private String farmerName;
 
-    @Column(nullable = false, precision = 12, scale = 2)
-    private BigDecimal quantity;
+    @JsonAlias("quantity")
+    @Column(name = "initial_quantity", nullable = false, precision = 12, scale = 2)
+    private BigDecimal initialQuantity;
+
+    @Column(name = "current_quantity", nullable = false, precision = 12, scale = 2)
+    private BigDecimal currentQuantity;
+
+    @Column(name = "unit_price", nullable = false, precision = 12, scale = 2)
+    private BigDecimal unitPrice = BigDecimal.ZERO;
 
     @Column(nullable = false, length = 20)
     private String unit;
@@ -45,14 +54,18 @@ public class CropBatch {
     @Column(name = "expiry_date", nullable = false)
     private LocalDate expiryDate;
 
-    @Column(length = 100)
+    @Column(nullable = false, length = 100)
     private String province;
 
     @Column(length = 100)
     private String district;
 
-    @Column(columnDefinition = "TEXT")
-    private String location;
+    @Column(length = 100)
+    private String ward;
+
+    @JsonAlias("location")
+    @Column(name = "address_detail", columnDefinition = "TEXT")
+    private String addressDetail;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
@@ -69,6 +82,12 @@ public class CropBatch {
         LocalDateTime now = LocalDateTime.now();
         createdAt = now;
         updatedAt = now;
+        if (currentQuantity == null) {
+            currentQuantity = initialQuantity;
+        }
+        if (unitPrice == null) {
+            unitPrice = BigDecimal.ZERO;
+        }
     }
 
     @PreUpdate
@@ -108,12 +127,28 @@ public class CropBatch {
         this.farmerName = farmerName;
     }
 
-    public BigDecimal getQuantity() {
-        return quantity;
+    public BigDecimal getInitialQuantity() {
+        return initialQuantity;
     }
 
-    public void setQuantity(BigDecimal quantity) {
-        this.quantity = quantity;
+    public void setInitialQuantity(BigDecimal initialQuantity) {
+        this.initialQuantity = initialQuantity;
+    }
+
+    public BigDecimal getCurrentQuantity() {
+        return currentQuantity;
+    }
+
+    public void setCurrentQuantity(BigDecimal currentQuantity) {
+        this.currentQuantity = currentQuantity;
+    }
+
+    public BigDecimal getUnitPrice() {
+        return unitPrice;
+    }
+
+    public void setUnitPrice(BigDecimal unitPrice) {
+        this.unitPrice = unitPrice;
     }
 
     public String getUnit() {
@@ -156,12 +191,20 @@ public class CropBatch {
         this.district = district;
     }
 
-    public String getLocation() {
-        return location;
+    public String getWard() {
+        return ward;
     }
 
-    public void setLocation(String location) {
-        this.location = location;
+    public void setWard(String ward) {
+        this.ward = ward;
+    }
+
+    public String getAddressDetail() {
+        return addressDetail;
+    }
+
+    public void setAddressDetail(String addressDetail) {
+        this.addressDetail = addressDetail;
     }
 
     public CropBatchStatus getStatus() {

@@ -1,5 +1,6 @@
 package com.agriconnect.cropBatch;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -54,6 +55,12 @@ public class CropBatchService {
     public CropBatch createCropBatch(CropBatch cropBatch) {
         cropBatch.setId(null);
         cropBatch.setFarmerId(currentUser.getId());
+        if (cropBatch.getCurrentQuantity() == null) {
+            cropBatch.setCurrentQuantity(cropBatch.getInitialQuantity());
+        }
+        if (cropBatch.getUnitPrice() == null) {
+            cropBatch.setUnitPrice(BigDecimal.ZERO);
+        }
         return cropBatchRepository.save(cropBatch);
     }
 
@@ -62,13 +69,18 @@ public class CropBatchService {
         verifyOwner(cropBatch);
 
         cropBatch.setCropId(request.getCropId());
-        cropBatch.setQuantity(request.getQuantity());
+        cropBatch.setInitialQuantity(request.getInitialQuantity());
+        cropBatch.setCurrentQuantity(request.getCurrentQuantity() == null
+                ? request.getInitialQuantity()
+                : request.getCurrentQuantity());
+        cropBatch.setUnitPrice(request.getUnitPrice() == null ? BigDecimal.ZERO : request.getUnitPrice());
         cropBatch.setUnit(request.getUnit());
         cropBatch.setHarvestDate(request.getHarvestDate());
         cropBatch.setExpiryDate(request.getExpiryDate());
         cropBatch.setProvince(request.getProvince());
         cropBatch.setDistrict(request.getDistrict());
-        cropBatch.setLocation(request.getLocation());
+        cropBatch.setWard(request.getWard());
+        cropBatch.setAddressDetail(request.getAddressDetail());
         cropBatch.setStatus(request.getStatus());
 
         return cropBatchRepository.save(cropBatch);

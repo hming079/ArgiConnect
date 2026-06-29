@@ -1,16 +1,28 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { Plus, MapPin, Calendar, AlertTriangle, X, Edit, Eye } from "lucide-react";
+import { AlertCircle, AlertTriangle, Calendar, Edit, Eye, MapPin, Plus, RefreshCw } from "lucide-react";
+
+import type { Crop, CropBatch } from "@/api/cropApi";
+import type { RescueRegistrationStatus } from "@/api/rescueRegistrationApi";
 import { PageShell } from "@/components/site-layout";
-import { farmerBatches, categoryGroups, regions, formatVND } from "@/lib/mock-data";
+import { Button } from "@/components/ui/button";
+import { useCropBatches, useCrops } from "@/hooks/use-crops";
+import { useMyRescueRegistrations } from "@/hooks/use-rescue-registrations";
+import { getCropImage } from "@/lib/crop-images";
 
 export const Route = createFileRoute("/farmer/batches")({
-  head: () => ({ meta: [{ title: "Quản lý lô nông sản – AgriConnect" }] }),
+  head: () => ({ meta: [{ title: "Quản lý lô nông sản - AgriConnect" }] }),
   component: BatchesPage,
 });
 
 function BatchesPage() {
-  const [open, setOpen] = useState(false);
+  const batchesQuery = useCropBatches(undefined, true);
+  const cropsQuery = useCrops();
+  const registrationsQuery = useMyRescueRegistrations();
+  const batches = batchesQuery.data ?? [];
+  const crops = cropsQuery.data ?? [];
+  const registrations = registrationsQuery.data ?? [];
+  const loading = batchesQuery.isPending || cropsQuery.isPending || registrationsQuery.isPending;
+  const failed = batchesQuery.isError || cropsQuery.isError || registrationsQuery.isError;
 
   return (
     <PageShell>
@@ -19,134 +31,141 @@ function BatchesPage() {
           <div>
             <Link to="/farmer" className="text-sm text-primary hover:underline">← Dashboard</Link>
             <h1 className="mt-2 text-3xl font-bold">Quản lý lô nông sản</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Tạo và theo dõi các lô nông sản với tồn kho realtime.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Theo dõi các lô nông sản thật từ backend và trạng thái đăng ký giải cứu.</p>
           </div>
-          <button onClick={() => setOpen(true)} className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft hover:opacity-95">
-            <Plus className="h-4 w-4" /> Tạo lô mới
-          </button>
+          <Button asChild className="rounded-full">
+            <Link to="/categories"><Plus className="h-4 w-4" /> Tạo lô mới</Link>
+          </Button>
         </div>
 
-        <div className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-          {farmerBatches.map((b) => {
-            const remaining = b.quantityKg - b.soldKg;
-            const pct = Math.round((b.soldKg / b.quantityKg) * 100);
-            return (
-              <div key={b.id} className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
-                <div className="relative aspect-[16/10] overflow-hidden">
-                  <img src={b.image} alt={b.name} className="h-full w-full object-cover" />
-                  {b.urgency === "rescue" && (
-                    <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-destructive px-2.5 py-1 text-xs font-semibold text-destructive-foreground">
-                      <AlertTriangle className="h-3 w-3" /> Giải cứu
-                    </span>
-                  )}
-                  <span className="absolute right-3 top-3 rounded-full bg-background/90 px-2 py-1 font-mono text-[10px] font-semibold backdrop-blur">
-                    {b.id}
-                  </span>
-                </div>
-                <div className="p-5">
-                  <h3 className="font-semibold">{b.name}</h3>
-                  <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" /> {b.location}</span>
-                    <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" /> {b.harvestDate}</span>
-                  </div>
+        {failed && (
+          <div className="mt-8 rounded-2xl border border-destructive/20 bg-destructive/10 p-8 text-center">
+            <AlertCircle className="mx-auto h-9 w-9 text-destructive" />
+            <h2 className="mt-3 font-semibold">Không thể tải lô nông sản</h2>
+            <Button className="mt-4 rounded-full" onClick={() => { void batchesQuery.refetch(); void cropsQuery.refetch(); void registrationsQuery.refetch(); }}>
+              <RefreshCw className="mr-2 h-4 w-4" /> Tải lại
+            </Button>
+          </div>
+        )}
 
-                  <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-muted/40 p-3">
-                    <div>
-                      <div className="text-[10px] text-muted-foreground">Giá dự kiến</div>
-                      <div className="text-sm font-bold text-primary">{formatVND(b.expectedPrice)}/kg</div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-muted-foreground">Tồn kho</div>
-                      <div className="text-sm font-bold">{remaining.toLocaleString("vi-VN")} kg</div>
-                    </div>
-                  </div>
+        {loading && <div className="mt-8 h-72 animate-pulse rounded-2xl bg-muted" />}
 
-                  <div className="mt-3">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">{b.soldKg.toLocaleString("vi-VN")} / {b.quantityKg.toLocaleString("vi-VN")} kg</span>
-                      <span className="font-semibold text-primary">{pct}%</span>
-                    </div>
-                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
+        {!loading && !failed && batches.length === 0 && (
+          <div className="mt-8 rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
+            Bạn chưa có lô nông sản nào.
+          </div>
+        )}
 
-                  <div className="mt-4 flex gap-2">
-                    <button className="flex-1 inline-flex items-center justify-center gap-1 rounded-full border border-border px-3 py-2 text-xs font-medium hover:bg-muted">
-                      <Eye className="h-3.5 w-3.5" /> Xem
-                    </button>
-                    <button className="flex-1 inline-flex items-center justify-center gap-1 rounded-full border border-border px-3 py-2 text-xs font-medium hover:bg-muted">
-                      <Edit className="h-3.5 w-3.5" /> Sửa
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        {!loading && !failed && batches.length > 0 && (
+          <div className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {batches.map((batch) => {
+              const crop = crops.find((item) => item.id === batch.cropId);
+              const registration = registrations.find((item) => item.batchId === batch.id);
+              return <BatchCard key={batch.id} batch={batch} crop={crop} rescueStatus={registration?.status} />;
+            })}
+          </div>
+        )}
       </div>
-
-      {/* Modal */}
-      {open && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-foreground/40 p-4 backdrop-blur-sm" onClick={() => setOpen(false)}>
-          <div className="w-full max-w-xl rounded-2xl bg-card p-6 shadow-soft" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">Tạo lô nông sản mới</h2>
-              <button onClick={() => setOpen(false)} className="grid h-9 w-9 place-items-center rounded-full hover:bg-muted">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <Field label="Tên lô" placeholder="VD: Dưa hấu ruột đỏ lô 6" full />
-              <Select label="Loại nông sản" options={categoryGroups.filter((c) => c !== "Tất cả")} />
-              <Field label="Sản lượng (kg)" placeholder="12000" />
-              <Field label="Giá dự kiến (₫/kg)" placeholder="4500" />
-              <Field label="Ngày thu hoạch" type="date" />
-              <Select label="Địa điểm" options={regions.filter((r) => r !== "Tất cả khu vực")} />
-              <div className="sm:col-span-2">
-                <label className="text-xs font-semibold text-muted-foreground">Mức độ khẩn cấp</label>
-                <div className="mt-1 grid grid-cols-3 gap-2">
-                  {[
-                    { v: "normal", l: "Bình thường", c: "bg-primary-soft text-primary" },
-                    { v: "high", l: "Cần bán nhanh", c: "bg-accent/30 text-accent-foreground" },
-                    { v: "rescue", l: "Giải cứu khẩn cấp", c: "bg-destructive/10 text-destructive" },
-                  ].map((u) => (
-                    <button key={u.v} className={`rounded-xl border border-border px-3 py-2 text-xs font-semibold ${u.c}`}>
-                      {u.l}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end gap-2">
-              <button onClick={() => setOpen(false)} className="rounded-full border border-border px-4 py-2 text-sm">Hủy</button>
-              <button onClick={() => setOpen(false)} className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground">Tạo lô</button>
-            </div>
-          </div>
-        </div>
-      )}
     </PageShell>
   );
 }
 
-function Field({ label, placeholder, type = "text", full }: { label: string; placeholder?: string; type?: string; full?: boolean }) {
+function BatchCard({ batch, crop, rescueStatus }: { batch: CropBatch; crop?: Crop; rescueStatus?: RescueRegistrationStatus }) {
+  const cropName = crop?.name ?? `Nông sản #${batch.cropId}`;
+  const image = getCropImage(cropName);
+  const current = Number(batch.currentQuantity);
+  const initial = Number(batch.initialQuantity);
+  const sold = Math.max(initial - current, 0);
+  const pct = initial > 0 ? Math.min(100, Math.round((sold / initial) * 100)) : 0;
+  const isRescue = rescueStatus === "APPROVED" || batch.status === "READY_FOR_RESCUE";
+
   return (
-    <div className={full ? "sm:col-span-2" : ""}>
-      <label className="text-xs font-semibold text-muted-foreground">{label}</label>
-      <input type={type} placeholder={placeholder} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary" />
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+      <div className="relative aspect-[16/10] overflow-hidden bg-primary-soft">
+        {image ? <img src={image} alt={cropName} className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center text-4xl font-bold text-primary">#{batch.cropId}</div>}
+        {isRescue && (
+          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-destructive px-2.5 py-1 text-xs font-semibold text-destructive-foreground">
+            <AlertTriangle className="h-3 w-3" /> Giải cứu
+          </span>
+        )}
+        <span className="absolute right-3 top-3 rounded-full bg-background/90 px-2 py-1 font-mono text-[10px] font-semibold backdrop-blur">
+          #{batch.id}
+        </span>
+      </div>
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="font-semibold">{cropName}</h3>
+            <div className="mt-1 text-xs text-muted-foreground">Trạng thái: {statusLabel(batch.status)}</div>
+          </div>
+          {rescueStatus && <RescueBadge status={rescueStatus} />}
+        </div>
+        <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
+          <span className="inline-flex items-start gap-1"><MapPin className="mt-0.5 h-3 w-3" /> {formatBatchAddress(batch) || "Chưa có địa chỉ"}</span>
+          <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" /> {batch.harvestDate}</span>
+        </div>
+
+        <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-muted/40 p-3">
+          <div>
+            <div className="text-[10px] text-muted-foreground">Giá bán</div>
+            <div className="text-sm font-bold text-primary">{formatVND(Number(batch.unitPrice))}/{batch.unit}</div>
+          </div>
+          <div>
+            <div className="text-[10px] text-muted-foreground">Tồn kho</div>
+            <div className="text-sm font-bold">{formatNumber(current)} {batch.unit}</div>
+          </div>
+        </div>
+
+        <div className="mt-3">
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground">{formatNumber(sold)} / {formatNumber(initial)} {batch.unit}</span>
+            <span className="font-semibold text-primary">{pct}%</span>
+          </div>
+          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+          </div>
+        </div>
+
+        <div className="mt-4 flex gap-2">
+          <Button variant="outline" size="sm" className="flex-1 rounded-full" asChild>
+            <Link to="/categories/$id" params={{ id: String(batch.cropId) }}><Eye className="h-3.5 w-3.5" /> Xem</Link>
+          </Button>
+          <Button variant="outline" size="sm" className="flex-1 rounded-full" asChild>
+            <Link to="/categories/$id" params={{ id: String(batch.cropId) }}><Edit className="h-3.5 w-3.5" /> Sửa</Link>
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
 
-function Select({ label, options }: { label: string; options: readonly string[] }) {
-  return (
-    <div>
-      <label className="text-xs font-semibold text-muted-foreground">{label}</label>
-      <select className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary">
-        {options.map((o) => <option key={o}>{o}</option>)}
-      </select>
-    </div>
-  );
+function RescueBadge({ status }: { status: RescueRegistrationStatus }) {
+  const label = status === "APPROVED" ? "Đã duyệt" : status === "PENDING" ? "Chờ duyệt" : "Từ chối";
+  const tone = status === "APPROVED" ? "bg-primary-soft text-primary" : status === "PENDING" ? "bg-accent/20 text-accent-foreground" : "bg-destructive/15 text-destructive";
+  return <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${tone}`}>{label}</span>;
+}
+
+function statusLabel(status: string) {
+  const labels: Record<string, string> = {
+    AT_FARM: "Tại nông trại",
+    SORTING: "Đang phân loại",
+    READY_FOR_RESCUE: "Sẵn sàng giải cứu",
+    LOCKED: "Đã khóa",
+    SHIPPING: "Đang vận chuyển",
+    DELIVERED: "Đã giao",
+    SOLD_OUT: "Đã bán hết",
+  };
+  return labels[status] ?? status;
+}
+
+function formatBatchAddress(batch: CropBatch) {
+  return [batch.addressDetail, batch.ward, batch.district, batch.province].filter(Boolean).join(", ");
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 }).format(value);
+}
+
+function formatVND(value: number) {
+  return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(value);
 }
