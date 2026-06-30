@@ -1,0 +1,27 @@
+ALTER TABLE shipments
+DROP CONSTRAINT IF EXISTS shipments_status_check;
+
+ALTER TABLE orders
+DROP CONSTRAINT IF EXISTS orders_status_check;
+
+UPDATE shipments
+SET status = CASE status
+    WHEN 'PICKED_UP' THEN 'PACKING'
+    WHEN 'IN_TRANSIT' THEN 'SHIPPING'
+    ELSE status
+END;
+
+UPDATE orders
+SET status = CASE status
+    WHEN 'PAID' THEN 'CONFIRMED'
+    WHEN 'COMPLETED' THEN 'DELIVERED'
+    ELSE status
+END;
+
+ALTER TABLE shipments
+ADD CONSTRAINT shipments_status_check
+CHECK (status IN ('PENDING', 'CONFIRMED', 'PACKING', 'SHIPPING', 'DELIVERED', 'CANCELLED'));
+
+ALTER TABLE orders
+ADD CONSTRAINT orders_status_check
+CHECK (status IN ('PENDING', 'CONFIRMED', 'PACKING', 'SHIPPING', 'DELIVERED', 'CANCELLED'));

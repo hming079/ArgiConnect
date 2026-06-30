@@ -1,5 +1,5 @@
 package com.agriconnect.order;
 
 public enum OrderStatus {
-    PENDING, PAID, SHIPPING, COMPLETED, CANCELLED
+    PENDING, CONFIRMED, PACKING, SHIPPING, DELIVERED, CANCELLED
 }

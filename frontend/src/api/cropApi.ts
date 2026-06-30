@@ -15,6 +15,8 @@ export interface CropInput {
   defaultUnit: string;
 }
 
+export type CropBatchStatus = "available" | "sold_out" | "expired" | "cancelled";
+
 export interface CropBatch {
   id: number;
   cropId: number;
@@ -30,7 +32,7 @@ export interface CropBatch {
   district: string | null;
   ward: string | null;
   addressDetail: string | null;
-  status: string;
+  status: CropBatchStatus;
   createdAt: string | null;
   updatedAt: string | null;
 }

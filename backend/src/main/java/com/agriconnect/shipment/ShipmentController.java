@@ -17,7 +17,7 @@ public class ShipmentController {
     public ShipmentController(ShipmentService service) { this.service = service; }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Shipment>> getAll(
             @RequestParam(required = false) Long logisticsUserId,
             @RequestParam(required = false) ShipmentStatus status) {
@@ -25,20 +25,20 @@ public class ShipmentController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Shipment> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(service.getById(id));
+        return ResponseEntity.ok(service.getAccessibleById(id));
     }
 
     @GetMapping("/order/{orderId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Shipment> getByOrderId(@PathVariable Long orderId) {
         return ResponseEntity.ok(service.getByOrderId(orderId));
     }
 
     @GetMapping("/my")
-    @PreAuthorize("hasRole('LOGISTICS')")
-    @Operation(summary = "List my shipments", description = "Required role: LOGISTICS")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "List visible shipments", description = "All roles see shipments related to their orders; admin/logistics see all")
     public ResponseEntity<List<Shipment>> getMyShipments() {
         return ResponseEntity.ok(service.getMyShipments());
     }
@@ -56,8 +56,8 @@ public class ShipmentController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasRole('LOGISTICS')")
-    @Operation(summary = "Update shipment status", description = "Required role: LOGISTICS; assignment is enforced")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Update shipment status", description = "Allowed by workflow role and order ownership")
     public ResponseEntity<Shipment> updateStatus(
             @PathVariable Long id, @RequestParam ShipmentStatus status) {
         return ResponseEntity.ok(service.updateStatus(id, status));

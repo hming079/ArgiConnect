@@ -76,4 +76,17 @@ public class UserService implements UserDetailsService {
                 .status(user.getStatus())
                 .build();
     }
+
+    public List<UserProfileResponse> getAllProfiles() {
+        return userRepository.findAll().stream()
+                .map(user -> UserProfileResponse.builder()
+                        .id(user.getId())
+                        .fullName(user.getFullName())
+                        .email(user.getEmail())
+                        .phone(user.getPhone())
+                        .role(user.getRole())
+                        .status(user.getStatus())
+                        .build())
+                .toList();
+    }
 }

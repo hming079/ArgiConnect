@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AlertCircle, AlertTriangle, Calendar, Edit, Eye, MapPin, Plus, RefreshCw } from "lucide-react";
 
-import type { Crop, CropBatch } from "@/api/cropApi";
+import type { Crop, CropBatch, CropBatchStatus } from "@/api/cropApi";
 import type { RescueRegistrationStatus } from "@/api/rescueRegistrationApi";
 import { PageShell } from "@/components/site-layout";
 import { Button } from "@/components/ui/button";
@@ -77,7 +77,7 @@ function BatchCard({ batch, crop, rescueStatus }: { batch: CropBatch; crop?: Cro
   const initial = Number(batch.initialQuantity);
   const sold = Math.max(initial - current, 0);
   const pct = initial > 0 ? Math.min(100, Math.round((sold / initial) * 100)) : 0;
-  const isRescue = rescueStatus === "APPROVED" || batch.status === "READY_FOR_RESCUE";
+  const isRescue = rescueStatus === "APPROVED";
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
@@ -145,15 +145,12 @@ function RescueBadge({ status }: { status: RescueRegistrationStatus }) {
   return <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${tone}`}>{label}</span>;
 }
 
-function statusLabel(status: string) {
-  const labels: Record<string, string> = {
-    AT_FARM: "Tại nông trại",
-    SORTING: "Đang phân loại",
-    READY_FOR_RESCUE: "Sẵn sàng giải cứu",
-    LOCKED: "Đã khóa",
-    SHIPPING: "Đang vận chuyển",
-    DELIVERED: "Đã giao",
-    SOLD_OUT: "Đã bán hết",
+function statusLabel(status: CropBatchStatus) {
+  const labels: Record<CropBatchStatus, string> = {
+    available: "Còn hàng",
+    sold_out: "Đã bán hết",
+    expired: "Hết hạn",
+    cancelled: "Đã hủy",
   };
   return labels[status] ?? status;
 }

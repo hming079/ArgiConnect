@@ -29,7 +29,7 @@ public class CropBatchController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('FARMER', 'BUYER', 'LOGISTICS', 'ADMIN')")
+    @PreAuthorize("permitAll()")
     public ResponseEntity<List<CropBatch>> getAllCropBatches(
             @RequestParam(required = false) Long cropId,
             @RequestParam(required = false) Long farmerId,

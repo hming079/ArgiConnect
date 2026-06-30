@@ -61,6 +61,10 @@ public class CropBatchService {
         if (cropBatch.getUnitPrice() == null) {
             cropBatch.setUnitPrice(BigDecimal.ZERO);
         }
+        if (cropBatch.getStatus() == null) {
+            cropBatch.setStatus(CropBatchStatus.available);
+        }
+        syncQuantityStatus(cropBatch);
         return cropBatchRepository.save(cropBatch);
     }
 
@@ -82,6 +86,7 @@ public class CropBatchService {
         cropBatch.setWard(request.getWard());
         cropBatch.setAddressDetail(request.getAddressDetail());
         cropBatch.setStatus(request.getStatus());
+        syncQuantityStatus(cropBatch);
 
         return cropBatchRepository.save(cropBatch);
     }
@@ -107,6 +112,19 @@ public class CropBatchService {
             batch.setFarmerName(farmer == null ? "Unknown farmer" : farmer.getFullName());
         });
         return batches;
+    }
+
+    private void syncQuantityStatus(CropBatch cropBatch) {
+        if (cropBatch.getStatus() == CropBatchStatus.expired || cropBatch.getStatus() == CropBatchStatus.cancelled) {
+            return;
+        }
+        if (cropBatch.getCurrentQuantity() != null && cropBatch.getCurrentQuantity().compareTo(BigDecimal.ZERO) <= 0) {
+            cropBatch.setStatus(CropBatchStatus.sold_out);
+            return;
+        }
+        if (cropBatch.getStatus() == null || cropBatch.getStatus() == CropBatchStatus.sold_out) {
+            cropBatch.setStatus(CropBatchStatus.available);
+        }
     }
 
 }

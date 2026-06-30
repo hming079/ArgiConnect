@@ -1,11 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { AlertCircle, AlertTriangle, Flame, MapPin, RefreshCw, Search, ShoppingCart, SlidersHorizontal } from "lucide-react";
+import { AlertCircle, AlertTriangle, Flame, MapPin, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 
 import type { Crop, CropBatch } from "@/api/cropApi";
 import { PageShell } from "@/components/site-layout";
 import { Button } from "@/components/ui/button";
-import { useCart } from "@/hooks/use-cart";
 import { useCropBatches, useCrops } from "@/hooks/use-crops";
 import { getCropImage } from "@/lib/crop-images";
 
@@ -46,7 +45,7 @@ function ProductsList() {
   const cropById = useMemo(() => new Map(crops.map((crop) => [crop.id, crop])), [crops]);
   const items = useMemo(
     () =>
-      batches.map((batch): ProductItem => {
+      batches.filter((batch) => batch.status === "available").map((batch): ProductItem => {
         const crop = cropById.get(batch.cropId);
         const name = crop?.name ?? `Nông sản #${batch.cropId}`;
         return {
@@ -59,7 +58,7 @@ function ProductsList() {
           price: Number(batch.unitPrice),
           currentQuantity: Number(batch.currentQuantity),
           initialQuantity: Number(batch.initialQuantity),
-          urgency: batch.status === "READY_FOR_RESCUE" ? "rescue" : batch.status === "AT_FARM" ? "normal" : "high",
+          urgency: Number(batch.currentQuantity) <= 0 ? "high" : "normal",
         };
       }),
     [batches, cropById],
@@ -199,22 +198,8 @@ function ProductsList() {
 }
 
 function ProductBatchCard({ item }: { item: ProductItem }) {
-  const { add } = useCart();
   const sold = Math.max(item.initialQuantity - item.currentQuantity, 0);
   const pct = item.initialQuantity > 0 ? Math.min(100, Math.round((sold / item.initialQuantity) * 100)) : 0;
-  const canAdd = item.currentQuantity > 0;
-
-  function addToCart() {
-    add({
-      id: `batch-${item.batch.id}`,
-      name: `Lô #${item.batch.id} · ${item.name}`,
-      image: item.image ?? "",
-      pricePerKg: item.price,
-      location: item.location,
-      qty: 1,
-    });
-  }
-
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-card transition hover:-translate-y-0.5 hover:shadow-soft">
       <Link to="/categories/$id" params={{ id: String(item.batch.cropId) }} className="relative block aspect-[4/3] overflow-hidden bg-primary-soft">
@@ -254,9 +239,6 @@ function ProductBatchCard({ item }: { item: ProductItem }) {
         <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
           <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
         </div>
-        <Button type="button" className="mt-2 w-full rounded-full" disabled={!canAdd} onClick={addToCart}>
-          <ShoppingCart className="h-4 w-4" /> {canAdd ? "Thêm vào giỏ" : "Hết hàng"}
-        </Button>
       </div>
     </article>
   );
@@ -273,3 +255,4 @@ function formatNumber(value: number) {
 function formatVND(value: number) {
   return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(value);
 }
+

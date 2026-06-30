@@ -33,12 +33,10 @@ export function requiredRoleForPath(pathname: string): UserRole | null {
     pathname.startsWith("/buyer") ||
     pathname.startsWith("/products") ||
     pathname.startsWith("/cart") ||
-    pathname.startsWith("/checkout") ||
-    pathname.startsWith("/orders")
+    pathname.startsWith("/checkout")
   ) {
     return "BUYER";
   }
-  if (pathname.startsWith("/shipments")) return "LOGISTICS";
   return null;
 }
 

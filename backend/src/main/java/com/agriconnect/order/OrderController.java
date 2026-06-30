@@ -8,6 +8,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 
+import com.agriconnect.order.dto.CheckoutRequest;
+import com.agriconnect.order.dto.OrderStatusUpdateRequest;
+
 @RestController
 @RequestMapping("/api/orders")
 @SecurityRequirement(name = "bearerAuth")
@@ -17,7 +20,7 @@ public class OrderController {
     public OrderController(OrderService service) { this.service = service; }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Order>> getAll(
             @RequestParam(required = false) Long buyerId,
             @RequestParam(required = false) OrderStatus status) {
@@ -44,8 +47,27 @@ public class OrderController {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(order));
     }
 
+    @PostMapping("/checkout")
+    @PreAuthorize("hasRole('BUYER')")
+    @Operation(summary = "Checkout order", description = "Creates an order and subtracts purchased quantities from crop batches")
+    public ResponseEntity<Order> checkout(@RequestBody CheckoutRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.checkout(request));
+    }
+
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(
+            summary = "Update order status",
+            description = "Allowed transitions: PENDING->CONFIRMED/CANCELLED, CONFIRMED->PACKING/CANCELLED, PACKING->SHIPPING, SHIPPING->DELIVERED. Role rules: CONFIRMED ADMIN/FARMER, PACKING FARMER/LOGISTICS, SHIPPING/DELIVERED LOGISTICS, CANCELLED BUYER/ADMIN.")
+    public ResponseEntity<Order> updateStatus(
+            @PathVariable Long id,
+            @RequestBody OrderStatusUpdateRequest request) {
+        return ResponseEntity.ok(service.updateStatus(id, request == null ? null : request.getStatus()));
+    }
+
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Update order details", description = "Admin-only. Order status is managed through PATCH /api/orders/{id}/status")
     public ResponseEntity<Order> update(@PathVariable Long id, @RequestBody Order order) {
         return ResponseEntity.ok(service.update(id, order));
     }

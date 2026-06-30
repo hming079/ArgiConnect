@@ -6,9 +6,12 @@ import com.agriconnect.cropBatch.CropBatch;
 import com.agriconnect.cropBatch.CropBatchController;
 import com.agriconnect.cropLock.CropLockController;
 import com.agriconnect.order.OrderController;
+import com.agriconnect.order.dto.CheckoutRequest;
+import com.agriconnect.order.dto.OrderStatusUpdateRequest;
 import com.agriconnect.rescueRegistration.RescueRegistrationController;
 import com.agriconnect.shipment.ShipmentController;
 import com.agriconnect.shipment.ShipmentStatus;
+import com.agriconnect.user.UserController;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.prepost.PreAuthorize;
 
@@ -34,13 +37,15 @@ class RbacAnnotationTest {
     @Test
     void buyerEndpointsRequireBuyer() throws Exception {
         assertRule(OrderController.class, "getMyOrders", "hasRole('BUYER')");
+        assertRule(OrderController.class, "checkout", "hasRole('BUYER')", CheckoutRequest.class);
+        assertRule(OrderController.class, "updateStatus", "isAuthenticated()", Long.class, OrderStatusUpdateRequest.class);
         assertRule(CropLockController.class, "delete", "hasRole('BUYER')", Long.class);
     }
 
     @Test
     void logisticsEndpointsRequireLogistics() throws Exception {
-        assertRule(ShipmentController.class, "getMyShipments", "hasRole('LOGISTICS')");
-        assertRule(ShipmentController.class, "updateStatus", "hasRole('LOGISTICS')",
+        assertRule(ShipmentController.class, "getMyShipments", "isAuthenticated()");
+        assertRule(ShipmentController.class, "updateStatus", "isAuthenticated()",
                 Long.class, ShipmentStatus.class);
     }
 
@@ -48,6 +53,11 @@ class RbacAnnotationTest {
     void rescueReviewRequiresAdmin() throws Exception {
         assertRule(RescueRegistrationController.class, "approve", "hasRole('ADMIN')", Long.class);
         assertRule(RescueRegistrationController.class, "reject", "hasRole('ADMIN')", Long.class);
+    }
+
+    @Test
+    void userListRequiresAdmin() throws Exception {
+        assertRule(UserController.class, "getAllProfiles", "hasRole('ADMIN')");
     }
 
     private void assertRule(Class<?> type, String method, String expected, Class<?>... parameterTypes)

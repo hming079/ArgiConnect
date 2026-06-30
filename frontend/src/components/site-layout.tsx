@@ -3,6 +3,7 @@ import { LogIn, LogOut, Menu, ShoppingCart, Sprout, X } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useCart } from "@/hooks/use-cart";
+import { useCropLock } from "@/hooks/use-croplock";
 import { useLogout } from "@/hooks/use-logout";
 import type { UserRole } from "@/lib/auth";
 
@@ -14,6 +15,7 @@ interface NavLink {
 const commonLinks: NavLink[] = [
   { to: "/", label: "Trang chu" },
   { to: "/rescue", label: "Giai cuu" },
+  { to: "/shipments", label: "Van chuyen" },
 ];
 
 const roleLinks: Record<UserRole, NavLink[]> = {
@@ -26,9 +28,10 @@ const roleLinks: Record<UserRole, NavLink[]> = {
   BUYER: [
     { to: "/buyer", label: "Tong quan nguoi mua" },
     { to: "/products", label: "Nong san" },
-    { to: "/orders", label: "Don hang" },
   ],
-  LOGISTICS: [{ to: "/shipments", label: "Van chuyen" }, { to: "/categories", label: "Danh muc" }],
+  LOGISTICS: [
+    { to: "/categories", label: "Danh muc" },
+  ],
 
   ADMIN: [
     { to: "/admin", label: "Quan tri" },
@@ -40,10 +43,10 @@ const roleLinks: Record<UserRole, NavLink[]> = {
 };
 
 const roleLabels: Record<UserRole, string> = {
-  FARMER: "Nong dan",
-  BUYER: "Nguoi mua",
-  LOGISTICS: "Van chuyen",
-  ADMIN: "Quan tri",
+  FARMER: "Nông dân",
+  BUYER: "Người mua",
+  LOGISTICS: "Vận chuyển",
+  ADMIN: "Quản trị",
 };
 
 export function SiteHeader() {
@@ -153,9 +156,19 @@ export function SiteHeader() {
 }
 
 function CartButton({ count, compact = false }: { count: number; compact?: boolean }) {
+  const { lock } = useCropLock();
+  const activeCheckoutLock = !!lock && lock.status !== "ORDERED";
+  const target = activeCheckoutLock ? "/checkout" : "/cart";
+
+  function preserveCheckoutSelection() {
+    if (!activeCheckoutLock || typeof window === "undefined") return;
+    window.localStorage.setItem("agriconnect-checkout-selection", JSON.stringify(lock.items.map((item) => item.id)));
+  }
+
   return (
     <Link
-      to="/cart"
+      to={target}
+      onClick={preserveCheckoutSelection}
       className={`relative grid h-10 w-10 place-items-center rounded-lg border border-border hover:bg-muted ${compact ? "" : ""}`}
       aria-label="Gio hang"
     >
@@ -181,7 +194,9 @@ export function SiteFooter() {
             <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground"><Sprout className="h-5 w-5" /></span>
             <span className="text-lg font-bold">AgriConnect</span>
           </div>
-          <p className="mt-3 text-sm text-muted-foreground">Ket noi nong dan, nguoi mua, don vi van chuyen va cac diem giai cuu nong san.</p>
+          <p className="mt-3 text-sm text-muted-foreground">
+            Kết nối nông dân, người mua, đơn vị vận chuyển và các điểm giải cứu nông sản.
+          </p>
         </div>
         <div>
           <h4 className="text-sm font-semibold">Kham pha</h4>

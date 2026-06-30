@@ -28,13 +28,13 @@ public class CropController {
     }
 
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("permitAll()")
     public ResponseEntity<List<Crop>> getAllCrops() {
         return ResponseEntity.ok(cropService.getAllCrops());
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("permitAll()")
     public ResponseEntity<Crop> getCropById(@PathVariable Long id) {
         return ResponseEntity.ok(cropService.getCropById(id));
     }

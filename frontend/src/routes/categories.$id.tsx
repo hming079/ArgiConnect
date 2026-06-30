@@ -11,12 +11,13 @@ import {
   Plus,
   RefreshCw,
   Scale,
+  ShoppingCart,
   Sprout,
   Trash2,
 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 
-import type { CropBatch, CropBatchInput } from "@/api/cropApi";
+import type { CropBatch, CropBatchInput, CropBatchStatus } from "@/api/cropApi";
 import type { RescuePoint } from "@/api/rescuePointApi";
 import { PageShell } from "@/components/site-layout";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
+import { useCart } from "@/hooks/use-cart";
 import { useCreateCropBatch, useCrop, useCropBatches, useDeleteCropBatch, useUpdateCropBatch } from "@/hooks/use-crops";
 import { useCreateRescueRegistration } from "@/hooks/use-rescue-registrations";
 import { useRescuePoints } from "@/hooks/use-rescue-points";
@@ -34,14 +36,11 @@ export const Route = createFileRoute("/categories/$id")({
   component: CropDetailPage,
 });
 
-const statusLabels: Record<string, string> = {
-  AT_FARM: "Tại nông trại",
-  SORTING: "Đang phân loại",
-  READY_FOR_RESCUE: "Sẵn sàng giải cứu",
-  LOCKED: "Đã khóa",
-  SHIPPING: "Đang vận chuyển",
-  DELIVERED: "Đã giao",
-  SOLD_OUT: "Đã bán hết",
+const statusLabels: Record<CropBatchStatus, string> = {
+  available: "Còn hàng",
+  sold_out: "Đã bán hết",
+  expired: "Hết hạn",
+  cancelled: "Đã hủy",
 };
 
 type BatchEditor = { mode: "create" } | { mode: "edit"; batch: CropBatch };
@@ -52,6 +51,8 @@ function CropDetailPage() {
   const isValidId = Number.isInteger(cropId) && cropId > 0;
   const { role } = useAuth();
   const isFarmer = role === "FARMER";
+  const isBuyer = role === "BUYER";
+  const { add } = useCart();
   const cropQuery = useCrop(cropId);
   const batchesQuery = useCropBatches(cropId, isFarmer);
   const createBatch = useCreateCropBatch();
@@ -61,6 +62,7 @@ function CropDetailPage() {
   const createRegistration = useCreateRescueRegistration();
   const [editor, setEditor] = useState<BatchEditor | null>(null);
   const [batchToRegister, setBatchToRegister] = useState<CropBatch | null>(null);
+  const [cartQuantities, setCartQuantities] = useState<Record<number, number>>({});
   const [mutationError, setMutationError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -115,6 +117,29 @@ function CropDetailPage() {
   const batches = batchesQuery.data ?? [];
   const totalQuantity = batches.reduce((sum, batch) => sum + Number(batch.currentQuantity), 0);
   const provinces = new Set(batches.map((batch) => batch.province).filter(Boolean)).size;
+
+  function getCartQuantity(batch: CropBatch) {
+    return cartQuantities[batch.id] ?? 1;
+  }
+
+  function setCartQuantity(batch: CropBatch, value: number) {
+    const max = Math.max(1, Number(batch.currentQuantity));
+    const next = Number.isFinite(value) ? Math.min(Math.max(1, value), max) : 1;
+    setCartQuantities((current) => ({ ...current, [batch.id]: next }));
+  }
+
+  function addBatchToCart(batch: CropBatch) {
+    const qty = getCartQuantity(batch);
+    add({
+      id: `batch-${batch.id}`,
+      name: `Lô #${batch.id} · ${crop.name}`,
+      image: cropImage ?? "",
+      pricePerKg: Number(batch.unitPrice),
+      location: formatBatchAddress(batch),
+      qty,
+    });
+    setNotice(`Đã thêm ${formatNumber(qty)} ${batch.unit} từ lô #${batch.id} vào giỏ.`);
+  }
 
   return (
     <PageShell>
@@ -227,10 +252,10 @@ function CropDetailPage() {
           <>
             <div className="mt-6 grid gap-3 lg:hidden">
               {batchesQuery.data.map((batch) => (
-                <BatchCard key={batch.id} batch={batch} editable={isFarmer} onEdit={() => setEditor({ mode: "edit", batch })} onDelete={() => void removeBatch(batch)} onRegister={() => { setMutationError(""); setNotice(""); setBatchToRegister(batch); }} />
+                <BatchCard key={batch.id} batch={batch} editable={isFarmer} buyer={isBuyer} cartQuantity={getCartQuantity(batch)} onCartQuantityChange={(value) => setCartQuantity(batch, value)} onAddToCart={() => addBatchToCart(batch)} onEdit={() => setEditor({ mode: "edit", batch })} onDelete={() => void removeBatch(batch)} onRegister={() => { setMutationError(""); setNotice(""); setBatchToRegister(batch); }} />
               ))}
             </div>
-            <BatchTable batches={batchesQuery.data} editable={isFarmer} onEdit={(batch) => setEditor({ mode: "edit", batch })} onDelete={(batch) => void removeBatch(batch)} onRegister={(batch) => { setMutationError(""); setNotice(""); setBatchToRegister(batch); }} />
+            <BatchTable batches={batchesQuery.data} editable={isFarmer} buyer={isBuyer} getCartQuantity={getCartQuantity} onCartQuantityChange={setCartQuantity} onAddToCart={addBatchToCart} onEdit={(batch) => setEditor({ mode: "edit", batch })} onDelete={(batch) => void removeBatch(batch)} onRegister={(batch) => { setMutationError(""); setNotice(""); setBatchToRegister(batch); }} />
           </>
         )}
       </div>
@@ -332,7 +357,9 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function BatchCard({ batch, editable, onEdit, onDelete, onRegister }: { batch: CropBatch; editable: boolean; onEdit: () => void; onDelete: () => void; onRegister: () => void }) {
+function BatchCard({ batch, editable, buyer, cartQuantity, onCartQuantityChange, onAddToCart, onEdit, onDelete, onRegister }: { batch: CropBatch; editable: boolean; buyer: boolean; cartQuantity: number; onCartQuantityChange: (value: number) => void; onAddToCart: () => void; onEdit: () => void; onDelete: () => void; onRegister: () => void }) {
+  const available = Number(batch.currentQuantity);
+  const canBuy = batch.status === "available" && available > 0;
   return (
     <article className="rounded-2xl border border-border bg-card p-4 shadow-card">
       <div className="flex items-start justify-between gap-3">
@@ -349,13 +376,25 @@ function BatchCard({ batch, editable, onEdit, onDelete, onRegister }: { batch: C
         <DataCell label="Hết hạn" value={batch.expiryDate} />
         <DataCell label="Tỉnh" value={batch.province || "—"} />
         <DataCell label="Nông dân" value={batch.farmerName} />
+        <DataCell label="Đơn giá" value={`${formatVND(Number(batch.unitPrice))}/${batch.unit}`} />
       </div>
+      {buyer && (
+        <div className="mt-4 grid grid-cols-[1fr_auto] items-end gap-2">
+          <label className="space-y-1">
+            <span className="text-xs font-semibold text-muted-foreground">Số lượng ({batch.unit})</span>
+            <Input type="number" min={1} max={Math.max(1, available)} step={1} value={Math.min(cartQuantity, Math.max(1, available))} disabled={!canBuy} onChange={(event) => onCartQuantityChange(Number(event.target.value))} />
+          </label>
+          <Button type="button" className="h-10 rounded-xl px-3" disabled={!canBuy} onClick={onAddToCart}>
+            <ShoppingCart className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
       {editable && <BatchActions onEdit={onEdit} onDelete={onDelete} onRegister={onRegister} />}
     </article>
   );
 }
 
-function BatchTable({ batches, editable, onEdit, onDelete, onRegister }: { batches: CropBatch[]; editable: boolean; onEdit: (batch: CropBatch) => void; onDelete: (batch: CropBatch) => void; onRegister: (batch: CropBatch) => void }) {
+function BatchTable({ batches, editable, buyer, getCartQuantity, onCartQuantityChange, onAddToCart, onEdit, onDelete, onRegister }: { batches: CropBatch[]; editable: boolean; buyer: boolean; getCartQuantity: (batch: CropBatch) => number; onCartQuantityChange: (batch: CropBatch, value: number) => void; onAddToCart: (batch: CropBatch) => void; onEdit: (batch: CropBatch) => void; onDelete: (batch: CropBatch) => void; onRegister: (batch: CropBatch) => void }) {
   return (
     <div className="mt-6 hidden overflow-hidden rounded-2xl border border-border bg-card shadow-card lg:block">
       <table className="w-full text-sm">
@@ -367,7 +406,10 @@ function BatchTable({ batches, editable, onEdit, onDelete, onRegister }: { batch
             <th className="px-4 py-3 text-left">Hết hạn</th>
             <th className="px-4 py-3 text-left">Địa điểm</th>
             <th className="px-4 py-3 text-left">Nông dân</th>
+            <th className="px-4 py-3 text-right">Đơn giá</th>
             <th className="px-4 py-3 text-left">Trạng thái</th>
+            {buyer && <th className="px-4 py-3 text-right">Số lượng</th>}
+            {buyer && <th className="px-4 py-3 text-right">Giỏ</th>}
             {editable && <th className="px-4 py-3 text-right">Thao tác</th>}
           </tr>
         </thead>
@@ -391,15 +433,35 @@ function BatchTable({ batches, editable, onEdit, onDelete, onRegister }: { batch
                 </span>
               </td>
               <td className="px-4 py-3 text-xs">{batch.farmerName}</td>
+              <td className="px-4 py-3 text-right font-semibold text-primary">{formatVND(Number(batch.unitPrice))}/{batch.unit}</td>
               <td className="px-4 py-3">
                 <StatusBadge status={batch.status} />
               </td>
+              {buyer && <td className="px-4 py-3 text-right"><CartQuantityInput batch={batch} value={getCartQuantity(batch)} onChange={(value) => onCartQuantityChange(batch, value)} /></td>}
+              {buyer && <td className="px-4 py-3 text-right"><Button type="button" size="sm" disabled={batch.status !== "available" || Number(batch.currentQuantity) <= 0} onClick={() => onAddToCart(batch)}><ShoppingCart className="h-3.5 w-3.5" /></Button></td>}
               {editable && <td className="px-4 py-3"><BatchActions onEdit={() => onEdit(batch)} onDelete={() => onDelete(batch)} onRegister={() => onRegister(batch)} /></td>}
             </tr>
           ))}
         </tbody>
       </table>
     </div>
+  );
+}
+
+function CartQuantityInput({ batch, value, onChange }: { batch: CropBatch; value: number; onChange: (value: number) => void }) {
+  const available = Number(batch.currentQuantity);
+  const canBuy = batch.status === "available" && available > 0;
+  return (
+    <Input
+      type="number"
+      min={1}
+      max={Math.max(1, available)}
+      step={1}
+      value={Math.min(value, Math.max(1, available))}
+      disabled={!canBuy}
+      onChange={(event) => onChange(Number(event.target.value))}
+      className="ml-auto h-9 w-24 text-right"
+    />
   );
 }
 
@@ -456,7 +518,7 @@ function BatchForm({ cropId, defaultUnit, batch, pending, onCancel, onSave }: { 
     district: batch?.district ?? "",
     ward: batch?.ward ?? "",
     addressDetail: batch?.addressDetail ?? "",
-    status: batch?.status ?? "AT_FARM",
+    status: batch?.status ?? "available",
   });
   const field = (name: keyof CropBatchInput, value: string | number) => setForm((current) => ({ ...current, [name]: value }));
   const submit = (event: FormEvent) => { event.preventDefault(); void onSave(form); };
@@ -476,8 +538,8 @@ function BatchForm({ cropId, defaultUnit, batch, pending, onCancel, onSave }: { 
         <FormField label="Địa chỉ chi tiết" full><Input value={form.addressDetail ?? ""} onChange={(e) => field("addressDetail", e.target.value)} /></FormField>
         <div className="space-y-2 sm:col-span-2">
           <Label>Trạng thái</Label>
-          <select className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={form.status} onChange={(e) => field("status", e.target.value)}>
-            {Object.keys(statusLabels).map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}
+          <select className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={form.status} onChange={(e) => field("status", e.target.value as CropBatchStatus)}>
+            {Object.entries(statusLabels).map(([status, label]) => <option key={status} value={status}>{label}</option>)}
           </select>
         </div>
       </div>
@@ -490,7 +552,7 @@ function FormField({ label, full, children }: { label: string; full?: boolean; c
   return <div className={`space-y-2 ${full ? "sm:col-span-2" : ""}`}><Label>{label}</Label>{children}</div>;
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status }: { status: CropBatchStatus }) {
   return (
     <span className="inline-flex rounded-full bg-primary-soft px-2.5 py-1 text-xs font-medium text-primary">
       {statusLabels[status] ?? status}
@@ -509,6 +571,10 @@ function DataCell({ label, value }: { label: string; value: string }) {
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 }).format(value);
+}
+
+function formatVND(value: number) {
+  return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(value);
 }
 
 function formatBatchAddress(batch: CropBatch) {

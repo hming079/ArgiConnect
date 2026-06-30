@@ -9,7 +9,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/order-items")
-@PreAuthorize("hasRole('ADMIN')")
 @SecurityRequirement(name = "bearerAuth")
 public class OrderItemController {
     private final OrderItemService service;
@@ -17,6 +16,7 @@ public class OrderItemController {
     public OrderItemController(OrderItemService service) { this.service = service; }
 
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<OrderItem>> getAll(
             @RequestParam(required = false) Long orderId,
             @RequestParam(required = false) Long batchId) {
@@ -24,21 +24,25 @@ public class OrderItemController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<OrderItem> getById(@PathVariable Long id) {
         return ResponseEntity.ok(service.getById(id));
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('BUYER', 'ADMIN')")
     public ResponseEntity<OrderItem> create(@RequestBody OrderItem item) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(item));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<OrderItem> update(@PathVariable Long id, @RequestBody OrderItem item) {
         return ResponseEntity.ok(service.update(id, item));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();

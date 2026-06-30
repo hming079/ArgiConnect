@@ -1,6 +1,6 @@
 import axiosClient from "./axiosClient";
 
-export type ShipmentStatus = "PENDING" | "PICKED_UP" | "IN_TRANSIT" | "DELIVERED";
+export type ShipmentStatus = "PENDING" | "CONFIRMED" | "PACKING" | "SHIPPING" | "DELIVERED" | "CANCELLED";
 export interface Shipment { id: number; orderId: number; logisticsUserId: number; pickupAddress: string; deliveryAddress: string; status: ShipmentStatus; shippedAt: string | null; deliveredAt: string | null; }
 export type ShipmentInput = Omit<Shipment, "id">;
 export interface ShipmentFilters { logisticsUserId?: number; status?: ShipmentStatus; }

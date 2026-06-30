@@ -1,10 +1,24 @@
 package com.agriconnect.order;
 
 import java.util.List;
+import java.math.BigDecimal;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.agriconnect.common.BadRequestException;
 import com.agriconnect.common.ResourceNotFoundException;
+import com.agriconnect.cropBatch.CropBatch;
+import com.agriconnect.cropBatch.CropBatchRepository;
+import com.agriconnect.cropBatch.CropBatchStatus;
+import com.agriconnect.cropLock.CropLock;
+import com.agriconnect.cropLock.CropLockService;
+import com.agriconnect.order.dto.CheckoutRequest;
+import com.agriconnect.orderItem.OrderItem;
+import com.agriconnect.orderItem.OrderItemRepository;
+import com.agriconnect.orderItem.OrderItemService;
 import com.agriconnect.security.CurrentUser;
 import com.agriconnect.user.Role;
 
@@ -12,16 +26,39 @@ import com.agriconnect.user.Role;
 public class OrderService {
     private final OrderRepository repository;
     private final CurrentUser currentUser;
+    private final OrderItemService orderItemService;
+    private final OrderItemRepository orderItemRepository;
+    private final CropBatchRepository cropBatchRepository;
+    private final CropLockService cropLockService;
 
-    public OrderService(OrderRepository repository, CurrentUser currentUser) {
+    public OrderService(
+            OrderRepository repository,
+            CurrentUser currentUser,
+            OrderItemService orderItemService,
+            OrderItemRepository orderItemRepository,
+            CropBatchRepository cropBatchRepository,
+            CropLockService cropLockService) {
         this.repository = repository;
         this.currentUser = currentUser;
+        this.orderItemService = orderItemService;
+        this.orderItemRepository = orderItemRepository;
+        this.cropBatchRepository = cropBatchRepository;
+        this.cropLockService = cropLockService;
     }
 
     public List<Order> getAll(Long buyerId, OrderStatus status) {
-        if (buyerId != null) return repository.findByBuyerId(buyerId);
-        if (status != null) return repository.findByStatus(status);
-        return repository.findAll();
+        List<Order> orders = switch (currentUser.getRole()) {
+            case ADMIN, LOGISTICS -> repository.findAll();
+            case BUYER -> repository.findByBuyerId(currentUser.getId());
+            case FARMER -> repository.findAll().stream()
+                    .filter(this::isCurrentFarmerOrder)
+                    .toList();
+        };
+
+        return orders.stream()
+                .filter(order -> buyerId == null || buyerId.equals(order.getBuyerId()))
+                .filter(order -> status == null || status == order.getStatus())
+                .toList();
     }
 
     public Order getById(Long id) {
@@ -42,19 +79,149 @@ public class OrderService {
     }
 
     public Order create(Order order) {
+        if (order == null) {
+            throw new BadRequestException("Order request is required");
+        }
         order.setId(null);
         order.setBuyerId(currentUser.getId());
+        order.setStatus(OrderStatus.PENDING);
+        return repository.save(order);
+    }
+
+    @Transactional
+    public Order checkout(CheckoutRequest request) {
+        if (request == null || request.getItems() == null || request.getItems().isEmpty()) {
+            throw new BadRequestException("Checkout must include at least one item");
+        }
+        List<CropLock> locks = cropLockService.convertOwnedActiveLocks(request.getCropLockIds());
+        assertLocksCoverItems(request.getItems(), locks);
+
+        Order order = new Order();
+        order.setTotalAmount(request.getTotalAmount());
+        order.setStatus(OrderStatus.PENDING);
+        order.setOrderDate(request.getOrderDate());
+        Order saved = create(order);
+
+        for (CheckoutRequest.Item requestItem : request.getItems()) {
+            OrderItem item = new OrderItem();
+            item.setOrderId(saved.getId());
+            item.setBatchId(requestItem.getBatchId());
+            item.setQuantity(requestItem.getQuantity());
+            item.setUnitPrice(requestItem.getUnitPrice());
+            orderItemService.create(item);
+        }
+
+        return saved;
+    }
+
+    @Transactional
+    public Order updateStatus(Long id, OrderStatus nextStatus) {
+        if (nextStatus == null) {
+            throw new BadRequestException("Order status is required");
+        }
+
+        Order order = getById(id);
+        assertCanChangeStatus(order, nextStatus);
+        assertValidTransition(order.getStatus(), nextStatus);
+
+        if (nextStatus == OrderStatus.CANCELLED) {
+            restoreOrderQuantities(order);
+        }
+
+        order.setStatus(nextStatus);
         return repository.save(order);
     }
 
     public Order update(Long id, Order request) {
+        if (request == null) {
+            throw new BadRequestException("Order request is required");
+        }
         Order order = getById(id);
         order.setBuyerId(request.getBuyerId());
         order.setTotalAmount(request.getTotalAmount());
-        order.setStatus(request.getStatus());
         order.setOrderDate(request.getOrderDate());
         return repository.save(order);
     }
 
     public void delete(Long id) { repository.delete(getById(id)); }
+
+    private void assertCanChangeStatus(Order order, OrderStatus nextStatus) {
+        Role role = currentUser.getRole();
+        boolean allowed = switch (nextStatus) {
+            case PENDING -> false;
+            case CONFIRMED -> role == Role.ADMIN || (role == Role.FARMER && isCurrentFarmerOrder(order));
+            case PACKING -> (role == Role.FARMER && isCurrentFarmerOrder(order)) || role == Role.LOGISTICS;
+            case SHIPPING, DELIVERED -> role == Role.LOGISTICS;
+            case CANCELLED -> role == Role.ADMIN || (role == Role.BUYER && order.getBuyerId().equals(currentUser.getId()));
+        };
+        if (!allowed) {
+            throw new AccessDeniedException("This role cannot change order to " + nextStatus);
+        }
+    }
+
+    private void assertValidTransition(OrderStatus currentStatus, OrderStatus nextStatus) {
+        boolean valid = switch (currentStatus) {
+            case PENDING -> nextStatus == OrderStatus.CONFIRMED || nextStatus == OrderStatus.CANCELLED;
+            case CONFIRMED -> nextStatus == OrderStatus.PACKING || nextStatus == OrderStatus.CANCELLED;
+            case PACKING -> nextStatus == OrderStatus.SHIPPING;
+            case SHIPPING -> nextStatus == OrderStatus.DELIVERED;
+            case DELIVERED, CANCELLED -> false;
+        };
+        if (!valid) {
+            throw new BadRequestException("Invalid order status transition from " + currentStatus + " to " + nextStatus);
+        }
+    }
+
+    private boolean isCurrentFarmerOrder(Order order) {
+        Long farmerId = currentUser.getId();
+        return orderItemRepository.findByOrderId(order.getId()).stream()
+                .anyMatch(item -> cropBatchRepository.findById(item.getBatchId())
+                        .map(batch -> farmerId.equals(batch.getFarmerId()))
+                        .orElse(false));
+    }
+
+    private void restoreOrderQuantities(Order order) {
+        for (OrderItem item : orderItemRepository.findByOrderId(order.getId())) {
+            CropBatch batch = cropBatchRepository.findById(item.getBatchId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Crop batch not found with id: " + item.getBatchId()));
+            batch.setCurrentQuantity(batch.getCurrentQuantity().add(item.getQuantity()));
+            syncQuantityStatus(batch);
+            cropBatchRepository.save(batch);
+        }
+    }
+
+    private void assertLocksCoverItems(List<CheckoutRequest.Item> items, List<CropLock> locks) {
+        Map<Long, BigDecimal> itemQuantities = items.stream()
+                .collect(Collectors.toMap(
+                        CheckoutRequest.Item::getBatchId,
+                        CheckoutRequest.Item::getQuantity,
+                        BigDecimal::add));
+        Map<Long, BigDecimal> lockQuantities = locks.stream()
+                .collect(Collectors.toMap(
+                        CropLock::getBatchId,
+                        CropLock::getQuantity,
+                        BigDecimal::add));
+        if (!itemQuantities.keySet().equals(lockQuantities.keySet())) {
+            throw new BadRequestException("Crop locks must match checkout items");
+        }
+        itemQuantities.forEach((batchId, quantity) -> {
+            BigDecimal locked = lockQuantities.get(batchId);
+            if (locked == null || locked.compareTo(quantity) != 0) {
+                throw new BadRequestException("Crop lock quantity does not match checkout item for batch " + batchId);
+            }
+        });
+    }
+
+    private void syncQuantityStatus(CropBatch batch) {
+        if (batch.getStatus() == CropBatchStatus.expired || batch.getStatus() == CropBatchStatus.cancelled) {
+            return;
+        }
+        if (batch.getCurrentQuantity().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            batch.setStatus(CropBatchStatus.sold_out);
+            return;
+        }
+        if (batch.getStatus() == null || batch.getStatus() == CropBatchStatus.sold_out) {
+            batch.setStatus(CropBatchStatus.available);
+        }
+    }
 }
