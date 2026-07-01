@@ -19,7 +19,11 @@ function read(): CropLock | null {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const lock = JSON.parse(raw) as CropLock;
-    if (lock.status !== "ORDERED" && lock.expiresAt <= Date.now()) {
+    if (lock.status === "ORDERED") {
+      localStorage.removeItem(KEY);
+      return null;
+    }
+    if (lock.expiresAt <= Date.now()) {
       localStorage.removeItem(KEY);
       return null;
     }
@@ -76,22 +80,18 @@ export function useCropLock() {
     return next;
   }, []);
 
-  const attachToOrder = useCallback((orderId: string) => {
-    const current = read();
-    if (!current) return null;
-    const next: CropLock = {
-      ...current,
-      status: "ORDERED",
-      orderId,
-      orderedAt: Date.now(),
-    };
-    write(next);
-    return next;
-  }, []);
-
   const minutes = Math.floor(remaining / 60000);
   const seconds = Math.floor((remaining % 60000) / 1000);
   const expired = !!lock && lock.status !== "ORDERED" && remaining === 0;
 
-  return { lock, remaining, minutes, seconds, expired, create, release, attachBackendLocks, attachToOrder };
+  return {
+    lock,
+    remaining,
+    minutes,
+    seconds,
+    expired,
+    create,
+    release,
+    attachBackendLocks,
+  };
 }

@@ -24,10 +24,12 @@ export function getRoleFromToken(token: string | null): UserRole | null {
   }
 }
 
-export function requiredRoleForPath(pathname: string): UserRole | null {
-  if (pathname.startsWith("/admin") || pathname.startsWith("/analytics") || pathname.startsWith("/coordination")) {
+export function requiredRoleForPath(pathname: string): UserRole | UserRole[] | null {
+  if (pathname.startsWith("/admin")) {
     return "ADMIN";
   }
+  if (pathname.startsWith("/analytics")) return ["ADMIN", "BUYER"];
+  if (pathname.startsWith("/coordination")) return ["ADMIN", "LOGISTICS"];
   if (pathname.startsWith("/farmer")) return "FARMER";
   if (
     pathname.startsWith("/buyer") ||
@@ -38,6 +40,15 @@ export function requiredRoleForPath(pathname: string): UserRole | null {
     return "BUYER";
   }
   return null;
+}
+
+export function roleMatchesRequirement(
+  role: UserRole | null,
+  required: UserRole | UserRole[] | null,
+) {
+  if (!required) return true;
+  if (!role) return false;
+  return Array.isArray(required) ? required.includes(role) : required === role;
 }
 
 export function notifyAuthChanged() {

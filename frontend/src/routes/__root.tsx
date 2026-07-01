@@ -14,7 +14,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { useAuth } from "@/hooks/use-auth";
-import { requiredRoleForPath, ROLE_HOME } from "@/lib/auth";
+import { requiredRoleForPath, ROLE_HOME, roleMatchesRequirement } from "@/lib/auth";
 
 function NotFoundComponent() {
   return (
@@ -133,6 +133,7 @@ function AuthGuard() {
   const { ready, token, role } = useAuth();
   const isLoginPage = pathname === "/login" || pathname === "/login/";
   const requiredRole = requiredRoleForPath(pathname);
+  const allowedByRole = roleMatchesRequirement(role, requiredRole);
 
   useEffect(() => {
     if (!ready) return;
@@ -140,12 +141,12 @@ function AuthGuard() {
       if (!isLoginPage) void navigate({ to: "/login", replace: true });
       return;
     }
-    if (isLoginPage || (requiredRole && requiredRole !== role)) {
+    if (isLoginPage || !allowedByRole) {
       void navigate({ to: ROLE_HOME[role], replace: true });
     }
-  }, [isLoginPage, navigate, ready, requiredRole, role, token]);
+  }, [allowedByRole, isLoginPage, navigate, ready, role, token]);
 
-  if (!ready || (!isLoginPage && (!token || !role)) || (requiredRole && requiredRole !== role)) {
+  if (!ready || (!isLoginPage && (!token || !role)) || !allowedByRole) {
     return (
       <div className="grid min-h-screen place-items-center bg-background text-sm text-muted-foreground">
         Đang kiểm tra đăng nhập...

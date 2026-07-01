@@ -13,32 +13,34 @@ interface NavLink {
 }
 
 const commonLinks: NavLink[] = [
-  { to: "/", label: "Trang chu" },
-  { to: "/rescue", label: "Giai cuu" },
-  { to: "/shipments", label: "Van chuyen" },
+  { to: "/", label: "Trang chủ" },
+  { to: "/rescue", label: "Giải cứu" },
+  { to: "/shipments", label: "Vận chuyển" },
 ];
 
 const roleLinks: Record<UserRole, NavLink[]> = {
   FARMER: [
-    { to: "/farmer", label: "Tong quan nong dan" },
-    { to: "/categories", label: "Danh muc" },
-    { to: "/farmer/batches", label: "Lo nong san" },
-    { to: "/farmer/rescue-requests", label: "Yeu cau giai cuu" },
+    { to: "/farmer", label: "Tổng quan nông dân" },
+    { to: "/categories", label: "Danh mục" },
+    { to: "/farmer/batches", label: "Lô nông sản" },
+    { to: "/farmer/rescue-requests", label: "Yêu cầu giải cứu" },
   ],
   BUYER: [
-    { to: "/buyer", label: "Tong quan nguoi mua" },
-    { to: "/products", label: "Nong san" },
+    { to: "/analytics", label: "Phan tich" },
+    { to: "/buyer", label: "Tổng quan người mua" },
+    { to: "/products", label: "Nông sản" },
   ],
   LOGISTICS: [
-    { to: "/categories", label: "Danh muc" },
+    { to: "/coordination", label: "Dieu phoi" },
+    { to: "/categories", label: "Danh mục" },
   ],
 
   ADMIN: [
-    { to: "/admin", label: "Quan tri" },
-    { to: "/categories", label: "Danh muc" },
-    { to: "/admin/rescue-requests", label: "Duyet giai cuu" },
-    { to: "/coordination", label: "Dieu phoi" },
-    { to: "/analytics", label: "Phan tich" },
+    { to: "/admin", label: "Quản trị" },
+    { to: "/categories", label: "Danh mục" },
+    { to: "/admin/rescue-requests", label: "Duyệt giải cứu" },
+    { to: "/coordination", label: "Điều phối" },
+    { to: "/analytics", label: "Phân tích" },
   ],
 };
 
@@ -75,7 +77,9 @@ export function SiteHeader() {
                 key={link.to}
                 to={link.to}
                 className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  active ? "bg-primary-soft text-primary" : "text-foreground/70 hover:bg-muted hover:text-foreground"
+                  active
+                    ? "bg-primary-soft text-primary"
+                    : "text-foreground/70 hover:bg-muted hover:text-foreground"
                 }`}
               >
                 {link.label}
@@ -100,7 +104,10 @@ export function SiteHeader() {
               </button>
             </>
           ) : (
-            <Link to="/login" className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+            >
               <LogIn className="h-4 w-4" /> Đăng nhập
             </Link>
           )}
@@ -121,7 +128,11 @@ export function SiteHeader() {
       {open && (
         <div className="border-t border-border bg-background lg:hidden">
           <nav className="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-3">
-            {role && <div className="px-3 py-2 text-xs font-semibold uppercase text-primary">{roleLabels[role]}</div>}
+            {role && (
+              <div className="px-3 py-2 text-xs font-semibold uppercase text-primary">
+                {roleLabels[role]}
+              </div>
+            )}
             {links.map((link) => (
               <Link
                 key={link.to}
@@ -144,7 +155,11 @@ export function SiteHeader() {
                 <LogOut className="h-4 w-4" /> Đăng xuất
               </button>
             ) : (
-              <Link to="/login" onClick={() => setOpen(false)} className="rounded-lg px-3 py-2 text-sm font-semibold text-primary">
+              <Link
+                to="/login"
+                onClick={() => setOpen(false)}
+                className="rounded-lg px-3 py-2 text-sm font-semibold text-primary"
+              >
                 Đăng nhập
               </Link>
             )}
@@ -162,7 +177,10 @@ function CartButton({ count, compact = false }: { count: number; compact?: boole
 
   function preserveCheckoutSelection() {
     if (!activeCheckoutLock || typeof window === "undefined") return;
-    window.localStorage.setItem("agriconnect-checkout-selection", JSON.stringify(lock.items.map((item) => item.id)));
+    window.localStorage.setItem(
+      "agriconnect-checkout-selection",
+      JSON.stringify(lock.items.map((item) => item.id)),
+    );
   }
 
   return (
@@ -170,7 +188,7 @@ function CartButton({ count, compact = false }: { count: number; compact?: boole
       to={target}
       onClick={preserveCheckoutSelection}
       className={`relative grid h-10 w-10 place-items-center rounded-lg border border-border hover:bg-muted ${compact ? "" : ""}`}
-      aria-label="Gio hang"
+      aria-label="Giỏ hàng"
     >
       <ShoppingCart className="h-4 w-4" />
       {count > 0 && (
@@ -191,7 +209,9 @@ export function SiteFooter() {
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-4 lg:px-8">
         <div>
           <div className="flex items-center gap-2">
-            <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground"><Sprout className="h-5 w-5" /></span>
+            <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground">
+              <Sprout className="h-5 w-5" />
+            </span>
             <span className="text-lg font-bold">AgriConnect</span>
           </div>
           <p className="mt-3 text-sm text-muted-foreground">
@@ -199,28 +219,40 @@ export function SiteFooter() {
           </p>
         </div>
         <div>
-          <h4 className="text-sm font-semibold">Kham pha</h4>
+          <h4 className="text-sm font-semibold">Khám phá</h4>
           <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-            {commonLinks.slice(1).map((link) => <li key={link.to}><Link to={link.to}>{link.label}</Link></li>)}
-            <li><Link to="/rescue-points">Diem giai cuu</Link></li>
+            {commonLinks.slice(1).map((link) => (
+              <li key={link.to}>
+                <Link to={link.to}>{link.label}</Link>
+              </li>
+            ))}
+            <li>
+              <Link to="/rescue-points">Điểm giải cứu</Link>
+            </li>
           </ul>
         </div>
         <div>
-          <h4 className="text-sm font-semibold">Tai khoan</h4>
+          <h4 className="text-sm font-semibold">Tài khoản</h4>
           <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-            {accountLinks.map((link) => <li key={link.to}><Link to={link.to}>{link.label}</Link></li>)}
+            {accountLinks.map((link) => (
+              <li key={link.to}>
+                <Link to={link.to}>{link.label}</Link>
+              </li>
+            ))}
           </ul>
         </div>
-        <div>
-          <h4 className="text-sm font-semibold">Lien he</h4>
+        {/* <div>
+          <h4 className="text-sm font-semibold">Liên hệ</h4>
           <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
             <li>hotro@agriconnect.vn</li>
             <li>1900 8686</li>
             <li>TP. Ho Chi Minh, Viet Nam</li>
           </ul>
-        </div>
+        </div> */}
       </div>
-      <div className="border-t border-border py-5 text-center text-xs text-muted-foreground">2026 AgriConnect</div>
+      <div className="border-t border-border py-5 text-center text-xs text-muted-foreground">
+        2026 AgriConnect
+      </div>
     </footer>
   );
 }

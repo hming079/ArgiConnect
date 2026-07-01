@@ -19,14 +19,28 @@ import { useEffect, useState, type FormEvent } from "react";
 
 import type { CropBatch, CropBatchInput, CropBatchStatus } from "@/api/cropApi";
 import type { RescuePoint } from "@/api/rescuePointApi";
+import { VietnamAddressSelect } from "@/components/address/VietnamAddressSelect";
 import { PageShell } from "@/components/site-layout";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { useCart } from "@/hooks/use-cart";
-import { useCreateCropBatch, useCrop, useCropBatches, useDeleteCropBatch, useUpdateCropBatch } from "@/hooks/use-crops";
+import {
+  useCreateCropBatch,
+  useCrop,
+  useCropBatches,
+  useDeleteCropBatch,
+  useUpdateCropBatch,
+} from "@/hooks/use-crops";
 import { useCreateRescueRegistration } from "@/hooks/use-rescue-registrations";
 import { useRescuePoints } from "@/hooks/use-rescue-points";
 import { getCropImage } from "@/lib/crop-images";
@@ -196,7 +210,13 @@ function CropDetailPage() {
             Dữ liệu lô được lấy từ endpoint crop-batches theo cropId.
           </p>
           {isFarmer && (
-            <Button className="mt-4 rounded-full" onClick={() => { setMutationError(""); setEditor({ mode: "create" }); }}>
+            <Button
+              className="mt-4 rounded-full"
+              onClick={() => {
+                setMutationError("");
+                setEditor({ mode: "create" });
+              }}
+            >
               <Plus className="mr-2 h-4 w-4" /> Thêm lô nông sản
             </Button>
           )}
@@ -252,17 +272,53 @@ function CropDetailPage() {
           <>
             <div className="mt-6 grid gap-3 lg:hidden">
               {batchesQuery.data.map((batch) => (
-                <BatchCard key={batch.id} batch={batch} editable={isFarmer} buyer={isBuyer} cartQuantity={getCartQuantity(batch)} onCartQuantityChange={(value) => setCartQuantity(batch, value)} onAddToCart={() => addBatchToCart(batch)} onEdit={() => setEditor({ mode: "edit", batch })} onDelete={() => void removeBatch(batch)} onRegister={() => { setMutationError(""); setNotice(""); setBatchToRegister(batch); }} />
+                <BatchCard
+                  key={batch.id}
+                  batch={batch}
+                  editable={isFarmer}
+                  buyer={isBuyer}
+                  cartQuantity={getCartQuantity(batch)}
+                  onCartQuantityChange={(value) => setCartQuantity(batch, value)}
+                  onAddToCart={() => addBatchToCart(batch)}
+                  onEdit={() => setEditor({ mode: "edit", batch })}
+                  onDelete={() => void removeBatch(batch)}
+                  onRegister={() => {
+                    setMutationError("");
+                    setNotice("");
+                    setBatchToRegister(batch);
+                  }}
+                />
               ))}
             </div>
-            <BatchTable batches={batchesQuery.data} editable={isFarmer} buyer={isBuyer} getCartQuantity={getCartQuantity} onCartQuantityChange={setCartQuantity} onAddToCart={addBatchToCart} onEdit={(batch) => setEditor({ mode: "edit", batch })} onDelete={(batch) => void removeBatch(batch)} onRegister={(batch) => { setMutationError(""); setNotice(""); setBatchToRegister(batch); }} />
+            <BatchTable
+              batches={batchesQuery.data}
+              editable={isFarmer}
+              buyer={isBuyer}
+              getCartQuantity={getCartQuantity}
+              onCartQuantityChange={setCartQuantity}
+              onAddToCart={addBatchToCart}
+              onEdit={(batch) => setEditor({ mode: "edit", batch })}
+              onDelete={(batch) => void removeBatch(batch)}
+              onRegister={(batch) => {
+                setMutationError("");
+                setNotice("");
+                setBatchToRegister(batch);
+              }}
+            />
           </>
         )}
       </div>
-      <Dialog open={editor !== null} onOpenChange={(open) => { if (!open) setEditor(null); }}>
+      <Dialog
+        open={editor !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditor(null);
+        }}
+      >
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editor?.mode === "edit" ? "Sửa lô nông sản" : "Thêm lô nông sản"}</DialogTitle>
+            <DialogTitle>
+              {editor?.mode === "edit" ? "Sửa lô nông sản" : "Thêm lô nông sản"}
+            </DialogTitle>
             <DialogDescription>Lô này thuộc tài khoản nông dân đang đăng nhập.</DialogDescription>
           </DialogHeader>
           {editor && (
@@ -275,18 +331,26 @@ function CropDetailPage() {
               onSave={async (data) => {
                 try {
                   setMutationError("");
-                  if (editor.mode === "edit") await updateBatch.mutateAsync({ id: editor.batch.id, data });
+                  if (editor.mode === "edit")
+                    await updateBatch.mutateAsync({ id: editor.batch.id, data });
                   else await createBatch.mutateAsync(data);
                   setEditor(null);
                 } catch {
-                  setMutationError("Không thể lưu lô nông sản. Vui lòng kiểm tra dữ liệu và thử lại.");
+                  setMutationError(
+                    "Không thể lưu lô nông sản. Vui lòng kiểm tra dữ liệu và thử lại.",
+                  );
                 }
               }}
             />
           )}
         </DialogContent>
       </Dialog>
-      <Dialog open={batchToRegister !== null} onOpenChange={(open) => { if (!open) setBatchToRegister(null); }}>
+      <Dialog
+        open={batchToRegister !== null}
+        onOpenChange={(open) => {
+          if (!open) setBatchToRegister(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Đăng ký giải cứu lô #{batchToRegister?.id}</DialogTitle>
@@ -301,7 +365,11 @@ function CropDetailPage() {
               onSubmit={async (rescuePointId) => {
                 try {
                   setMutationError("");
-                  await createRegistration.mutateAsync({ batchId: batchToRegister.id, rescuePointId, status: "PENDING" });
+                  await createRegistration.mutateAsync({
+                    batchId: batchToRegister.id,
+                    rescuePointId,
+                    status: "PENDING",
+                  });
                   setNotice(`Đã gửi đăng ký giải cứu cho lô #${batchToRegister.id}.`);
                   setBatchToRegister(null);
                 } catch {
@@ -357,7 +425,27 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function BatchCard({ batch, editable, buyer, cartQuantity, onCartQuantityChange, onAddToCart, onEdit, onDelete, onRegister }: { batch: CropBatch; editable: boolean; buyer: boolean; cartQuantity: number; onCartQuantityChange: (value: number) => void; onAddToCart: () => void; onEdit: () => void; onDelete: () => void; onRegister: () => void }) {
+function BatchCard({
+  batch,
+  editable,
+  buyer,
+  cartQuantity,
+  onCartQuantityChange,
+  onAddToCart,
+  onEdit,
+  onDelete,
+  onRegister,
+}: {
+  batch: CropBatch;
+  editable: boolean;
+  buyer: boolean;
+  cartQuantity: number;
+  onCartQuantityChange: (value: number) => void;
+  onAddToCart: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onRegister: () => void;
+}) {
   const available = Number(batch.currentQuantity);
   const canBuy = batch.status === "available" && available > 0;
   return (
@@ -366,7 +454,8 @@ function BatchCard({ batch, editable, buyer, cartQuantity, onCartQuantityChange,
         <div>
           <div className="font-mono text-xs text-muted-foreground">Lô #{batch.id}</div>
           <div className="mt-1 font-semibold">
-            {formatNumber(Number(batch.currentQuantity))} / {formatNumber(Number(batch.initialQuantity))} {batch.unit}
+            {formatNumber(Number(batch.currentQuantity))} /{" "}
+            {formatNumber(Number(batch.initialQuantity))} {batch.unit}
           </div>
         </div>
         <StatusBadge status={batch.status} />
@@ -381,10 +470,25 @@ function BatchCard({ batch, editable, buyer, cartQuantity, onCartQuantityChange,
       {buyer && (
         <div className="mt-4 grid grid-cols-[1fr_auto] items-end gap-2">
           <label className="space-y-1">
-            <span className="text-xs font-semibold text-muted-foreground">Số lượng ({batch.unit})</span>
-            <Input type="number" min={1} max={Math.max(1, available)} step={1} value={Math.min(cartQuantity, Math.max(1, available))} disabled={!canBuy} onChange={(event) => onCartQuantityChange(Number(event.target.value))} />
+            <span className="text-xs font-semibold text-muted-foreground">
+              Số lượng ({batch.unit})
+            </span>
+            <Input
+              type="number"
+              min={1}
+              max={Math.max(1, available)}
+              step={1}
+              value={Math.min(cartQuantity, Math.max(1, available))}
+              disabled={!canBuy}
+              onChange={(event) => onCartQuantityChange(Number(event.target.value))}
+            />
           </label>
-          <Button type="button" className="h-10 rounded-xl px-3" disabled={!canBuy} onClick={onAddToCart}>
+          <Button
+            type="button"
+            className="h-10 rounded-xl px-3"
+            disabled={!canBuy}
+            onClick={onAddToCart}
+          >
             <ShoppingCart className="h-4 w-4" />
           </Button>
         </div>
@@ -394,7 +498,27 @@ function BatchCard({ batch, editable, buyer, cartQuantity, onCartQuantityChange,
   );
 }
 
-function BatchTable({ batches, editable, buyer, getCartQuantity, onCartQuantityChange, onAddToCart, onEdit, onDelete, onRegister }: { batches: CropBatch[]; editable: boolean; buyer: boolean; getCartQuantity: (batch: CropBatch) => number; onCartQuantityChange: (batch: CropBatch, value: number) => void; onAddToCart: (batch: CropBatch) => void; onEdit: (batch: CropBatch) => void; onDelete: (batch: CropBatch) => void; onRegister: (batch: CropBatch) => void }) {
+function BatchTable({
+  batches,
+  editable,
+  buyer,
+  getCartQuantity,
+  onCartQuantityChange,
+  onAddToCart,
+  onEdit,
+  onDelete,
+  onRegister,
+}: {
+  batches: CropBatch[];
+  editable: boolean;
+  buyer: boolean;
+  getCartQuantity: (batch: CropBatch) => number;
+  onCartQuantityChange: (batch: CropBatch, value: number) => void;
+  onAddToCart: (batch: CropBatch) => void;
+  onEdit: (batch: CropBatch) => void;
+  onDelete: (batch: CropBatch) => void;
+  onRegister: (batch: CropBatch) => void;
+}) {
   return (
     <div className="mt-6 hidden overflow-hidden rounded-2xl border border-border bg-card shadow-card lg:block">
       <table className="w-full text-sm">
@@ -418,7 +542,8 @@ function BatchTable({ batches, editable, buyer, getCartQuantity, onCartQuantityC
             <tr key={batch.id} className="border-t border-border">
               <td className="px-4 py-3 font-mono text-xs">#{batch.id}</td>
               <td className="px-4 py-3 text-right font-semibold">
-                {formatNumber(Number(batch.currentQuantity))} / {formatNumber(Number(batch.initialQuantity))} {batch.unit}
+                {formatNumber(Number(batch.currentQuantity))} /{" "}
+                {formatNumber(Number(batch.initialQuantity))} {batch.unit}
               </td>
               <td className="px-4 py-3">
                 <span className="inline-flex items-center gap-1 text-xs">
@@ -433,13 +558,42 @@ function BatchTable({ batches, editable, buyer, getCartQuantity, onCartQuantityC
                 </span>
               </td>
               <td className="px-4 py-3 text-xs">{batch.farmerName}</td>
-              <td className="px-4 py-3 text-right font-semibold text-primary">{formatVND(Number(batch.unitPrice))}/{batch.unit}</td>
+              <td className="px-4 py-3 text-right font-semibold text-primary">
+                {formatVND(Number(batch.unitPrice))}/{batch.unit}
+              </td>
               <td className="px-4 py-3">
                 <StatusBadge status={batch.status} />
               </td>
-              {buyer && <td className="px-4 py-3 text-right"><CartQuantityInput batch={batch} value={getCartQuantity(batch)} onChange={(value) => onCartQuantityChange(batch, value)} /></td>}
-              {buyer && <td className="px-4 py-3 text-right"><Button type="button" size="sm" disabled={batch.status !== "available" || Number(batch.currentQuantity) <= 0} onClick={() => onAddToCart(batch)}><ShoppingCart className="h-3.5 w-3.5" /></Button></td>}
-              {editable && <td className="px-4 py-3"><BatchActions onEdit={() => onEdit(batch)} onDelete={() => onDelete(batch)} onRegister={() => onRegister(batch)} /></td>}
+              {buyer && (
+                <td className="px-4 py-3 text-right">
+                  <CartQuantityInput
+                    batch={batch}
+                    value={getCartQuantity(batch)}
+                    onChange={(value) => onCartQuantityChange(batch, value)}
+                  />
+                </td>
+              )}
+              {buyer && (
+                <td className="px-4 py-3 text-right">
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={batch.status !== "available" || Number(batch.currentQuantity) <= 0}
+                    onClick={() => onAddToCart(batch)}
+                  >
+                    <ShoppingCart className="h-3.5 w-3.5" />
+                  </Button>
+                </td>
+              )}
+              {editable && (
+                <td className="px-4 py-3">
+                  <BatchActions
+                    onEdit={() => onEdit(batch)}
+                    onDelete={() => onDelete(batch)}
+                    onRegister={() => onRegister(batch)}
+                  />
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
@@ -448,7 +602,15 @@ function BatchTable({ batches, editable, buyer, getCartQuantity, onCartQuantityC
   );
 }
 
-function CartQuantityInput({ batch, value, onChange }: { batch: CropBatch; value: number; onChange: (value: number) => void }) {
+function CartQuantityInput({
+  batch,
+  value,
+  onChange,
+}: {
+  batch: CropBatch;
+  value: number;
+  onChange: (value: number) => void;
+}) {
   const available = Number(batch.currentQuantity);
   const canBuy = batch.status === "available" && available > 0;
   return (
@@ -465,23 +627,53 @@ function CartQuantityInput({ batch, value, onChange }: { batch: CropBatch; value
   );
 }
 
-function BatchActions({ onEdit, onDelete, onRegister }: { onEdit: () => void; onDelete: () => void; onRegister: () => void }) {
+function BatchActions({
+  onEdit,
+  onDelete,
+  onRegister,
+}: {
+  onEdit: () => void;
+  onDelete: () => void;
+  onRegister: () => void;
+}) {
   return (
     <div className="mt-3 flex flex-wrap justify-end gap-2">
-      <Button type="button" size="sm" onClick={onRegister}><LifeBuoy className="mr-1 h-3.5 w-3.5" /> Giải cứu</Button>
-      <Button type="button" variant="outline" size="sm" onClick={onEdit}><Pencil className="mr-1 h-3.5 w-3.5" /> Sửa</Button>
-      <Button type="button" variant="destructive" size="sm" onClick={onDelete}><Trash2 className="mr-1 h-3.5 w-3.5" /> Xóa</Button>
+      <Button type="button" size="sm" onClick={onRegister}>
+        <LifeBuoy className="mr-1 h-3.5 w-3.5" /> Giải cứu
+      </Button>
+      <Button type="button" variant="outline" size="sm" onClick={onEdit}>
+        <Pencil className="mr-1 h-3.5 w-3.5" /> Sửa
+      </Button>
+      <Button type="button" variant="destructive" size="sm" onClick={onDelete}>
+        <Trash2 className="mr-1 h-3.5 w-3.5" /> Xóa
+      </Button>
     </div>
   );
 }
 
-function RescueRegistrationForm({ points, loading, pending, onCancel, onSubmit }: { points: RescuePoint[]; loading: boolean; pending: boolean; onCancel: () => void; onSubmit: (rescuePointId: number) => Promise<void> }) {
+function RescueRegistrationForm({
+  points,
+  loading,
+  pending,
+  onCancel,
+  onSubmit,
+}: {
+  points: RescuePoint[];
+  loading: boolean;
+  pending: boolean;
+  onCancel: () => void;
+  onSubmit: (rescuePointId: number) => Promise<void>;
+}) {
   const activePoints = points.filter((point) => point.status === "ACTIVE");
   const [rescuePointId, setRescuePointId] = useState<number>(activePoints[0]?.id ?? 0);
   useEffect(() => {
-    if (activePoints.length > 0 && !activePoints.some((point) => point.id === rescuePointId)) setRescuePointId(activePoints[0].id);
+    if (activePoints.length > 0 && !activePoints.some((point) => point.id === rescuePointId))
+      setRescuePointId(activePoints[0].id);
   }, [activePoints, rescuePointId]);
-  const submit = (event: FormEvent) => { event.preventDefault(); if (rescuePointId > 0) void onSubmit(rescuePointId); };
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (rescuePointId > 0) void onSubmit(rescuePointId);
+  };
 
   return (
     <form className="space-y-4" onSubmit={submit}>
@@ -492,20 +684,46 @@ function RescueRegistrationForm({ points, loading, pending, onCancel, onSubmit }
       ) : (
         <div className="space-y-2">
           <Label>Điểm giải cứu</Label>
-          <select className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={rescuePointId} onChange={(event) => setRescuePointId(Number(event.target.value))}>
-            {activePoints.map((point) => <option key={point.id} value={point.id}>{point.name} — {point.province}</option>)}
+          <select
+            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            value={rescuePointId}
+            onChange={(event) => setRescuePointId(Number(event.target.value))}
+          >
+            {activePoints.map((point) => (
+              <option key={point.id} value={point.id}>
+                {point.name} — {point.province}
+              </option>
+            ))}
           </select>
         </div>
       )}
       <DialogFooter>
-        <Button type="button" variant="outline" onClick={onCancel}>Hủy</Button>
-        <Button type="submit" disabled={pending || loading || activePoints.length === 0}>{pending ? "Đang gửi…" : "Gửi đăng ký"}</Button>
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Hủy
+        </Button>
+        <Button type="submit" disabled={pending || loading || activePoints.length === 0}>
+          {pending ? "Đang gửi…" : "Gửi đăng ký"}
+        </Button>
       </DialogFooter>
     </form>
   );
 }
 
-function BatchForm({ cropId, defaultUnit, batch, pending, onCancel, onSave }: { cropId: number; defaultUnit: string; batch?: CropBatch; pending: boolean; onCancel: () => void; onSave: (data: CropBatchInput) => Promise<void> }) {
+function BatchForm({
+  cropId,
+  defaultUnit,
+  batch,
+  pending,
+  onCancel,
+  onSave,
+}: {
+  cropId: number;
+  defaultUnit: string;
+  batch?: CropBatch;
+  pending: boolean;
+  onCancel: () => void;
+  onSave: (data: CropBatchInput) => Promise<void>;
+}) {
   const [form, setForm] = useState<CropBatchInput>({
     cropId,
     initialQuantity: batch?.initialQuantity ?? 0,
@@ -520,36 +738,125 @@ function BatchForm({ cropId, defaultUnit, batch, pending, onCancel, onSave }: { 
     addressDetail: batch?.addressDetail ?? "",
     status: batch?.status ?? "available",
   });
-  const field = (name: keyof CropBatchInput, value: string | number) => setForm((current) => ({ ...current, [name]: value }));
-  const submit = (event: FormEvent) => { event.preventDefault(); void onSave(form); };
+  const field = (name: keyof CropBatchInput, value: string | number) =>
+    setForm((current) => ({ ...current, [name]: value }));
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    void onSave(form);
+  };
 
   return (
     <form onSubmit={submit} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField label="Sản lượng ban đầu"><Input type="number" min="0.01" step="0.01" required value={form.initialQuantity} onChange={(e) => field("initialQuantity", Number(e.target.value))} /></FormField>
-        <FormField label="Sản lượng hiện có"><Input type="number" min="0" step="0.01" required value={form.currentQuantity} onChange={(e) => field("currentQuantity", Number(e.target.value))} /></FormField>
-        <FormField label="Giá / đơn vị"><Input type="number" min="0" step="0.01" required value={form.unitPrice} onChange={(e) => field("unitPrice", Number(e.target.value))} /></FormField>
-        <FormField label="Đơn vị"><Input required value={form.unit} onChange={(e) => field("unit", e.target.value)} /></FormField>
-        <FormField label="Ngày thu hoạch"><Input type="date" required value={form.harvestDate} onChange={(e) => field("harvestDate", e.target.value)} /></FormField>
-        <FormField label="Ngày hết hạn"><Input type="date" required min={form.harvestDate} value={form.expiryDate} onChange={(e) => field("expiryDate", e.target.value)} /></FormField>
-        <FormField label="Tỉnh / thành"><Input required value={form.province ?? ""} onChange={(e) => field("province", e.target.value)} /></FormField>
-        <FormField label="Quận / huyện"><Input value={form.district ?? ""} onChange={(e) => field("district", e.target.value)} /></FormField>
-        <FormField label="Phường / xã"><Input value={form.ward ?? ""} onChange={(e) => field("ward", e.target.value)} /></FormField>
-        <FormField label="Địa chỉ chi tiết" full><Input value={form.addressDetail ?? ""} onChange={(e) => field("addressDetail", e.target.value)} /></FormField>
+        <FormField label="Sản lượng ban đầu">
+          <Input
+            type="number"
+            min="0.01"
+            step="0.01"
+            required
+            value={form.initialQuantity}
+            onChange={(e) => field("initialQuantity", Number(e.target.value))}
+          />
+        </FormField>
+        <FormField label="Sản lượng hiện có">
+          <Input
+            type="number"
+            min="0"
+            step="0.01"
+            required
+            value={form.currentQuantity}
+            onChange={(e) => field("currentQuantity", Number(e.target.value))}
+          />
+        </FormField>
+        <FormField label="Giá / đơn vị">
+          <Input
+            type="number"
+            min="0"
+            step="0.01"
+            required
+            value={form.unitPrice}
+            onChange={(e) => field("unitPrice", Number(e.target.value))}
+          />
+        </FormField>
+        <FormField label="Đơn vị">
+          <Input required value={form.unit} onChange={(e) => field("unit", e.target.value)} />
+        </FormField>
+        <FormField label="Ngày thu hoạch">
+          <Input
+            type="date"
+            required
+            value={form.harvestDate}
+            onChange={(e) => field("harvestDate", e.target.value)}
+          />
+        </FormField>
+        <FormField label="Ngày hết hạn">
+          <Input
+            type="date"
+            required
+            min={form.harvestDate}
+            value={form.expiryDate}
+            onChange={(e) => field("expiryDate", e.target.value)}
+          />
+        </FormField>
+        <FormField label="Địa chỉ" full>
+          <VietnamAddressSelect
+            required
+            value={form.addressDetail ?? ""}
+            initialProvinceName={form.province}
+            initialWardName={form.ward}
+            onChange={(fullAddress, parts) =>
+              setForm((current) => ({
+                ...current,
+                addressDetail: fullAddress,
+                province: parts.provinceName || current.province,
+                ward: parts.wardName || current.ward,
+                district: "",
+              }))
+            }
+          />
+        </FormField>
         <div className="space-y-2 sm:col-span-2">
           <Label>Trạng thái</Label>
-          <select className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" value={form.status} onChange={(e) => field("status", e.target.value as CropBatchStatus)}>
-            {Object.entries(statusLabels).map(([status, label]) => <option key={status} value={status}>{label}</option>)}
+          <select
+            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            value={form.status}
+            onChange={(e) => field("status", e.target.value as CropBatchStatus)}
+          >
+            {Object.entries(statusLabels).map(([status, label]) => (
+              <option key={status} value={status}>
+                {label}
+              </option>
+            ))}
           </select>
         </div>
       </div>
-      <DialogFooter><Button type="button" variant="outline" onClick={onCancel}>Hủy</Button><Button type="submit" disabled={pending}>{pending ? "Đang lưu…" : "Lưu lô"}</Button></DialogFooter>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Hủy
+        </Button>
+        <Button type="submit" disabled={pending}>
+          {pending ? "Đang lưu…" : "Lưu lô"}
+        </Button>
+      </DialogFooter>
     </form>
   );
 }
 
-function FormField({ label, full, children }: { label: string; full?: boolean; children: React.ReactNode }) {
-  return <div className={`space-y-2 ${full ? "sm:col-span-2" : ""}`}><Label>{label}</Label>{children}</div>;
+function FormField({
+  label,
+  full,
+  children,
+}: {
+  label: string;
+  full?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`space-y-2 ${full ? "sm:col-span-2" : ""}`}>
+      <Label>{label}</Label>
+      {children}
+    </div>
+  );
 }
 
 function StatusBadge({ status }: { status: CropBatchStatus }) {
@@ -574,9 +881,23 @@ function formatNumber(value: number) {
 }
 
 function formatVND(value: number) {
-  return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(value);
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  }).format(value);
 }
 
 function formatBatchAddress(batch: CropBatch) {
-  return [batch.addressDetail, batch.ward, batch.district, batch.province].filter(Boolean).join(", ");
+  if (
+    batch.addressDetail &&
+    [batch.ward, batch.district, batch.province].some((part) =>
+      part ? batch.addressDetail?.includes(part) : false,
+    )
+  ) {
+    return batch.addressDetail;
+  }
+  return [batch.addressDetail, batch.ward, batch.district, batch.province]
+    .filter(Boolean)
+    .join(", ");
 }

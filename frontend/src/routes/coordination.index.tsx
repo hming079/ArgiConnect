@@ -1,40 +1,65 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertTriangle, TrendingUp, MapPin, Activity, Truck, Radio, Package, BarChart3, ArrowRight, AlertCircle } from "lucide-react";
+import {
+  Activity,
+  AlertCircle,
+  AlertTriangle,
+  ArrowRight,
+  BarChart3,
+  Package,
+  Radio,
+  TrendingUp,
+  Truck,
+} from "lucide-react";
+
+import type { RiskLevel } from "@/api/analyticsApi";
 import { PageShell } from "@/components/site-layout";
 import {
-  rescueZones,
-  shipments,
-  shipmentStatusLabels,
-  provinceStats,
-  daysToConsume,
-  congestionRisk,
-  forecastInventoryWeekly,
-} from "@/lib/mock-data";
+  useAnalyticsOverview,
+  useCongestionRisk,
+  useForecastInventory,
+  useProvinceStats,
+} from "@/hooks/use-analytics";
+import { useAuth } from "@/hooks/use-auth";
+import { useShipments } from "@/hooks/use-shipments";
 
 export const Route = createFileRoute("/coordination/")({
   head: () => ({
     meta: [
-      { title: "Dashboard điều phối – AgriConnect" },
-      { name: "description", content: "Phân tích dữ liệu và hỗ trợ ra quyết định điều phối nông sản." },
+      { title: "Dashboard dieu phoi - AgriConnect" },
+      {
+        name: "description",
+        content: "Phan tich du lieu va ho tro ra quyet dinh dieu phoi nong san.",
+      },
     ],
   }),
   component: CoordinationPage,
 });
 
-const urgencyColor = (u: string) =>
-  u === "rescue" ? "bg-destructive" : u === "high" ? "bg-accent" : "bg-primary";
-
 function CoordinationPage() {
-  const totals = provinceStats.reduce(
-    (acc, p) => ({
-      total: acc.total + p.totalKg,
-      inventory: acc.inventory + p.inventoryKg,
-      rescuing: acc.rescuing + p.rescuingKg,
-      consumed: acc.consumed + p.consumedKg,
-      inTransit: acc.inTransit + p.inTransitKg,
-    }),
-    { total: 0, inventory: 0, rescuing: 0, consumed: 0, inTransit: 0 },
-  );
+  const { role } = useAuth();
+  const overviewQuery = useAnalyticsOverview();
+  const provinceQuery = useProvinceStats();
+  const riskQuery = useCongestionRisk();
+  const forecastQuery = useForecastInventory(30);
+  const shipmentsQuery = useShipments(undefined, true);
+
+  const overview = overviewQuery.data;
+  const provinceStats = provinceQuery.data ?? [];
+  const riskRows = riskQuery.data ?? [];
+  const forecast = forecastQuery.data;
+  const shipments = shipmentsQuery.data ?? [];
+  const isLoading =
+    overviewQuery.isLoading ||
+    provinceQuery.isLoading ||
+    riskQuery.isLoading ||
+    forecastQuery.isLoading ||
+    shipmentsQuery.isLoading;
+  const isError =
+    overviewQuery.isError ||
+    provinceQuery.isError ||
+    riskQuery.isError ||
+    forecastQuery.isError ||
+    shipmentsQuery.isError;
 
   return (
     <PageShell>
@@ -43,165 +68,251 @@ function CoordinationPage() {
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
             <Activity className="h-3.5 w-3.5" /> Supply Chain Control Tower
           </div>
-          <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Dashboard điều phối nông sản</h1>
+          <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Dashboard dieu phoi nong san</h1>
           <p className="mt-2 max-w-3xl text-muted-foreground">
-            Phân tích dữ liệu sản lượng, dự báo cung cầu và hỗ trợ ra quyết định điều phối theo thời gian thực.
+            Phan tich san luong, du bao cung cau va ho tro ra quyet dinh dieu phoi theo du lieu
+            backend.
           </p>
-          <div className="mt-4">
-            <Link to="/analytics" className="inline-flex items-center gap-1 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-soft hover:opacity-90">
-              <BarChart3 className="h-4 w-4" /> Mở báo cáo Analytics chi tiết <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
+          {role === "ADMIN" && (
+            <div className="mt-4">
+              <Link
+                to="/analytics"
+                className="inline-flex items-center gap-1 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-soft hover:opacity-90"
+              >
+                <BarChart3 className="h-4 w-4" /> Mo bao cao Analytics chi tiet{" "}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          )}
         </div>
       </div>
 
       <div className="mx-auto max-w-7xl space-y-10 px-4 py-10 sm:px-6 lg:px-8">
-        {/* 1. Thống kê sản lượng */}
+        {isError && <StateBox tone="error">Khong tai duoc du lieu dieu phoi tu backend.</StateBox>}
+        {isLoading && <StateBox>Dang tai du lieu dieu phoi...</StateBox>}
+
         <section>
-          <SectionTitle>Thống kê sản lượng</SectionTitle>
+          <SectionTitle>Thong ke san luong</SectionTitle>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <SumCard icon={Package} label="Tổng sản lượng" value={`${(totals.total / 1000).toLocaleString("vi-VN")}t`} />
-            <SumCard icon={Package} label="Tồn kho" value={`${(totals.inventory / 1000).toLocaleString("vi-VN")}t`} tone="accent" />
-            <SumCard icon={AlertTriangle} label="Đang giải cứu" value={`${(totals.rescuing / 1000).toLocaleString("vi-VN")}t`} tone="destructive" />
-            <SumCard icon={TrendingUp} label="Đã tiêu thụ" value={`${(totals.consumed / 1000).toLocaleString("vi-VN")}t`} tone="primary" />
-            <SumCard icon={Truck} label="Đang vận chuyển" value={`${(totals.inTransit / 1000).toLocaleString("vi-VN")}t`} />
+            <SumCard
+              icon={Package}
+              label="Tong san luong"
+              value={`${formatTons(overview?.totalProductionQuantity ?? 0)}t`}
+            />
+            <SumCard
+              icon={Package}
+              label="Ton kho"
+              value={`${formatTons(overview?.currentInventoryQuantity ?? 0)}t`}
+              tone="accent"
+            />
+            <SumCard
+              icon={AlertTriangle}
+              label="Dang giai cuu"
+              value={`${formatTons(overview?.rescuingQuantity ?? 0)}t`}
+              tone="destructive"
+            />
+            <SumCard
+              icon={TrendingUp}
+              label="Da tieu thu"
+              value={`${formatTons(overview?.soldQuantity ?? 0)}t`}
+              tone="primary"
+            />
+            <SumCard
+              icon={Truck}
+              label="Dang van chuyen"
+              value={`${formatTons(overview?.inTransitQuantity ?? 0)}t`}
+            />
           </div>
           <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-card shadow-card">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3 text-left">Tỉnh</th>
-                  <th className="px-4 py-3 text-right">Tổng</th>
-                  <th className="px-4 py-3 text-right">Tồn kho</th>
-                  <th className="px-4 py-3 text-right">Giải cứu</th>
-                  <th className="px-4 py-3 text-right">Đã tiêu thụ</th>
-                  <th className="px-4 py-3 text-right">Vận chuyển</th>
+                  <th className="px-4 py-3 text-left">Tinh</th>
+                  <th className="px-4 py-3 text-right">Tong</th>
+                  <th className="px-4 py-3 text-right">Ton kho</th>
+                  <th className="px-4 py-3 text-right">Giai cuu</th>
+                  <th className="px-4 py-3 text-right">Da tieu thu</th>
+                  <th className="px-4 py-3 text-right">Van chuyen</th>
                 </tr>
               </thead>
               <tbody>
                 {provinceStats.map((p) => (
                   <tr key={p.province} className="border-t border-border">
                     <td className="px-4 py-3 font-medium">{p.province}</td>
-                    <td className="px-4 py-3 text-right">{p.totalKg.toLocaleString("vi-VN")} kg</td>
-                    <td className="px-4 py-3 text-right">{p.inventoryKg.toLocaleString("vi-VN")} kg</td>
-                    <td className="px-4 py-3 text-right text-destructive">{p.rescuingKg.toLocaleString("vi-VN")} kg</td>
-                    <td className="px-4 py-3 text-right text-primary">{p.consumedKg.toLocaleString("vi-VN")} kg</td>
-                    <td className="px-4 py-3 text-right">{p.inTransitKg.toLocaleString("vi-VN")} kg</td>
+                    <td className="px-4 py-3 text-right">{formatKg(p.totalKg)} kg</td>
+                    <td className="px-4 py-3 text-right">{formatKg(p.inventoryKg)} kg</td>
+                    <td className="px-4 py-3 text-right text-destructive">
+                      {formatKg(p.rescuingKg)} kg
+                    </td>
+                    <td className="px-4 py-3 text-right text-primary">
+                      {formatKg(p.consumedKg)} kg
+                    </td>
+                    <td className="px-4 py-3 text-right">{formatKg(p.inTransitKg)} kg</td>
                   </tr>
                 ))}
+                {!isLoading && provinceStats.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
+                      Chua co du lieu tinh.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
         </section>
 
-        {/* 2. Phân tích khả năng cung ứng */}
         <section>
-          <SectionTitle>Phân tích khả năng cung ứng</SectionTitle>
+          <SectionTitle>Phan tich kha nang cung ung</SectionTitle>
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            {provinceStats.map((p) => {
-              const days = daysToConsume(p);
-              const risk = congestionRisk(p);
-              const riskTone = risk === "high" ? "bg-destructive/10 text-destructive" : risk === "medium" ? "bg-accent/30 text-accent-foreground" : "bg-primary-soft text-primary";
-              const riskLabel = risk === "high" ? "Nguy cơ ùn ứ cao" : risk === "medium" ? "Cần theo dõi" : "Ổn định";
-              return (
-                <div key={p.province} className="rounded-2xl border border-border bg-card p-5 shadow-card">
-                  <div className="flex items-center justify-between">
-                    <div className="font-semibold">{p.province}</div>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${riskTone}`}>{riskLabel}</span>
-                  </div>
-                  <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
-                    <div><div className="text-muted-foreground">Hiện có</div><div className="text-base font-bold">{((p.inventoryKg + p.rescuingKg) / 1000).toFixed(1)}t</div></div>
-                    <div><div className="text-muted-foreground">Tốc độ TB</div><div className="text-base font-bold">{p.consumptionRateKgPerDay.toLocaleString("vi-VN")} kg/ngày</div></div>
-                    <div><div className="text-muted-foreground">Dự báo tiêu thụ hết</div><div className="text-base font-bold">{days} ngày</div></div>
-                  </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-                    <div className={`h-full ${risk === "high" ? "bg-destructive" : risk === "medium" ? "bg-accent" : "bg-primary"}`}
-                      style={{ width: `${Math.min(100, (days / 30) * 100)}%` }} />
-                  </div>
+            {provinceStats.map((p) => (
+              <div
+                key={p.province}
+                className="rounded-2xl border border-border bg-card p-5 shadow-card"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold">{p.province}</div>
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${riskPill(p.congestionRiskLevel)}`}
+                  >
+                    {riskLabel(p.congestionRiskLevel)}
+                  </span>
                 </div>
-              );
-            })}
+                <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
+                  <Metric label="Hien co" value={`${formatTons(p.inventoryKg + p.rescuingKg)}t`} />
+                  <Metric
+                    label="Toc do TB"
+                    value={`${formatKg(p.consumptionRateKgPerDay)} kg/ngay`}
+                  />
+                  <Metric
+                    label="Du bao tieu thu het"
+                    value={`${formatNumber(p.inventoryCoverageDays)} ngay`}
+                  />
+                </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={`${riskBar(p.congestionRiskLevel)} h-full`}
+                    style={{ width: `${Math.min(100, p.congestionRiskScore)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 
-        {/* 3. Dự báo */}
         <section>
-          <SectionTitle>Dự báo cung cầu</SectionTitle>
+          <SectionTitle>Du bao cung cau</SectionTitle>
           <div className="mt-4 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
             <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-              <h3 className="text-base font-semibold">Dự báo tồn kho theo tuần</h3>
-              <p className="text-xs text-muted-foreground">Sản lượng tồn (tấn) - thực tế và dự báo</p>
+              <h3 className="text-base font-semibold">Du bao ton kho</h3>
+              <p className="text-xs text-muted-foreground">
+                San luong ton (tan) - hien tai va du bao 7/14/30 ngay
+              </p>
               <div className="mt-4 flex h-44 items-end gap-3">
-                {forecastInventoryWeekly.map((d) => {
-                  const v = d.actual ?? d.forecast ?? 0;
-                  const max = 1300;
+                {(forecast?.points ?? []).map((d) => {
+                  const max = Math.max(
+                    1,
+                    ...(forecast?.points ?? []).map((p) => p.forecastInventory / 1000),
+                  );
+                  const current = d.currentInventory / 1000;
+                  const projected = d.forecastInventory / 1000;
                   return (
-                    <div key={d.w} className="flex flex-1 flex-col items-center gap-1">
-                      <div className="text-[10px] font-semibold">{v}t</div>
-                      <div
-                        className={`w-full rounded-t-lg ${d.actual !== null ? "bg-primary" : "bg-primary/30 border border-dashed border-primary"}`}
-                        style={{ height: `${(v / max) * 100}%` }}
-                      />
-                      <div className="text-xs text-muted-foreground">{d.w}</div>
+                    <div key={d.days} className="flex flex-1 flex-col items-center gap-1">
+                      <div className="text-[10px] font-semibold">{formatNumber(projected)}t</div>
+                      <div className="flex w-full items-end gap-1">
+                        <div
+                          className="w-1/2 rounded-t-lg bg-primary"
+                          style={{ height: `${(current / max) * 100}%` }}
+                        />
+                        <div
+                          className="w-1/2 rounded-t-lg border border-dashed border-primary bg-primary/30"
+                          style={{ height: `${(projected / max) * 100}%` }}
+                        />
+                      </div>
+                      <div className="text-xs text-muted-foreground">{d.days}d</div>
                     </div>
                   );
                 })}
               </div>
               <div className="mt-3 flex gap-4 text-xs">
-                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-3 rounded bg-primary" /> Thực tế</span>
-                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-3 rounded border border-dashed border-primary bg-primary/30" /> Dự báo</span>
+                <Legend color="bg-primary" label="Hien tai" />
+                <Legend color="border border-dashed border-primary bg-primary/30" label="Du bao" />
               </div>
             </div>
 
             <div className="space-y-3">
               <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5 shadow-card">
                 <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-destructive">
-                  <AlertCircle className="h-3.5 w-3.5" /> Vùng có nguy cơ dư thừa
+                  <AlertCircle className="h-3.5 w-3.5" /> Vung co nguy co du thua
                 </div>
                 <ul className="mt-3 space-y-2 text-sm">
-                  {rescueZones.filter((z) => z.urgency !== "normal").map((z) => (
-                    <li key={z.id} className="flex items-center justify-between">
-                      <span><b>{z.name}</b> · {z.product}</span>
-                      <span className="font-mono text-xs">{(z.surplusKg / 1000).toLocaleString("vi-VN")}t</span>
-                    </li>
-                  ))}
+                  {riskRows
+                    .filter((row) => row.riskLevel !== "LOW")
+                    .slice(0, 6)
+                    .map((row) => (
+                      <li
+                        key={`${row.province}-${row.cropName}`}
+                        className="flex items-center justify-between gap-3"
+                      >
+                        <span>
+                          <b>{row.province}</b> - {row.cropName}
+                        </span>
+                        <span className="font-mono text-xs">
+                          {formatTons(row.currentInventory)}t
+                        </span>
+                      </li>
+                    ))}
                 </ul>
               </div>
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
-                <div className="text-xs font-semibold uppercase tracking-wider text-primary">Dự báo nhu cầu tuần tới</div>
-                <div className="mt-2 text-2xl font-bold">~ 1.450 tấn</div>
-                <div className="text-xs text-muted-foreground">Dựa trên 12 tuần dữ liệu lịch sử</div>
-              </div>
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
-                <div className="text-xs font-semibold uppercase tracking-wider text-destructive">Dự báo sản lượng cần giải cứu</div>
-                <div className="mt-2 text-2xl font-bold">~ 320 tấn</div>
-                <div className="text-xs text-muted-foreground">Tăng 12% so với tuần trước</div>
-              </div>
+              <MiniForecast
+                label="Du bao nhu cau"
+                value={`~ ${formatTons(forecast?.expectedConsumption ?? 0)} tan`}
+              />
+              <MiniForecast
+                label="Du bao thu hoach"
+                value={`~ ${formatTons(forecast?.expectedHarvest ?? 0)} tan`}
+                tone="destructive"
+              />
             </div>
           </div>
         </section>
 
-        {/* Map + live shipments (rút gọn) */}
         <section>
-          <SectionTitle>Bản đồ vùng dư thừa & shipment</SectionTitle>
+          <SectionTitle>Ban do vung du thua & shipment</SectionTitle>
           <div className="mt-4 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
             <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
               <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl bg-gradient-to-b from-primary-soft/40 to-accent/10">
                 <svg viewBox="0 0 100 125" className="absolute inset-0 h-full w-full opacity-30">
-                  <path d="M55 5 Q60 15 58 25 Q70 35 60 45 Q70 55 62 65 Q75 75 65 88 Q60 100 55 115 Q50 120 48 115 Q52 105 50 95 Q40 85 50 75 Q42 65 52 55 Q45 45 55 35 Q48 25 52 15 Z" fill="var(--primary)" />
+                  <path
+                    d="M55 5 Q60 15 58 25 Q70 35 60 45 Q70 55 62 65 Q75 75 65 88 Q60 100 55 115 Q50 120 48 115 Q52 105 50 95 Q40 85 50 75 Q42 65 52 55 Q45 45 55 35 Q48 25 52 15 Z"
+                    fill="var(--primary)"
+                  />
                 </svg>
-                {rescueZones.map((z) => {
-                  const size = Math.max(28, Math.min(72, Math.sqrt(z.surplusKg) / 30));
+                {riskRows.slice(0, 8).map((row, index) => {
+                  const size = Math.max(
+                    28,
+                    Math.min(72, Math.sqrt(row.currentInventory + row.incomingHarvest) / 30),
+                  );
+                  const pos = provincePosition(index);
                   return (
-                    <div key={z.id} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${z.lat}%`, top: `${z.lng}%` }}>
+                    <div
+                      key={`${row.province}-${row.cropName}`}
+                      className="absolute -translate-x-1/2 -translate-y-1/2"
+                      style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+                    >
                       <div className="relative">
-                        <span className={`block animate-ping rounded-full opacity-40 ${urgencyColor(z.urgency)}`} style={{ width: size, height: size }} />
-                        <span className={`absolute inset-0 grid place-items-center rounded-full ${urgencyColor(z.urgency)} text-[10px] font-bold text-white shadow-soft`}>
-                          {(z.surplusKg / 1000).toFixed(0)}t
+                        <span
+                          className={`block animate-ping rounded-full opacity-40 ${riskColor(row.riskLevel)}`}
+                          style={{ width: size, height: size }}
+                        />
+                        <span
+                          className={`absolute inset-0 grid place-items-center rounded-full ${riskColor(row.riskLevel)} text-[10px] font-bold text-white shadow-soft`}
+                        >
+                          {formatTons(row.currentInventory)}t
                         </span>
                       </div>
                       <div className="mt-1 whitespace-nowrap rounded-full bg-background/90 px-2 py-0.5 text-[10px] font-medium shadow-card">
-                        {z.name} • {z.product}
+                        {row.province} - {row.cropName}
                       </div>
                     </div>
                   );
@@ -214,29 +325,49 @@ function CoordinationPage() {
                 <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
                   <Radio className="h-3.5 w-3.5 animate-pulse" /> Live shipment
                 </div>
-                <Link to="/shipments" className="text-xs font-semibold text-primary hover:underline">Xem tất cả →</Link>
+                <Link
+                  to="/shipments"
+                  className="text-xs font-semibold text-primary hover:underline"
+                >
+                  Xem tat ca &gt;
+                </Link>
               </div>
               <div className="mt-3 space-y-2">
-                {shipments.filter((s) => s.status !== "delivered").slice(0, 5).map((s) => (
-                  <div key={s.id} className="flex items-center gap-3 rounded-xl border border-border bg-background p-2.5">
-                    <span className="grid h-8 w-8 place-items-center rounded-full bg-primary-soft text-primary"><Truck className="h-4 w-4" /></span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-[10px]">{s.id}</span>
-                        <span className="rounded-full bg-accent/20 px-1.5 py-0.5 text-[9px] font-semibold text-accent-foreground">{shipmentStatusLabels[s.status]}</span>
+                {shipments
+                  .filter((s) => s.status !== "DELIVERED" && s.status !== "CANCELLED")
+                  .slice(0, 5)
+                  .map((s) => (
+                    <div
+                      key={s.id}
+                      className="flex items-center gap-3 rounded-xl border border-border bg-background p-2.5"
+                    >
+                      <span className="grid h-8 w-8 place-items-center rounded-full bg-primary-soft text-primary">
+                        <Truck className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-[10px]">#{s.id}</span>
+                          <span className="rounded-full bg-accent/20 px-1.5 py-0.5 text-[9px] font-semibold text-accent-foreground">
+                            {s.status}
+                          </span>
+                        </div>
+                        <div className="truncate text-xs">Order #{s.orderId}</div>
+                        <div className="truncate text-[10px] text-muted-foreground">
+                          {s.pickupAddress} &gt; {s.deliveryAddress}
+                        </div>
                       </div>
-                      <div className="truncate text-xs">{s.productName} · {s.quantityKg}kg</div>
-                      <div className="truncate text-[10px] text-muted-foreground">{s.from} → {s.to}</div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                {!shipmentsQuery.isLoading && shipments.length === 0 && (
+                  <StateBox>Chua co shipment.</StateBox>
+                )}
               </div>
             </div>
           </div>
           <div className="mt-3 flex gap-3 text-xs">
-            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-destructive" /> Khẩn cấp</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-accent" /> Cần bán nhanh</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-primary" /> Bình thường</span>
+            <Legend color="bg-destructive" label="Khan cap" />
+            <Legend color="bg-accent" label="Can theo doi" />
+            <Legend color="bg-primary" label="Binh thuong" />
           </div>
         </section>
       </div>
@@ -248,13 +379,131 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h2 className="text-xl font-bold">{children}</h2>;
 }
 
-function SumCard({ icon: Icon, label, value, tone = "muted" }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; tone?: "primary" | "destructive" | "accent" | "muted" }) {
-  const cls = tone === "primary" ? "bg-primary-soft text-primary" : tone === "destructive" ? "bg-destructive/10 text-destructive" : tone === "accent" ? "bg-accent/30 text-accent-foreground" : "bg-muted text-muted-foreground";
+function SumCard({
+  icon: Icon,
+  label,
+  value,
+  tone = "muted",
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  tone?: "primary" | "destructive" | "accent" | "muted";
+}) {
+  const cls =
+    tone === "primary"
+      ? "bg-primary-soft text-primary"
+      : tone === "destructive"
+        ? "bg-destructive/10 text-destructive"
+        : tone === "accent"
+          ? "bg-accent/30 text-accent-foreground"
+          : "bg-muted text-muted-foreground";
   return (
     <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
-      <span className={`grid h-10 w-10 place-items-center rounded-xl ${cls}`}><Icon className="h-5 w-5" /></span>
+      <span className={`grid h-10 w-10 place-items-center rounded-xl ${cls}`}>
+        <Icon className="h-5 w-5" />
+      </span>
       <div className="mt-3 text-2xl font-bold">{value}</div>
       <div className="text-xs text-muted-foreground">{label}</div>
     </div>
   );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-muted-foreground">{label}</div>
+      <div className="text-base font-bold">{value}</div>
+    </div>
+  );
+}
+
+function MiniForecast({
+  label,
+  value,
+  tone = "primary",
+}: {
+  label: string;
+  value: string;
+  tone?: "primary" | "destructive";
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+      <div
+        className={`text-xs font-semibold uppercase tracking-wider ${tone === "destructive" ? "text-destructive" : "text-primary"}`}
+      >
+        {label}
+      </div>
+      <div className="mt-2 text-2xl font-bold">{value}</div>
+      <div className="text-xs text-muted-foreground">Rule-based forecast tu backend</div>
+    </div>
+  );
+}
+
+function StateBox({
+  children,
+  tone = "muted",
+}: {
+  children: React.ReactNode;
+  tone?: "muted" | "error";
+}) {
+  const cls =
+    tone === "error"
+      ? "border-destructive/30 bg-destructive/10 text-destructive"
+      : "border-border bg-card text-muted-foreground";
+  return <div className={`rounded-xl border p-4 text-sm ${cls}`}>{children}</div>;
+}
+
+function Legend({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className={`h-2.5 w-2.5 rounded-full ${color}`} /> {label}
+    </span>
+  );
+}
+
+function riskLabel(level: RiskLevel) {
+  return level === "HIGH" ? "Nguy co un u cao" : level === "MEDIUM" ? "Can theo doi" : "On dinh";
+}
+
+function riskPill(level: RiskLevel) {
+  return level === "HIGH"
+    ? "bg-destructive/10 text-destructive"
+    : level === "MEDIUM"
+      ? "bg-accent/30 text-accent-foreground"
+      : "bg-primary-soft text-primary";
+}
+
+function riskBar(level: RiskLevel) {
+  return level === "HIGH" ? "bg-destructive" : level === "MEDIUM" ? "bg-accent" : "bg-primary";
+}
+
+function riskColor(level: RiskLevel) {
+  return level === "HIGH" ? "bg-destructive" : level === "MEDIUM" ? "bg-accent" : "bg-primary";
+}
+
+function provincePosition(index: number) {
+  const positions = [
+    { x: 60, y: 82 },
+    { x: 68, y: 79 },
+    { x: 74, y: 70 },
+    { x: 56, y: 84 },
+    { x: 60, y: 58 },
+    { x: 66, y: 64 },
+    { x: 58, y: 72 },
+    { x: 70, y: 60 },
+  ];
+  return positions[index] ?? { x: 50, y: 50 };
+}
+
+function formatTons(value: number) {
+  return (value / 1000).toLocaleString("vi-VN", { maximumFractionDigits: 1 });
+}
+
+function formatKg(value: number) {
+  return Math.round(value).toLocaleString("vi-VN");
+}
+
+function formatNumber(value: number) {
+  return Number(value).toLocaleString("vi-VN", { maximumFractionDigits: 1 });
 }
