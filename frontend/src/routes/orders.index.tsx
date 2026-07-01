@@ -21,12 +21,12 @@ export const Route = createFileRoute("/orders/")({
 });
 
 const statusLabels: Record<OrderStatus, string> = {
-  PENDING: "Vua tao don",
-  CONFIRMED: "Da xac nhan",
-  PACKING: "Dang chuan bi",
-  SHIPPING: "Dang giao",
-  DELIVERED: "Da giao",
-  CANCELLED: "Da huy",
+  PENDING: "Vừa tạo đơn",
+  CONFIRMED: "Đã xác nhận",
+  PACKING: "Đang chuẩn bị",
+  SHIPPING: "Đang giao",
+  DELIVERED: "Đã giao",
+  CANCELLED: "Đã hủy",
 };
 
 interface OrderRow {

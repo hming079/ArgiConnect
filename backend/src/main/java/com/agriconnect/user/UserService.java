@@ -2,18 +2,24 @@ package com.agriconnect.user;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.security.core.Authentication;
 
 import com.agriconnect.auth.dto.RegisterRequest;
+import com.agriconnect.cropBatch.CropBatch;
+import com.agriconnect.cropBatch.CropBatchRepository;
+import com.agriconnect.order.Order;
+import com.agriconnect.order.OrderRepository;
+import com.agriconnect.orderItem.OrderItemRepository;
+import com.agriconnect.security.CurrentUser;
 import com.agriconnect.user.dto.UserProfileResponse;
 
 @Service
@@ -21,10 +27,24 @@ public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CurrentUser currentUser;
+    private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
+    private final CropBatchRepository cropBatchRepository;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            CurrentUser currentUser,
+            OrderRepository orderRepository,
+            OrderItemRepository orderItemRepository,
+            CropBatchRepository cropBatchRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.currentUser = currentUser;
+        this.orderRepository = orderRepository;
+        this.orderItemRepository = orderItemRepository;
+        this.cropBatchRepository = cropBatchRepository;
     }
 
     public void register(RegisterRequest request) {
@@ -57,16 +77,55 @@ public class UserService implements UserDetailsService {
     }
 
     public UserProfileResponse getMyProfile() {
-        
-        // 1. Lấy thông tin người đang truy cập từ Security Context
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String currentEmail = authentication.getName(); 
+        return toProfileResponse(currentUser.get());
+    }
 
-        // 2. Chạy xuống Database tìm hồ sơ
-        User user = userRepository.findByEmail(currentEmail)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng trong hệ thống"));
+    public List<UserProfileResponse> getAllProfiles() {
+        return userRepository.findAll().stream()
+                .map(this::toProfileResponse)
+                .toList();
+    }
 
-        // 3. Chép thông tin từ Database sang tờ trích lục (DTO) và trả về
+    public List<UserProfileResponse> getVisibleBuyerProfiles() {
+        User user = currentUser.get();
+        return switch (user.getRole()) {
+            case ADMIN, LOGISTICS -> userRepository.findAll().stream()
+                    .filter(candidate -> candidate.getRole() == Role.BUYER)
+                    .map(this::toProfileResponse)
+                    .toList();
+            case BUYER -> List.of(toProfileResponse(user));
+            case FARMER -> getBuyerProfilesForFarmer(user.getId());
+        };
+    }
+
+    private List<UserProfileResponse> getBuyerProfilesForFarmer(Long farmerId) {
+        Set<Long> farmerBatchIds = cropBatchRepository.findByFarmerId(farmerId).stream()
+                .map(CropBatch::getId)
+                .collect(Collectors.toSet());
+        if (farmerBatchIds.isEmpty()) {
+            return List.of();
+        }
+
+        Set<Long> orderIds = orderItemRepository.findAll().stream()
+                .filter(item -> farmerBatchIds.contains(item.getBatchId()))
+                .map(item -> item.getOrderId())
+                .collect(Collectors.toSet());
+        if (orderIds.isEmpty()) {
+            return List.of();
+        }
+
+        Set<Long> buyerIds = orderRepository.findAll().stream()
+                .filter(order -> orderIds.contains(order.getId()))
+                .map(Order::getBuyerId)
+                .collect(Collectors.toSet());
+
+        return userRepository.findAllById(buyerIds).stream()
+                .filter(candidate -> candidate.getRole() == Role.BUYER)
+                .map(this::toProfileResponse)
+                .toList();
+    }
+
+    private UserProfileResponse toProfileResponse(User user) {
         return UserProfileResponse.builder()
                 .id(user.getId())
                 .fullName(user.getFullName())
@@ -75,18 +134,5 @@ public class UserService implements UserDetailsService {
                 .role(user.getRole())
                 .status(user.getStatus())
                 .build();
-    }
-
-    public List<UserProfileResponse> getAllProfiles() {
-        return userRepository.findAll().stream()
-                .map(user -> UserProfileResponse.builder()
-                        .id(user.getId())
-                        .fullName(user.getFullName())
-                        .email(user.getEmail())
-                        .phone(user.getPhone())
-                        .role(user.getRole())
-                        .status(user.getStatus())
-                        .build())
-                .toList();
     }
 }

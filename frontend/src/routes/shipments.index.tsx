@@ -1,35 +1,55 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, Clock, Loader2, MapPin, PackageCheck, Search, ShieldCheck, ShoppingBag, Truck, X } from "lucide-react";
+import {
+  CheckCircle2,
+  Clock,
+  Loader2,
+  MapPin,
+  PackageCheck,
+  Search,
+  ShieldCheck,
+  ShoppingBag,
+  Truck,
+  X,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { Crop, CropBatch } from "@/api/cropApi";
 import type { Order, OrderStatus } from "@/api/orderApi";
 import type { OrderItem } from "@/api/orderItemApi";
 import type { Shipment } from "@/api/shipmentApi";
+import type { UserProfile } from "@/api/userApi";
 import { PageShell } from "@/components/site-layout";
 import { useAuth } from "@/hooks/use-auth";
 import { useCropBatches, useCrops } from "@/hooks/use-crops";
 import { useOrderItems } from "@/hooks/use-order-items";
 import { useMyOrders, useOrders, useUpdateOrderStatus } from "@/hooks/use-orders";
 import { useMyShipments } from "@/hooks/use-shipments";
+import { useVisibleBuyers } from "@/hooks/use-user-profile";
 import type { UserRole } from "@/lib/auth";
 import { getCropImage } from "@/lib/crop-images";
 import { formatVND } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/shipments/")({
-  head: () => ({ meta: [{ title: "Van chuyen don hang - AgriConnect" }] }),
+  head: () => ({ meta: [{ title: "Vận chuyển đơn hàng - AgriConnect" }] }),
   component: Page,
 });
 
-const statusOrder: OrderStatus[] = ["PENDING", "CONFIRMED", "PACKING", "SHIPPING", "DELIVERED", "CANCELLED"];
+const statusOrder: OrderStatus[] = [
+  "PENDING",
+  "CONFIRMED",
+  "PACKING",
+  "SHIPPING",
+  "DELIVERED",
+  "CANCELLED",
+];
 
 const statusLabels: Record<OrderStatus, string> = {
-  PENDING: "Vua tao don",
-  CONFIRMED: "Da xac nhan",
-  PACKING: "Dang chuan bi",
-  SHIPPING: "Dang giao",
-  DELIVERED: "Da giao",
-  CANCELLED: "Da huy",
+  PENDING: "Vừa tạo đơn",
+  CONFIRMED: "Đã xác nhận",
+  PACKING: "Đang chuẩn bị",
+  SHIPPING: "Đang giao",
+  DELIVERED: "Đã giao",
+  CANCELLED: "Đã hủy",
 };
 
 interface TrackingRow {
@@ -37,6 +57,8 @@ interface TrackingRow {
   status: OrderStatus;
   totalAmount?: number;
   orderDate?: string | null;
+  buyerId: number;
+  buyer?: UserProfile;
   shipmentId?: number;
   logisticsUserId?: number;
   pickupAddress?: string;
@@ -60,17 +82,40 @@ function Page() {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "ALL">("ALL");
   const { role, ready } = useAuth();
-  const ordersQuery = useOrders(undefined, role === "ADMIN" || role === "FARMER" || role === "LOGISTICS");
+  const ordersQuery = useOrders(
+    undefined,
+    role === "ADMIN" || role === "FARMER" || role === "LOGISTICS",
+  );
   const myOrdersQuery = useMyOrders(role === "BUYER");
   const shipmentsQuery = useMyShipments(!!role);
   const orderItemsQuery = useOrderItems(undefined, !!role);
   const batchesQuery = useCropBatches();
   const cropsQuery = useCrops();
+  const buyersQuery = useVisibleBuyers(!!role);
   const updateOrderStatus = useUpdateOrderStatus();
 
   const rows = useMemo(
-    () => getRows(role, ordersQuery.data, myOrdersQuery.data, shipmentsQuery.data, orderItemsQuery.data, batchesQuery.data, cropsQuery.data),
-    [role, ordersQuery.data, myOrdersQuery.data, shipmentsQuery.data, orderItemsQuery.data, batchesQuery.data, cropsQuery.data],
+    () =>
+      getRows(
+        role,
+        ordersQuery.data,
+        myOrdersQuery.data,
+        shipmentsQuery.data,
+        orderItemsQuery.data,
+        batchesQuery.data,
+        cropsQuery.data,
+        buyersQuery.data,
+      ),
+    [
+      role,
+      ordersQuery.data,
+      myOrdersQuery.data,
+      shipmentsQuery.data,
+      orderItemsQuery.data,
+      batchesQuery.data,
+      cropsQuery.data,
+      buyersQuery.data,
+    ],
   );
 
   const filtered = useMemo(() => {
@@ -81,17 +126,37 @@ function Page() {
         row.id,
         row.shipmentId,
         row.logisticsUserId,
+        row.buyer?.fullName,
+        row.buyer?.email,
+        row.buyer?.phone,
         row.pickupAddress,
         row.deliveryAddress,
         statusLabels[row.status],
         ...row.items.flatMap((item) => [item.batchId, item.cropName, item.farmerName]),
-      ].join(" ").toLowerCase();
+      ]
+        .join(" ")
+        .toLowerCase();
       return matchesStatus && (!needle || haystack.includes(needle));
     });
   }, [q, rows, statusFilter]);
 
-  const isLoading = !ready || ordersQuery.isLoading || myOrdersQuery.isLoading || shipmentsQuery.isLoading || orderItemsQuery.isLoading || batchesQuery.isLoading || cropsQuery.isLoading;
-  const isError = ordersQuery.isError || myOrdersQuery.isError || shipmentsQuery.isError || orderItemsQuery.isError || batchesQuery.isError || cropsQuery.isError;
+  const isLoading =
+    !ready ||
+    ordersQuery.isLoading ||
+    myOrdersQuery.isLoading ||
+    shipmentsQuery.isLoading ||
+    orderItemsQuery.isLoading ||
+    batchesQuery.isLoading ||
+    cropsQuery.isLoading ||
+    buyersQuery.isLoading;
+  const isError =
+    ordersQuery.isError ||
+    myOrdersQuery.isError ||
+    shipmentsQuery.isError ||
+    orderItemsQuery.isError ||
+    batchesQuery.isError ||
+    cropsQuery.isError ||
+    buyersQuery.isError;
   const busy = updateOrderStatus.isPending;
 
   async function changeStatus(row: TrackingRow, status: OrderStatus) {
@@ -103,11 +168,12 @@ function Page() {
       <div className="border-b border-border bg-muted/30">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase text-primary">
-            <Truck className="h-3.5 w-3.5" /> Van chuyen
+            <Truck className="h-3.5 w-3.5" /> Vận chuyển
           </div>
-          <h1 className="mt-1 text-3xl font-bold sm:text-4xl">Don hang va giao nhan</h1>
+          <h1 className="mt-1 text-3xl font-bold sm:text-4xl">Đơn hàng và giao nhận</h1>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Nong dan theo doi don tu lo nong san cua minh; nguoi mua theo doi don da mua; admin va logistics xem toan bo.
+            Nông dân theo dõi đơn từ lô nông sản của mình; người mua theo dõi đơn đã mua; admin và
+            logistics xem toàn bộ.
           </p>
           <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
             <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 shadow-soft">
@@ -115,7 +181,7 @@ function Page() {
               <input
                 value={q}
                 onChange={(event) => setQ(event.target.value)}
-                placeholder="Tim ma don, ma lo, nong san, nong dan..."
+                placeholder="Tìm mã đơn, mã lô, nông sản, nông dân..."
                 className="w-full bg-transparent text-sm outline-none"
               />
             </div>
@@ -124,9 +190,11 @@ function Page() {
               onChange={(event) => setStatusFilter(event.target.value as OrderStatus | "ALL")}
               className="rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none"
             >
-              <option value="ALL">Tat ca trang thai</option>
+              <option value="ALL">Tất cả trạng thái</option>
               {statusOrder.map((status) => (
-                <option key={status} value={status}>{statusLabels[status]}</option>
+                <option key={status} value={status}>
+                  {statusLabels[status]}
+                </option>
               ))}
             </select>
           </div>
@@ -141,9 +209,11 @@ function Page() {
               <button
                 key={status}
                 type="button"
-                onClick={() => setStatusFilter((current) => current === status ? "ALL" : status)}
+                onClick={() => setStatusFilter((current) => (current === status ? "ALL" : status))}
                 className={`rounded-lg border p-3 text-left shadow-card transition-colors ${
-                  statusFilter === status ? "border-primary bg-primary-soft" : "border-border bg-card hover:bg-muted/60"
+                  statusFilter === status
+                    ? "border-primary bg-primary-soft"
+                    : "border-border bg-card hover:bg-muted/60"
                 }`}
               >
                 <div className="text-2xl font-bold text-primary">{count}</div>
@@ -155,20 +225,26 @@ function Page() {
 
         {isLoading ? (
           <div className="flex items-center justify-center gap-2 rounded-lg border border-border bg-card p-10 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Dang tai don hang...
+            <Loader2 className="h-4 w-4 animate-spin" /> Đang tải đơn hàng...
           </div>
         ) : isError ? (
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-5 text-sm text-destructive">
-            Khong tai duoc danh sach don hang. Vui long kiem tra quyen truy cap hoac backend.
+            Không tải được danh sách đơn hàng. Vui lòng kiểm tra quyền truy cập hoặc backend.
           </div>
         ) : filtered.length === 0 ? (
           <div className="rounded-lg border border-border bg-card p-10 text-center text-sm text-muted-foreground">
-            Chua co don hang phu hop.
+            Chưa có đơn hàng phù hợp.
           </div>
         ) : (
           <div className="space-y-4">
             {filtered.map((row) => (
-              <TrackingCard key={row.id} row={row} role={role} busy={busy} onChangeStatus={changeStatus} />
+              <TrackingCard
+                key={row.id}
+                row={row}
+                role={role}
+                busy={busy}
+                onChangeStatus={changeStatus}
+              />
             ))}
           </div>
         )}
@@ -196,20 +272,23 @@ function TrackingCard({
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <ShoppingBag className="h-4 w-4 text-primary" />
-            <span className="font-mono text-sm font-semibold">Don #{row.id}</span>
-            {row.shipmentId && <span className="font-mono text-xs text-muted-foreground">VC-{row.shipmentId}</span>}
+            <span className="font-mono text-sm font-semibold">Đơn #{row.id}</span>
+            {row.shipmentId && (
+              <span className="font-mono text-xs text-muted-foreground">VC-{row.shipmentId}</span>
+            )}
             <StatusPill status={row.status} />
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            {row.totalAmount !== undefined && <span>Tong {formatVND(row.totalAmount)}</span>}
-            {row.orderDate && <span>Ngay {formatDate(row.orderDate)}</span>}
+            {row.totalAmount !== undefined && <span>Tổng {formatVND(row.totalAmount)}</span>}
+            {row.orderDate && <span>Ngày {formatDate(row.orderDate)}</span>}
+            <span>Người mua: {row.buyer?.fullName ?? `#${row.buyerId}`}</span>
             {row.logisticsUserId !== undefined && (
               <span className="inline-flex items-center gap-1">
                 <ShieldCheck className="h-3.5 w-3.5" /> Logistics #{row.logisticsUserId}
               </span>
             )}
-            {row.shippedAt && <span>Giao tu {formatDate(row.shippedAt)}</span>}
-            {row.deliveredAt && <span>Hoan tat {formatDate(row.deliveredAt)}</span>}
+            {row.shippedAt && <span>Giao từ {formatDate(row.shippedAt)}</span>}
+            {row.deliveredAt && <span>Hoàn tất {formatDate(row.deliveredAt)}</span>}
           </div>
         </div>
 
@@ -231,28 +310,69 @@ function TrackingCard({
         )}
       </div>
 
-      {row.items.length > 0 && (
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {row.items.map((item) => (
-            <div key={item.id} className="flex min-w-0 gap-3 rounded-lg border border-border bg-muted/20 p-3">
-              <div className="h-16 w-16 shrink-0 overflow-hidden rounded-md bg-primary-soft">
-                {item.image ? <img src={item.image} alt={item.cropName} className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center text-xs font-bold text-primary">#{item.batchId}</div>}
-              </div>
-              <div className="min-w-0">
-                <div className="truncate text-sm font-semibold">{item.cropName}</div>
-                <div className="mt-1 text-xs text-muted-foreground">Lo #{item.batchId}</div>
-                <div className="mt-1 text-xs text-muted-foreground">Nong dan: {item.farmerName}</div>
-                <div className="mt-1 text-xs font-semibold text-primary">{item.quantity} kg x {formatVND(item.unitPrice)}</div>
-              </div>
-            </div>
-          ))}
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
+          <div className="text-xs text-muted-foreground">Người mua</div>
+          <div className="mt-1 font-semibold">{row.buyer?.fullName ?? `Người mua #${row.buyerId}`}</div>
+          <div className="mt-1 flex flex-col gap-1 text-xs text-muted-foreground">
+            {row.buyer?.phone && <span>SĐT: {row.buyer.phone}</span>}
+            {row.buyer?.email && <span className="break-all">Email: {row.buyer.email}</span>}
+            {!row.buyer && <span>Không tải được thông tin người mua.</span>}
+          </div>
         </div>
-      )}
+
+        {row.items.length > 0 ? (
+          <div className="grid gap-3 xl:grid-cols-1">
+            {row.items.map((item) => (
+              <div
+                key={item.id}
+                className="flex min-w-0 gap-3 rounded-lg border border-border bg-muted/20 p-3"
+              >
+                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-md bg-primary-soft">
+                  {item.image ? (
+                    <img
+                      src={item.image}
+                      alt={item.cropName}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="grid h-full place-items-center text-xs font-bold text-primary">
+                      #{item.batchId}
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold">{item.cropName}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Lô #{item.batchId}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Nông dân: {item.farmerName}
+                  </div>
+                  <div className="mt-1 text-xs font-semibold text-primary">
+                    {item.quantity} kg x {formatVND(item.unitPrice)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
+            Chưa có thông tin lô nông sản.
+          </div>
+        )}
+      </div>
 
       {(row.pickupAddress || row.deliveryAddress) && (
         <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
-          {row.pickupAddress && <AddressBox iconColor="text-primary" label="Noi lay hang" value={row.pickupAddress} />}
-          {row.deliveryAddress && <AddressBox iconColor="text-destructive" label="Noi giao hang" value={row.deliveryAddress} />}
+          {row.pickupAddress && (
+            <AddressBox iconColor="text-primary" label="Nơi lấy hàng" value={row.pickupAddress} />
+          )}
+          {row.deliveryAddress && (
+            <AddressBox
+              iconColor="text-destructive"
+              label="Nơi giao hàng"
+              value={row.deliveryAddress}
+            />
+          )}
         </div>
       )}
 
@@ -269,23 +389,49 @@ function getRows(
   orderItems?: OrderItem[],
   batches?: CropBatch[],
   crops?: Crop[],
+  buyers?: UserProfile[],
 ): TrackingRow[] {
   const itemsByOrder = buildItemsByOrder(orderItems ?? [], batches ?? [], crops ?? []);
-  const shipmentByOrderId = new Map((shipments ?? []).map((shipment) => [shipment.orderId, shipment]));
+  const shipmentByOrderId = new Map(
+    (shipments ?? []).map((shipment) => [shipment.orderId, shipment]),
+  );
+  const buyerById = new Map((buyers ?? []).map((buyer) => [buyer.id, buyer]));
 
-  if (role === "BUYER") return (buyerOrders ?? []).map((order) => orderToRow(order, itemsByOrder, shipmentByOrderId.get(order.id)));
+  if (role === "BUYER")
+    return (buyerOrders ?? []).map((order) =>
+      orderToRow(
+        order,
+        itemsByOrder,
+        shipmentByOrderId.get(order.id),
+        buyerById.get(order.buyerId),
+      ),
+    );
   if (role === "ADMIN" || role === "FARMER" || role === "LOGISTICS") {
-    return (adminOrders ?? []).map((order) => orderToRow(order, itemsByOrder, shipmentByOrderId.get(order.id)));
+    return (adminOrders ?? []).map((order) =>
+      orderToRow(
+        order,
+        itemsByOrder,
+        shipmentByOrderId.get(order.id),
+        buyerById.get(order.buyerId),
+      ),
+    );
   }
   return [];
 }
 
-function orderToRow(order: Order, itemsByOrder: Map<number, CropInfo[]>, shipment?: Shipment): TrackingRow {
+function orderToRow(
+  order: Order,
+  itemsByOrder: Map<number, CropInfo[]>,
+  shipment?: Shipment,
+  buyer?: UserProfile,
+): TrackingRow {
   return {
     id: order.id,
     status: order.status,
     totalAmount: order.totalAmount,
     orderDate: order.orderDate ?? order.createdAt,
+    buyerId: order.buyerId,
+    buyer,
     shipmentId: shipment?.id,
     logisticsUserId: shipment?.logisticsUserId,
     pickupAddress: shipment?.pickupAddress,
@@ -303,7 +449,9 @@ function buildItemsByOrder(orderItems: OrderItem[], batches: CropBatch[], crops:
 
   orderItems.forEach((item) => {
     const batch = batchById.get(item.batchId);
-    const cropName = batch ? cropById.get(batch.cropId)?.name ?? `Nong san #${batch.cropId}` : "Nong san";
+    const cropName = batch
+      ? (cropById.get(batch.cropId)?.name ?? `Nông sản #${batch.cropId}`)
+      : "Nông sản";
     const info: CropInfo = {
       id: item.id,
       batchId: item.batchId,
@@ -319,7 +467,15 @@ function buildItemsByOrder(orderItems: OrderItem[], batches: CropBatch[], crops:
   return itemsByOrder;
 }
 
-function AddressBox({ label, value, iconColor }: { label: string; value: string; iconColor: string }) {
+function AddressBox({
+  label,
+  value,
+  iconColor,
+}: {
+  label: string;
+  value: string;
+  iconColor: string;
+}) {
   return (
     <div className="rounded-lg border border-border bg-muted/30 p-3">
       <div className="text-xs text-muted-foreground">{label}</div>
@@ -331,8 +487,12 @@ function AddressBox({ label, value, iconColor }: { label: string; value: string;
 }
 
 function Timeline({ status }: { status: OrderStatus }) {
-  const activeOrder = status === "CANCELLED" ? statusOrder.indexOf("CANCELLED") : statusOrder.filter((step) => step !== "CANCELLED").indexOf(status);
-  const flow = status === "CANCELLED" ? statusOrder : statusOrder.filter((step) => step !== "CANCELLED");
+  const activeOrder =
+    status === "CANCELLED"
+      ? statusOrder.indexOf("CANCELLED")
+      : statusOrder.filter((step) => step !== "CANCELLED").indexOf(status);
+  const flow =
+    status === "CANCELLED" ? statusOrder : statusOrder.filter((step) => step !== "CANCELLED");
 
   return (
     <div className="mt-5 overflow-x-auto pb-1">
@@ -343,14 +503,22 @@ function Timeline({ status }: { status: OrderStatus }) {
           return (
             <div key={step} className="flex flex-1 items-start">
               <div className="flex w-24 flex-col items-center">
-                <div className={`grid h-8 w-8 place-items-center rounded-full ${done ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                <div
+                  className={`grid h-8 w-8 place-items-center rounded-full ${done ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                >
                   {done ? <CheckCircle2 className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
                 </div>
-                <div className={`mt-1 text-center text-[11px] leading-tight ${done ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                <div
+                  className={`mt-1 text-center text-[11px] leading-tight ${done ? "font-semibold text-foreground" : "text-muted-foreground"}`}
+                >
                   {statusLabels[step]}
                 </div>
               </div>
-              {!isLast && <div className={`mt-4 h-0.5 flex-1 ${index < activeOrder ? "bg-primary" : "bg-border"}`} />}
+              {!isLast && (
+                <div
+                  className={`mt-4 h-0.5 flex-1 ${index < activeOrder ? "bg-primary" : "bg-border"}`}
+                />
+              )}
             </div>
           );
         })}
@@ -360,15 +528,27 @@ function Timeline({ status }: { status: OrderStatus }) {
 }
 
 function StatusPill({ status }: { status: OrderStatus }) {
-  const tone = status === "CANCELLED"
-    ? "bg-destructive/10 text-destructive"
-    : status === "DELIVERED"
-      ? "bg-emerald-100 text-emerald-700"
-      : "bg-primary-soft text-primary";
-  const Icon = status === "CANCELLED" ? X : status === "DELIVERED" ? CheckCircle2 : status === "SHIPPING" ? Truck : status === "PACKING" ? PackageCheck : Clock;
+  const tone =
+    status === "CANCELLED"
+      ? "bg-destructive/10 text-destructive"
+      : status === "DELIVERED"
+        ? "bg-emerald-100 text-emerald-700"
+        : "bg-primary-soft text-primary";
+  const Icon =
+    status === "CANCELLED"
+      ? X
+      : status === "DELIVERED"
+        ? CheckCircle2
+        : status === "SHIPPING"
+          ? Truck
+          : status === "PACKING"
+            ? PackageCheck
+            : Clock;
 
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${tone}`}>
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${tone}`}
+    >
       <Icon className="h-3 w-3" /> {statusLabels[status]}
     </span>
   );
@@ -379,20 +559,25 @@ function getAllowedActions(role: UserRole | null, current: OrderStatus): OrderSt
 
   const actions: OrderStatus[] = [];
   if ((role === "ADMIN" || role === "FARMER") && current === "PENDING") actions.push("CONFIRMED");
-  if ((role === "FARMER" || role === "LOGISTICS") && current === "CONFIRMED") actions.push("PACKING");
+  if ((role === "FARMER" || role === "LOGISTICS") && current === "CONFIRMED")
+    actions.push("PACKING");
   if (role === "LOGISTICS" && current === "PACKING") actions.push("SHIPPING");
   if (role === "LOGISTICS" && current === "SHIPPING") actions.push("DELIVERED");
-  if ((role === "BUYER" || role === "ADMIN") && (current === "PENDING" || current === "CONFIRMED")) actions.push("CANCELLED");
+  if ((role === "BUYER" || role === "ADMIN") && (current === "PENDING" || current === "CONFIRMED"))
+    actions.push("CANCELLED");
   return actions;
 }
 
 function actionButtonClass(status: OrderStatus) {
-  const tone = status === "CANCELLED"
-    ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-    : "bg-primary text-primary-foreground hover:bg-primary/90";
+  const tone =
+    status === "CANCELLED"
+      ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+      : "bg-primary text-primary-foreground hover:bg-primary/90";
   return `inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${tone}`;
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
+  return new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(
+    new Date(value),
+  );
 }

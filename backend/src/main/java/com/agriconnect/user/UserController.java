@@ -28,6 +28,12 @@ public class UserController {
         return ResponseEntity.ok(profile);
     }
 
+    @GetMapping("/visible-buyers")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<UserProfileResponse>> getVisibleBuyerProfiles() {
+        return ResponseEntity.ok(userService.getVisibleBuyerProfiles());
+    }
+
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserProfileResponse>> getAllProfiles() {
