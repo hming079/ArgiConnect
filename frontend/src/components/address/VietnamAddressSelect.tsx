@@ -144,7 +144,7 @@ export function VietnamAddressSelect({
             }}
             className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
           >
-            <option value="">{loadingProvinces ? "Dang tai..." : "Chon tinh/thanh"}</option>
+            <option value="">{loadingProvinces ? "Đang tải..." : "Chọn tỉnh/thành"}</option>
             {provinces.map((province) => (
               <option key={province.code} value={province.code}>
                 {province.name}
@@ -153,7 +153,7 @@ export function VietnamAddressSelect({
           </select>
         </label>
         <label className="space-y-2">
-          <span className="text-xs font-semibold text-muted-foreground">Phuong / xa</span>
+          <span className="text-xs font-semibold text-muted-foreground">Phường / xã</span>
           <select
             value={wardCode}
             disabled={!provinceCode || loadingWards}
@@ -166,7 +166,7 @@ export function VietnamAddressSelect({
             className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
           >
             <option value="">
-              {loadingWards ? "Dang tai..." : provinceCode ? "Chon phuong/xa" : "Chon tinh truoc"}
+              {loadingWards ? "Dang tai..." : provinceCode ? "Chọn phường/xã" : "Chọn tỉnh trước"}
             </option>
             {wards.map((ward) => (
               <option key={ward.code} value={ward.code}>
@@ -177,7 +177,7 @@ export function VietnamAddressSelect({
         </label>
       </div>
       <label className="block space-y-2">
-        <span className="text-xs font-semibold text-muted-foreground">Dia chi chi tiet</span>
+        <span className="text-xs font-semibold text-muted-foreground">Địa chỉ chi tiết</span>
         <input
           value={detailAddress}
           onChange={(event) => {
@@ -185,12 +185,12 @@ export function VietnamAddressSelect({
             setDetailAddress(detail);
             emit({ detailAddress: detail });
           }}
-          placeholder="So nha, ten duong..."
+          placeholder="Số nhà, tên đường..."
           className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
         />
       </label>
       <label className="block space-y-2">
-        <span className="text-xs font-semibold text-muted-foreground">Dia chi day du</span>
+        <span className="text-xs font-semibold text-muted-foreground">Địa chỉ đầy đủ</span>
         <input
           required={required}
           value={value}
@@ -199,7 +199,7 @@ export function VietnamAddressSelect({
               fullAddress: event.target.value,
             })
           }
-          placeholder="Co the sua thu cong dia chi day du"
+          placeholder="Có thể sửa thủ công địa chỉ đầy đủ"
           className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
         />
       </label>

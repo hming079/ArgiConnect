@@ -520,7 +520,7 @@ public class AnalyticsService {
     private Snapshot loadSnapshot() {
         List<CropBatch> batches = cropBatchRepository.findAll();
         List<Order> orders = orderRepository.findAll();
-        Map<Long, Order> ordersById = orders.stream().collect(Collectors.toMap(Order::getId, Function.identity()));
+        Map<Long, Order> ordersById = mapById(orders, Order::getId);
         List<Order> visibleOrders = orders.stream()
                 .filter(order -> order.getStatus() != OrderStatus.CANCELLED)
                 .toList();
@@ -538,16 +538,22 @@ public class AnalyticsService {
 
         return new Snapshot(
                 batches,
-                batches.stream().collect(Collectors.toMap(CropBatch::getId, Function.identity())),
+                mapById(batches, CropBatch::getId),
                 orders,
                 visibleOrders,
                 ordersById,
                 visibleItems,
                 approvedRescueRegistrations,
                 approvedRescueBatchIds,
-                rescuePointRepository.findAll().stream().collect(Collectors.toMap(RescuePoint::getId, Function.identity())),
+                mapById(rescuePointRepository.findAll(), RescuePoint::getId),
                 shipmentRepository.findAll(),
-                cropRepository.findAll().stream().collect(Collectors.toMap(Crop::getId, Function.identity())));
+                mapById(cropRepository.findAll(), Crop::getId));
+    }
+
+    private <T> Map<Long, T> mapById(List<T> items, Function<T, Long> idExtractor) {
+        return items.stream()
+                .filter(item -> idExtractor.apply(item) != null)
+                .collect(Collectors.toMap(idExtractor, Function.identity(), (first, duplicate) -> first));
     }
 
     private record Snapshot(

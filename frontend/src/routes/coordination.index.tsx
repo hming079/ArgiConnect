@@ -25,10 +25,10 @@ import { useShipments } from "@/hooks/use-shipments";
 export const Route = createFileRoute("/coordination/")({
   head: () => ({
     meta: [
-      { title: "Dashboard dieu phoi - AgriConnect" },
+      { title: "Dashboard điều phối - AgriConnect" },
       {
         name: "description",
-        content: "Phan tich du lieu va ho tro ra quyet dinh dieu phoi nong san.",
+        content: "Phân tích dữ liệu và hỗ trợ ra quyết định điều phối nông sản.",
       },
     ],
   }),
@@ -68,9 +68,9 @@ function CoordinationPage() {
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
             <Activity className="h-3.5 w-3.5" /> Supply Chain Control Tower
           </div>
-          <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Dashboard dieu phoi nong san</h1>
+          <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Dashboard điều phối nông sản</h1>
           <p className="mt-2 max-w-3xl text-muted-foreground">
-            Phan tich san luong, du bao cung cau va ho tro ra quyet dinh dieu phoi theo du lieu
+            Phân tích sản lượng, dự báo cung cầu và hỗ trợ ra quyết định điều phối theo dữ liệu
             backend.
           </p>
           {role === "ADMIN" && (
@@ -79,7 +79,7 @@ function CoordinationPage() {
                 to="/analytics"
                 className="inline-flex items-center gap-1 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-soft hover:opacity-90"
               >
-                <BarChart3 className="h-4 w-4" /> Mo bao cao Analytics chi tiet{" "}
+                <BarChart3 className="h-4 w-4" /> Mở báo cáo Analytics chi tiết{" "}
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
@@ -88,38 +88,38 @@ function CoordinationPage() {
       </div>
 
       <div className="mx-auto max-w-7xl space-y-10 px-4 py-10 sm:px-6 lg:px-8">
-        {isError && <StateBox tone="error">Khong tai duoc du lieu dieu phoi tu backend.</StateBox>}
-        {isLoading && <StateBox>Dang tai du lieu dieu phoi...</StateBox>}
+        {isError && <StateBox tone="error">Không tải được dữ liệu điều phối từ backend.</StateBox>}
+        {isLoading && <StateBox>Đang tải dữ liệu điều phối...</StateBox>}
 
         <section>
-          <SectionTitle>Thong ke san luong</SectionTitle>
+          <SectionTitle>Thống kê sản lượng</SectionTitle>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <SumCard
               icon={Package}
-              label="Tong san luong"
+              label="Tổng sản lượng"
               value={`${formatTons(overview?.totalProductionQuantity ?? 0)}t`}
             />
             <SumCard
               icon={Package}
-              label="Ton kho"
+              label="Tồn kho"
               value={`${formatTons(overview?.currentInventoryQuantity ?? 0)}t`}
               tone="accent"
             />
             <SumCard
               icon={AlertTriangle}
-              label="Dang giai cuu"
+              label="Đang giải cứu"
               value={`${formatTons(overview?.rescuingQuantity ?? 0)}t`}
               tone="destructive"
             />
             <SumCard
               icon={TrendingUp}
-              label="Da tieu thu"
+              label="Đã tiêu thụ"
               value={`${formatTons(overview?.soldQuantity ?? 0)}t`}
               tone="primary"
             />
             <SumCard
               icon={Truck}
-              label="Dang van chuyen"
+              label="Đang vận chuyển"
               value={`${formatTons(overview?.inTransitQuantity ?? 0)}t`}
             />
           </div>
@@ -127,12 +127,12 @@ function CoordinationPage() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3 text-left">Tinh</th>
-                  <th className="px-4 py-3 text-right">Tong</th>
-                  <th className="px-4 py-3 text-right">Ton kho</th>
-                  <th className="px-4 py-3 text-right">Giai cuu</th>
-                  <th className="px-4 py-3 text-right">Da tieu thu</th>
-                  <th className="px-4 py-3 text-right">Van chuyen</th>
+                  <th className="px-4 py-3 text-left">Tỉnh</th>
+                  <th className="px-4 py-3 text-right">Tổng</th>
+                  <th className="px-4 py-3 text-right">Tồn kho</th>
+                  <th className="px-4 py-3 text-right">Giải cứu</th>
+                  <th className="px-4 py-3 text-right">Đã tiêu thụ</th>
+                  <th className="px-4 py-3 text-right">Vận chuyển</th>
                 </tr>
               </thead>
               <tbody>
@@ -153,7 +153,7 @@ function CoordinationPage() {
                 {!isLoading && provinceStats.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
-                      Chua co du lieu tinh.
+                      Chưa có dữ liệu tỉnh.
                     </td>
                   </tr>
                 )}
@@ -163,7 +163,7 @@ function CoordinationPage() {
         </section>
 
         <section>
-          <SectionTitle>Phan tich kha nang cung ung</SectionTitle>
+          <SectionTitle>Phân tích khả năng cung ứng</SectionTitle>
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
             {provinceStats.map((p) => (
               <div
@@ -179,14 +179,14 @@ function CoordinationPage() {
                   </span>
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
-                  <Metric label="Hien co" value={`${formatTons(p.inventoryKg + p.rescuingKg)}t`} />
+                  <Metric label="Hiện có" value={`${formatTons(p.inventoryKg + p.rescuingKg)}t`} />
                   <Metric
-                    label="Toc do TB"
-                    value={`${formatKg(p.consumptionRateKgPerDay)} kg/ngay`}
+                    label="Tốc độ TB"
+                    value={`${formatKg(p.consumptionRateKgPerDay)} kg/ngày`}
                   />
                   <Metric
-                    label="Du bao tieu thu het"
-                    value={`${formatNumber(p.inventoryCoverageDays)} ngay`}
+                    label="Dự báo tiêu thụ hết"
+                    value={`${formatNumber(p.inventoryCoverageDays)} ngày`}
                   />
                 </div>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
@@ -201,12 +201,12 @@ function CoordinationPage() {
         </section>
 
         <section>
-          <SectionTitle>Du bao cung cau</SectionTitle>
+          <SectionTitle>Dự báo cung cầu</SectionTitle>
           <div className="mt-4 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
             <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-              <h3 className="text-base font-semibold">Du bao ton kho</h3>
+              <h3 className="text-base font-semibold">Dự báo tồn kho</h3>
               <p className="text-xs text-muted-foreground">
-                San luong ton (tan) - hien tai va du bao 7/14/30 ngay
+                Sản lượng tồn (tấn) - hiện tại và dự báo 7/14/30 ngày
               </p>
               <div className="mt-4 flex h-44 items-end gap-3">
                 {(forecast?.points ?? []).map((d) => {
@@ -235,15 +235,15 @@ function CoordinationPage() {
                 })}
               </div>
               <div className="mt-3 flex gap-4 text-xs">
-                <Legend color="bg-primary" label="Hien tai" />
-                <Legend color="border border-dashed border-primary bg-primary/30" label="Du bao" />
+                <Legend color="bg-primary" label="Hiện tại" />
+                <Legend color="border border-dashed border-primary bg-primary/30" label="Dự báo" />
               </div>
             </div>
 
             <div className="space-y-3">
               <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5 shadow-card">
                 <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-destructive">
-                  <AlertCircle className="h-3.5 w-3.5" /> Vung co nguy co du thua
+                  <AlertCircle className="h-3.5 w-3.5" /> Vùng có nguy cơ dư thừa
                 </div>
                 <ul className="mt-3 space-y-2 text-sm">
                   {riskRows
@@ -265,12 +265,12 @@ function CoordinationPage() {
                 </ul>
               </div>
               <MiniForecast
-                label="Du bao nhu cau"
-                value={`~ ${formatTons(forecast?.expectedConsumption ?? 0)} tan`}
+                label="Dự báo nhu cầu"
+                value={`~ ${formatTons(forecast?.expectedConsumption ?? 0)} tấn`}
               />
               <MiniForecast
-                label="Du bao thu hoach"
-                value={`~ ${formatTons(forecast?.expectedHarvest ?? 0)} tan`}
+                label="Dự báo thu hoạch"
+                value={`~ ${formatTons(forecast?.expectedHarvest ?? 0)} tấn`}
                 tone="destructive"
               />
             </div>
@@ -278,7 +278,7 @@ function CoordinationPage() {
         </section>
 
         <section>
-          <SectionTitle>Ban do vung du thua & shipment</SectionTitle>
+          <SectionTitle>Bản đồ vùng dư thừa & shipment</SectionTitle>
           <div className="mt-4 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
             <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
               <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl bg-gradient-to-b from-primary-soft/40 to-accent/10">
@@ -329,7 +329,7 @@ function CoordinationPage() {
                   to="/shipments"
                   className="text-xs font-semibold text-primary hover:underline"
                 >
-                  Xem tat ca &gt;
+                  Xem tất cả &gt;
                 </Link>
               </div>
               <div className="mt-3 space-y-2">
@@ -359,15 +359,15 @@ function CoordinationPage() {
                     </div>
                   ))}
                 {!shipmentsQuery.isLoading && shipments.length === 0 && (
-                  <StateBox>Chua co shipment.</StateBox>
+                  <StateBox>Chưa có shipment.</StateBox>
                 )}
               </div>
             </div>
           </div>
           <div className="mt-3 flex gap-3 text-xs">
-            <Legend color="bg-destructive" label="Khan cap" />
-            <Legend color="bg-accent" label="Can theo doi" />
-            <Legend color="bg-primary" label="Binh thuong" />
+            <Legend color="bg-destructive" label="Khẩn cấp" />
+            <Legend color="bg-accent" label="Cần theo dõi" />
+            <Legend color="bg-primary" label="Bình thường" />
           </div>
         </section>
       </div>
@@ -435,7 +435,7 @@ function MiniForecast({
         {label}
       </div>
       <div className="mt-2 text-2xl font-bold">{value}</div>
-      <div className="text-xs text-muted-foreground">Rule-based forecast tu backend</div>
+      <div className="text-xs text-muted-foreground">Rule-based forecast từ backend</div>
     </div>
   );
 }
@@ -463,7 +463,7 @@ function Legend({ color, label }: { color: string; label: string }) {
 }
 
 function riskLabel(level: RiskLevel) {
-  return level === "HIGH" ? "Nguy co un u cao" : level === "MEDIUM" ? "Can theo doi" : "On dinh";
+  return level === "HIGH" ? "Nguy cơ ùn ứ cao" : level === "MEDIUM" ? "Cần theo dõi" : "Ổn định";
 }
 
 function riskPill(level: RiskLevel) {

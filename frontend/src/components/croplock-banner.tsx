@@ -44,11 +44,11 @@ export function CropLockBanner() {
         </span>
         <div className="min-w-0 flex-1">
           <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            CropLock - {ordered ? "Dang giu cho don hang" : "Dang giu hang"}
+            CropLock - {ordered ? "Đang giữ cho đơn hàng" : "Đang giữ hàng"}
           </div>
           <div className="text-sm">
-            He thong dang giu <span className="font-semibold">{totalQty} kg</span>
-            {ordered ? " trong don hang cua ban" : " trong gio cua ban"}. Ma:{" "}
+            Hệ thống đang giữ <span className="font-semibold">{totalQty} kg</span>
+            {ordered ? " trong đơn hàng của bạn" : " trong giỏ của bạn"}. Mã:{" "}
             <span className="font-mono font-semibold">{ordered ? lock.orderId : lock.id}</span>
           </div>
         </div>
@@ -58,7 +58,7 @@ export function CropLockBanner() {
               to="/checkout"
               className="inline-flex h-9 items-center rounded-full bg-primary px-4 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
             >
-              Tiep tuc xac nhan
+              Tiếp tục xác nhận
             </Link>
             <button
               type="button"
@@ -66,14 +66,14 @@ export function CropLockBanner() {
               disabled={cancelling}
               className="inline-flex h-9 items-center gap-1 rounded-full border border-destructive/30 px-3 text-xs font-semibold text-destructive hover:bg-destructive/10 disabled:opacity-60"
             >
-              <X className="h-3.5 w-3.5" /> {cancelling ? "Dang huy" : "Huy don"}
+              <X className="h-3.5 w-3.5" /> {cancelling ? "Đang hủy" : "Hủy đơn"}
             </button>
           </div>
         ) : (
           <div className="flex flex-wrap items-center justify-end gap-3">
             <div className="text-right">
               <div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                <Timer className="h-3 w-3" /> Con lai
+                <Timer className="h-3 w-3" /> Còn lại
               </div>
               <div className={`font-mono text-2xl font-bold tabular-nums ${expired ? "text-destructive" : "text-accent"}`}>
                 {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}

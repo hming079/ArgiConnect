@@ -9,6 +9,7 @@ public class CheckoutRequest {
     private LocalDateTime orderDate;
     private List<Item> items;
     private List<Long> cropLockIds;
+    private String deliveryAddress;
 
     public BigDecimal getTotalAmount() { return totalAmount; }
     public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
@@ -18,6 +19,8 @@ public class CheckoutRequest {
     public void setItems(List<Item> items) { this.items = items; }
     public List<Long> getCropLockIds() { return cropLockIds; }
     public void setCropLockIds(List<Long> cropLockIds) { this.cropLockIds = cropLockIds; }
+    public String getDeliveryAddress() { return deliveryAddress; }
+    public void setDeliveryAddress(String deliveryAddress) { this.deliveryAddress = deliveryAddress; }
 
     public static class Item {
         private Long batchId;

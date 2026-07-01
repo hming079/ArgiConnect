@@ -26,12 +26,12 @@ const roleLinks: Record<UserRole, NavLink[]> = {
     { to: "/farmer/rescue-requests", label: "Yêu cầu giải cứu" },
   ],
   BUYER: [
-    { to: "/analytics", label: "Phan tich" },
+    { to: "/analytics", label: "Phân tích" },
     { to: "/buyer", label: "Tổng quan người mua" },
     { to: "/products", label: "Nông sản" },
   ],
   LOGISTICS: [
-    { to: "/coordination", label: "Dieu phoi" },
+    { to: "/coordination", label: "Điều phối" },
     { to: "/categories", label: "Danh mục" },
   ],
 

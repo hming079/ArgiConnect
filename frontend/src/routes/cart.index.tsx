@@ -9,7 +9,7 @@ import { useCart } from "@/hooks/use-cart";
 import { useCropBatches } from "@/hooks/use-crops";
 
 export const Route = createFileRoute("/cart/")({
-  head: () => ({ meta: [{ title: "Gio hang - AgriConnect" }] }),
+  head: () => ({ meta: [{ title: "Giỏ hàng - AgriConnect" }] }),
   component: CartPage,
 });
 
@@ -43,8 +43,8 @@ function CartPage() {
   return (
     <PageShell>
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <h1 className="text-3xl font-bold">Gio hang</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Chon tung lo nong san de thanh toan.</p>
+        <h1 className="text-3xl font-bold">Giỏ hàng</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Chọn từng lô nông sản để thanh toán.</p>
         <div className="mt-5"><CropLockBanner /></div>
 
         {items.length === 0 ? (
@@ -52,18 +52,18 @@ function CartPage() {
             <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-primary-soft text-primary">
               <ShoppingBag className="h-6 w-6" />
             </div>
-            <h3 className="mt-4 text-lg font-semibold">Gio hang dang trong</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Kham pha nong san dang ban tu cac lo thuc te.</p>
+            <h3 className="mt-4 text-lg font-semibold">Giỏ hàng đang trống</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Khám phá nông sản đang bán từ các lô thực tế.</p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
-              <Link to="/products" className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">Xem nong san</Link>
+              <Link to="/products" className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">Xem nông sản</Link>
             </div>
           </div>
         ) : (
           <div className="mt-8 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
             <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
               <div className="flex items-center justify-between border-b border-border p-4">
-                <div className="text-sm font-medium">{selectedItems.length} / {items.length} lo duoc chon</div>
-                <button onClick={clear} className="text-xs text-destructive hover:underline">Xoa tat ca</button>
+                <div className="text-sm font-medium">{selectedItems.length} / {items.length} lô được chọn</div>
+                <button onClick={clear} className="text-xs text-destructive hover:underline">Xóa tất cả</button>
               </div>
               <ul className="divide-y divide-border">
                 {items.map((item) => {
@@ -82,7 +82,7 @@ function CartPage() {
                         <img src={item.image} alt={item.name} className="h-20 w-20 rounded-xl object-cover" />
                       ) : (
                         <div className="grid h-20 w-20 shrink-0 place-items-center rounded-xl bg-primary-soft text-sm font-semibold text-primary">
-                          {batchId ? `#${batchId}` : "Lo"}
+                          {batchId ? `#${batchId}` : "Lô"}
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
@@ -90,7 +90,7 @@ function CartPage() {
                         <div className="text-xs text-muted-foreground">{item.location}</div>
                         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                           <span>Crop batch: <strong className="text-foreground">#{batchId ?? "?"}</strong></span>
-                          <span>Farmer: <strong className="text-foreground">{batch?.farmerName ?? "Dang tai"}</strong></span>
+                          <span>Farmer: <strong className="text-foreground">{batch?.farmerName ?? "Đang tải"}</strong></span>
                         </div>
                         <div className="mt-1 text-sm font-bold text-primary">{formatVND(item.pricePerKg)}/{unit}</div>
                       </div>
@@ -120,22 +120,22 @@ function CartPage() {
             </div>
 
             <aside className="h-fit rounded-2xl border border-border bg-card p-6 shadow-card">
-              <h3 className="text-lg font-semibold">Tom tat don hang</h3>
+              <h3 className="text-lg font-semibold">Tóm tắt đơn hàng</h3>
               <div className="mt-4 space-y-2 text-sm">
-                <Row label="Tam tinh" v={formatVND(subtotal)} />
-                <Row label="Phi van chuyen" v={formatVND(shipping)} />
+                <Row label="Tạm tính" v={formatVND(subtotal)} />
+                <Row label="Phí vận chuyển" v={formatVND(shipping)} />
                 <div className="my-3 border-t border-border" />
-                <Row label="Tong cong" v={formatVND(subtotal + shipping)} strong />
+                <Row label="Tổng cộng" v={formatVND(subtotal + shipping)} strong />
               </div>
               <button
                 onClick={paySelected}
                 disabled={selectedItems.length === 0}
                 className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft disabled:opacity-50"
               >
-                <CreditCard className="h-4 w-4" /> Thanh toan lo da chon <ArrowRight className="h-4 w-4" />
+                <CreditCard className="h-4 w-4" /> Thanh toán lô đã chọn <ArrowRight className="h-4 w-4" />
               </button>
               <Link to="/products" className="mt-3 block text-center text-xs text-muted-foreground hover:underline">
-                Tiep tuc mua sam
+                Tiếp tục mua sắm
               </Link>
             </aside>
           </div>

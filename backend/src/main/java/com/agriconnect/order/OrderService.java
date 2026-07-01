@@ -20,7 +20,12 @@ import com.agriconnect.orderItem.OrderItem;
 import com.agriconnect.orderItem.OrderItemRepository;
 import com.agriconnect.orderItem.OrderItemService;
 import com.agriconnect.security.CurrentUser;
+import com.agriconnect.shipment.Shipment;
+import com.agriconnect.shipment.ShipmentRepository;
+import com.agriconnect.shipment.ShipmentStatus;
 import com.agriconnect.user.Role;
+import com.agriconnect.user.User;
+import com.agriconnect.user.UserRepository;
 
 @Service
 public class OrderService {
@@ -30,6 +35,8 @@ public class OrderService {
     private final OrderItemRepository orderItemRepository;
     private final CropBatchRepository cropBatchRepository;
     private final CropLockService cropLockService;
+    private final ShipmentRepository shipmentRepository;
+    private final UserRepository userRepository;
 
     public OrderService(
             OrderRepository repository,
@@ -37,13 +44,17 @@ public class OrderService {
             OrderItemService orderItemService,
             OrderItemRepository orderItemRepository,
             CropBatchRepository cropBatchRepository,
-            CropLockService cropLockService) {
+            CropLockService cropLockService,
+            ShipmentRepository shipmentRepository,
+            UserRepository userRepository) {
         this.repository = repository;
         this.currentUser = currentUser;
         this.orderItemService = orderItemService;
         this.orderItemRepository = orderItemRepository;
         this.cropBatchRepository = cropBatchRepository;
         this.cropLockService = cropLockService;
+        this.shipmentRepository = shipmentRepository;
+        this.userRepository = userRepository;
     }
 
     public List<Order> getAll(Long buyerId, OrderStatus status) {
@@ -93,6 +104,9 @@ public class OrderService {
         if (request == null || request.getItems() == null || request.getItems().isEmpty()) {
             throw new BadRequestException("Checkout must include at least one item");
         }
+        if (request.getDeliveryAddress() == null || request.getDeliveryAddress().isBlank()) {
+            throw new BadRequestException("Delivery address is required");
+        }
         List<CropLock> locks = cropLockService.convertOwnedActiveLocks(request.getCropLockIds());
         assertLocksCoverItems(request.getItems(), locks);
 
@@ -111,6 +125,7 @@ public class OrderService {
             orderItemService.create(item);
         }
 
+        createShipmentForCheckout(saved, request);
         return saved;
     }
 
@@ -210,6 +225,53 @@ public class OrderService {
                 throw new BadRequestException("Crop lock quantity does not match checkout item for batch " + batchId);
             }
         });
+    }
+
+    private void createShipmentForCheckout(Order order, CheckoutRequest request) {
+        Shipment shipment = new Shipment();
+        shipment.setOrderId(order.getId());
+        shipment.setLogisticsUserId(defaultLogisticsUserId());
+        shipment.setPickupAddress(buildPickupAddress(request.getItems()));
+        shipment.setDeliveryAddress(request.getDeliveryAddress().trim());
+        shipment.setStatus(ShipmentStatus.PENDING);
+        shipment.setShippedAt(null);
+        shipment.setDeliveredAt(null);
+        shipmentRepository.save(shipment);
+    }
+
+    private Long defaultLogisticsUserId() {
+        return userRepository.findAll().stream()
+                .filter(user -> user.getRole() == Role.LOGISTICS)
+                .filter(User::isActive)
+                .map(User::getId)
+                .findFirst()
+                .orElseThrow(() -> new BadRequestException("No active logistics user is available for shipment"));
+    }
+
+    private String buildPickupAddress(List<CheckoutRequest.Item> items) {
+        String address = items.stream()
+                .map(item -> cropBatchRepository.findById(item.getBatchId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Crop batch not found with id: " + item.getBatchId())))
+                .map(this::formatBatchAddress)
+                .filter(value -> value != null && !value.isBlank())
+                .distinct()
+                .collect(Collectors.joining(" | "));
+        if (address.isBlank()) {
+            throw new BadRequestException("Pickup address is missing for checkout items");
+        }
+        return address;
+    }
+
+    private String formatBatchAddress(CropBatch batch) {
+        if (batch.getAddressDetail() != null && !batch.getAddressDetail().isBlank()
+                && java.util.stream.Stream.of(batch.getWard(), batch.getDistrict(), batch.getProvince())
+                        .filter(value -> value != null && !value.isBlank())
+                        .anyMatch(part -> batch.getAddressDetail().contains(part))) {
+            return batch.getAddressDetail();
+        }
+        return java.util.stream.Stream.of(batch.getAddressDetail(), batch.getWard(), batch.getDistrict(), batch.getProvince())
+                .filter(value -> value != null && !value.isBlank())
+                .collect(Collectors.joining(", "));
     }
 
     private void syncQuantityStatus(CropBatch batch) {

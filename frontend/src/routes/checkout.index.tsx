@@ -7,6 +7,7 @@ import { checkoutOrder } from "@/api/orderApi";
 import { createCropLock, deleteCropLock } from "@/api/cropLockApi";
 import { useCart } from "@/hooks/use-cart";
 import { useAuth } from "@/hooks/use-auth";
+import { useMyProfile } from "@/hooks/use-user-profile";
 import { formatVND, productBatches } from "@/lib/mock-data";
 import { useCropLock } from "@/hooks/use-croplock";
 import { CropLockBanner } from "@/components/croplock-banner";
@@ -28,6 +29,7 @@ function CheckoutPage() {
   const { items, clear, remove } = useCart();
   const { lock, create, release, attachBackendLocks, expired } = useCropLock();
   const { token, role } = useAuth();
+  const profileQuery = useMyProfile();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [pay, setPay] = useState("cod");
   const [done, setDone] = useState(false);
@@ -38,6 +40,9 @@ function CheckoutPage() {
   const [cancelledCheckout, setCancelledCheckout] = useState(false);
   const [startedCheckoutLock, setStartedCheckoutLock] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientPhone, setRecipientPhone] = useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState(() => {
     if (typeof window === "undefined") return "";
     return window.localStorage.getItem("agriconnect-delivery-address") ?? "";
@@ -58,6 +63,14 @@ function CheckoutPage() {
       setSelectedIds([]);
     }
   }, []);
+
+  useEffect(() => {
+    const profile = profileQuery.data;
+    if (!profile) return;
+    setRecipientName((current) => current || profile.fullName || "");
+    setRecipientPhone((current) => current || profile.phone || "");
+    setRecipientEmail((current) => current || profile.email || "");
+  }, [profileQuery.data]);
 
   const breakdown = useMemo(() => {
     const qtyKg = checkoutItems.reduce((s, i) => s + i.qty, 0);
@@ -105,7 +118,7 @@ function CheckoutPage() {
   async function submit() {
     if (!lock || expired || submitting) return;
     if (!token || role !== "BUYER") {
-      setSubmitError("Vui long dang nhap bang tai khoan nguoi mua truoc khi xac nhan don hang.");
+      setSubmitError("Vui lòng đăng nhập bằng tài khoản người mua trước khi xác nhận đơn hàng.");
       return;
     }
 
@@ -115,13 +128,18 @@ function CheckoutPage() {
       unitPrice: item.pricePerKg,
     }));
     if (orderItems.some((item) => item.batchId == null)) {
-      setSubmitError("Khong xac dinh duoc lo nong san trong gio hang.");
+      setSubmitError("Không xác định được lô nông sản trong giỏ hàng.");
+      return;
+    }
+
+    if (!deliveryAddress.trim()) {
+      setSubmitError("Vui lòng nhập địa chỉ nhận hàng.");
       return;
     }
 
     setSubmitting(true);
     setSubmitError("");
-    window.localStorage.setItem("agriconnect-delivery-address", deliveryAddress);
+    window.localStorage.setItem("agriconnect-delivery-address", deliveryAddress.trim());
     const createdLockIds: number[] = [];
     let createdLocksInThisSubmit = false;
     try {
@@ -143,6 +161,7 @@ function CheckoutPage() {
         totalAmount: (breakdown?.finalTotal ?? total) + shipping,
         orderDate: null,
         cropLockIds: createdLockIds,
+        deliveryAddress: deliveryAddress.trim(),
         items: orderItems.map((item) => ({ ...item, batchId: item.batchId as number })),
       });
       const nextOrderCode = String(savedOrder.id);
@@ -232,9 +251,34 @@ function CheckoutPage() {
           <div className="space-y-6">
             <Section title="Thông tin giao hàng">
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Họ tên" placeholder="Nguyễn Văn A" />
-                <Field label="Số điện thoại" placeholder="09xx xxx xxx" />
-                <Field label="Email" placeholder="email@example.com" />
+                <Field
+                  label="Họ tên"
+                  placeholder="Nguyễn Văn A"
+                  value={recipientName}
+                  onChange={setRecipientName}
+                />
+                <Field
+                  label="Số điện thoại"
+                  placeholder="09xx xxx xxx"
+                  value={recipientPhone}
+                  onChange={setRecipientPhone}
+                />
+                <Field
+                  label="Email"
+                  placeholder="email@example.com"
+                  value={recipientEmail}
+                  onChange={setRecipientEmail}
+                />
+                {profileQuery.isLoading && (
+                  <div className="text-xs text-muted-foreground sm:col-span-2">
+                    Đang tải thông tin tài khoản...
+                  </div>
+                )}
+                {profileQuery.isError && (
+                  <div className="text-xs text-destructive sm:col-span-2">
+                    Không tải được thông tin tài khoản, bạn vẫn có thể nhập thủ công.
+                  </div>
+                )}
                 <div className="sm:col-span-2">
                   <VietnamAddressSelect
                     required
@@ -349,7 +393,7 @@ function CheckoutPage() {
               disabled={submitting || cancelling}
               className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full border border-border px-5 py-3 text-sm font-semibold text-foreground transition hover:border-destructive/50 hover:text-destructive disabled:opacity-50"
             >
-              <X className="h-4 w-4" /> {cancelling ? "Dang huy" : "Huy don hang"}
+              <X className="h-4 w-4" /> {cancelling ? "Đang hủy" : "Hủy đơn hàng"}
             </button>
             {submitError && (
               <div className="mt-3 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
@@ -376,7 +420,7 @@ function getErrorMessage(error: unknown) {
     const response = (error as { response?: { data?: { message?: string } } }).response;
     if (response?.data?.message) return response.data.message;
   }
-  return error instanceof Error ? error.message : "Khong the dat hang. Vui long thu lai.";
+  return error instanceof Error ? error.message : "Không thể đặt hàng. Vui lòng thử lại.";
 }
 
 function toLocalDateTime(date: Date) {
@@ -397,12 +441,24 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Field({ label, placeholder }: { label: string; placeholder: string }) {
+function Field({
+  label,
+  placeholder,
+  value,
+  onChange,
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
   return (
     <div>
       <label className="text-xs font-semibold text-muted-foreground">{label}</label>
       <input
         placeholder={placeholder}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
         className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
       />
     </div>

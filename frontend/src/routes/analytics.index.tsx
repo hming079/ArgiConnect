@@ -22,18 +22,19 @@ import { useAuth } from "@/hooks/use-auth";
 import { getVietnamProvinces, type VietnamProvince } from "@/services/addressApi";
 
 export const Route = createFileRoute("/analytics/")({
-  head: () => ({ meta: [{ title: "Phan tich giai cuu - AgriConnect" }] }),
+  head: () => ({ meta: [{ title: "Phân tích giải cứu - AgriConnect" }] }),
   component: AnalyticsPage,
 });
 
 function AnalyticsPage() {
-  const { role } = useAuth();
+  const { ready, role } = useAuth();
   const isBuyer = role === "BUYER";
+  const canLoadDeepAnalytics = ready && !isBuyer;
   const overviewQuery = useAnalyticsOverview();
   const provinceQuery = useProvinceStats();
   const provinceRatesQuery = useRescueRates("province");
-  const cropRatesQuery = useRescueRates("crop", !isBuyer);
-  const pointRatesQuery = useRescueRates("rescuePoint", !isBuyer);
+  const cropRatesQuery = useRescueRates("crop", canLoadDeepAnalytics);
+  const pointRatesQuery = useRescueRates("rescuePoint", canLoadDeepAnalytics);
 
   const overview = overviewQuery.data;
   const provinceStats = provinceQuery.data ?? [];
@@ -44,12 +45,12 @@ function AnalyticsPage() {
     overviewQuery.isLoading ||
     provinceQuery.isLoading ||
     provinceRatesQuery.isLoading ||
-    (!isBuyer && (cropRatesQuery.isLoading || pointRatesQuery.isLoading));
+    (canLoadDeepAnalytics && (cropRatesQuery.isLoading || pointRatesQuery.isLoading));
   const isError =
     overviewQuery.isError ||
     provinceQuery.isError ||
     provinceRatesQuery.isError ||
-    (!isBuyer && (cropRatesQuery.isError || pointRatesQuery.isError));
+    (canLoadDeepAnalytics && (cropRatesQuery.isError || pointRatesQuery.isError));
 
   const forecastSeries =
     overview?.forecastInventory.map((point) => ({
@@ -71,40 +72,40 @@ function AnalyticsPage() {
             <BarChart3 className="h-3.5 w-3.5" /> Rescue Progress Analytics
           </div>
           <h1 className="mt-2 text-3xl font-bold sm:text-4xl">
-            Bao cao tien do tieu thu va giai cuu
+            Báo cáo tiến độ tiêu thụ và giải cứu
           </h1>
           <p className="mt-2 max-w-3xl text-muted-foreground">
-            Dashboard ho tro co quan quan ly, hop tac xa va doanh nghiep dieu tiet logistics va thi
-            truong tieu thu kip thoi.
+            Dashboard hỗ trợ cơ quan quản lý, hợp tác xã và doanh nghiệp điều tiết logistics và thị
+            trường tiêu thụ kịp thời.
           </p>
         </div>
       </div>
 
-      {!isBuyer && <SupplyCapacityPanel />}
+      <SupplyCapacityPanel />
 
       <div className="mx-auto max-w-7xl space-y-10 px-4 py-10 sm:px-6 lg:px-8">
-        {isError && <StateBox tone="error">Khong tai duoc du lieu analytics tu backend.</StateBox>}
-        {isLoading && <StateBox>Dang tai du lieu analytics...</StateBox>}
+        {isError && <StateBox tone="error">Không tải được dữ liệu analytics từ backend.</StateBox>}
+        {isLoading && <StateBox>Đang tải dữ liệu analytics...</StateBox>}
         {!isLoading && !isError && provinceStats.length === 0 && (
-          <StateBox>Chua co du lieu analytics.</StateBox>
+          <StateBox>Chưa có dữ liệu analytics.</StateBox>
         )}
 
         <div className="grid gap-4 sm:grid-cols-3">
           <KPI
             icon={Activity}
-            label="Tong san luong"
+            label="Tổng sản lượng"
             value={`${formatTons(overview?.totalProductionQuantity ?? 0)} tan`}
             tone="destructive"
           />
           <KPI
             icon={TrendingUp}
-            label="Tong da tieu thu"
+            label="Tổng đã tiêu thụ"
             value={`${formatTons(overview?.soldQuantity ?? 0)} tan`}
             tone="primary"
           />
           <KPI
             icon={Target}
-            label="Ty le giai cuu thanh cong"
+            label="Tỷ lệ giải cứu thành công"
             value={`${formatPercent(overview?.rescueSuccessRate ?? 0)}%`}
             tone="accent"
             formula="= San luong da ban / tong dang ky giai cuu"
@@ -112,15 +113,15 @@ function AnalyticsPage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <ChartCard title="Du bao ton kho" subtitle="Ton kho hien tai vs du bao (tan)">
-            <LineChart data={forecastSeries} aLabel="Hien tai" bLabel="Du bao" />
+          <ChartCard title="Dự báo tồn kho" subtitle="Tồn kho hiện tại vs dự báo (tấn)">
+            <LineChart data={forecastSeries} aLabel="Hiện tại" bLabel="Dự báo" />
           </ChartCard>
-          <ChartCard title="Ton kho vs da tieu thu theo tinh" subtitle="Don vi: tan">
-            <LineChart data={provinceSeries} aLabel="Ton kho" bLabel="Da tieu thu" />
+          <ChartCard title="Tồn kho vs đã tiêu thụ theo tỉnh" subtitle="Đơn vị: tấn">
+            <LineChart data={provinceSeries} aLabel="Tồn kho" bLabel="Đã tiêu thụ" />
           </ChartCard>
         </div>
 
-        <ChartCard title="So sanh ty le giai cuu giua cac tinh" subtitle="Don vi: %">
+        <ChartCard title="So sánh tỷ lệ giải cứu giữa các tỉnh" subtitle="Don vi: %">
           <div className="mt-4 space-y-3">
             {provinceRates.map((p) => (
               <div key={p.name} className="flex items-center gap-3">
@@ -137,18 +138,15 @@ function AnalyticsPage() {
               </div>
             ))}
             {!isLoading && provinceRates.length === 0 && (
-              <EmptyText>Chua co ty le giai cuu.</EmptyText>
+              <EmptyText>Chưa có tỷ lệ giải cứu</EmptyText>
             )}
           </div>
         </ChartCard>
 
-        {!isBuyer && (
+        {canLoadDeepAnalytics && (
           <>
             <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-              <ChartCard
-                title="Heatmap ty le giai cuu - Ban do Viet Nam"
-                subtitle="Muc do ty le giai cuu theo tinh"
-              >
+              <ChartCard title="Heatmap tỷ lệ giải cứu" subtitle="Mức độ tỷ lệ giải cứu theo tỉnh">
                 <div className="relative mt-4 aspect-[4/5] w-full overflow-hidden rounded-xl bg-gradient-to-b from-primary-soft/40 to-accent/10">
                   <svg viewBox="0 0 100 125" className="absolute inset-0 h-full w-full opacity-30">
                     <path
@@ -185,13 +183,13 @@ function AnalyticsPage() {
               </ChartCard>
 
               <div className="space-y-6">
-                <ChartCard title="Ty le giai cuu theo loai nong san">
+                <ChartCard title="Tỷ lệ giải cứu theo nông sản">
                   <div className="mt-3 space-y-2">
                     {cropRates.map((p) => (
                       <RateRow key={p.name} name={p.name} rate={p.rate} />
                     ))}
                     {!isLoading && cropRates.length === 0 && (
-                      <EmptyText>Chua co du lieu theo nong san.</EmptyText>
+                      <EmptyText>Chưa có dữ liệu theo nông sản.</EmptyText>
                     )}
                   </div>
                 </ChartCard>
@@ -201,7 +199,7 @@ function AnalyticsPage() {
                       <RateRow key={p.name} name={p.name} rate={p.rate} />
                     ))}
                     {!isLoading && pointRates.length === 0 && (
-                      <EmptyText>Chua co du lieu theo diem.</EmptyText>
+                      <EmptyText>Chưa có dữ liệu theo điểm.</EmptyText>
                     )}
                   </div>
                 </ChartCard>
@@ -210,7 +208,7 @@ function AnalyticsPage() {
 
             <div className="rounded-2xl border border-primary/30 bg-primary-soft/40 p-6">
               <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
-                <MapPin className="h-3.5 w-3.5" /> Khuyen nghi dieu phoi
+                <MapPin className="h-3.5 w-3.5" /> Khuyến nghị điều phối
               </div>
               <ul className="mt-3 space-y-2 text-sm">
                 {provinceStats
@@ -223,8 +221,8 @@ function AnalyticsPage() {
                     <li key={p.province} className="flex items-start gap-2">
                       <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-destructive" />
                       <span>
-                        <b>{p.province}</b> ty le giai cuu chi {formatPercent(rate)}% - can dieu
-                        them diem tiep nhan hoac tang truyen thong tieu thu.
+                        <b>{p.province}</b> tỷ lệ giải cứu chỉ {formatPercent(rate)}% - cần điều
+                        thêm điểm tiếp nhận hoặc kêu gọi thêm để tiêu thụ.
                       </span>
                     </li>
                   ))}
@@ -280,24 +278,24 @@ function SupplyCapacityPanel() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
-            <Boxes className="h-3.5 w-3.5" /> Kha nang cung ung theo vung trong
+            <Boxes className="h-3.5 w-3.5" /> Khả năng cung ứng theo vùng trồng
           </div>
           <h3 className="mt-1 text-lg font-semibold">
-            Danh cho don vi thu mua / ban le tim kiem theo khoang ngay
+            Dành cho đơn vị thu mua / bán lẻ tìm kiếm theo khoảng ngày
           </h3>
           <p className="text-xs text-muted-foreground">
-            Cong thuc: Cung kha dung = ton kho + dang giai cuu + thu hoach du kien - tieu thu du
-            kien.
+            Công thức: Cung khả dụng = tồn kho + đang giải cứu + thu hoạch dự kiến + tiêu thụ dự
+            kiến.
           </p>
         </div>
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_1fr_1.2fr_auto] sm:items-end">
-        <DateField icon={CalendarRange} label="Tu ngay" value={start} onChange={setStart} />
-        <DateField icon={CalendarRange} label="Den ngay" value={end} onChange={setEnd} />
+        <DateField icon={CalendarRange} label="Từ ngày" value={start} onChange={setStart} />
+        <DateField icon={CalendarRange} label="Đến ngày" value={end} onChange={setEnd} />
         <label className="text-sm">
           <span className="mb-1 block text-xs font-medium text-muted-foreground">
-            Chon tinh/thanh
+            Chọn tỉnh/thành
           </span>
           <select
             value={provinces.some((province) => province.name === query) ? query : ""}
@@ -305,7 +303,7 @@ function SupplyCapacityPanel() {
             onChange={(event) => setQuery(event.target.value)}
             className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none"
           >
-            <option value="">{loadingProvinces ? "Dang tai..." : "Tat ca"}</option>
+            <option value="">{loadingProvinces ? "Đang tải..." : "Tất cả"}</option>
             {provinces.map((province) => (
               <option key={province.code} value={province.name}>
                 {province.name}
@@ -315,7 +313,7 @@ function SupplyCapacityPanel() {
         </label>
         <label className="text-sm">
           <span className="mb-1 block text-xs font-medium text-muted-foreground">
-            Tim theo vung trong
+            Tìm theo vùng trồng
           </span>
           <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2">
             <Search className="h-4 w-4 text-muted-foreground" />
@@ -328,34 +326,34 @@ function SupplyCapacityPanel() {
           </div>
         </label>
         <div className="rounded-xl bg-primary-soft px-4 py-3 text-center">
-          <div className="text-[11px] uppercase tracking-wider text-primary">Khoang</div>
-          <div className="text-lg font-bold text-primary">{days} ngay</div>
+          <div className="text-[11px] uppercase tracking-wider text-primary">Khoảng</div>
+          <div className="text-lg font-bold text-primary">{days} ngày</div>
         </div>
       </div>
 
       {provinceError && <StateBox tone="error">{provinceError}</StateBox>}
-      {supplyQuery.isError && <StateBox tone="error">Khong tai duoc kha nang cung ung.</StateBox>}
+      {supplyQuery.isError && <StateBox tone="error">Không tải được khả năng cung ứng</StateBox>}
 
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
-        <MiniStat label="San sang giao ngay" value={`${formatKg(totalImmediate)} kg`} />
+        <MiniStat label="Sẵn sàng giao ngay" value={`${formatKg(totalImmediate)} kg`} />
         <MiniStat
-          label="Thu hoach trong ky"
+          label="Thu hoạch trong kỳ"
           value={`${formatKg(totalIncoming)} kg`}
           tone="accent"
         />
-        <MiniStat label="Cung kha dung (net)" value={`${formatKg(totalNet)} kg`} tone="primary" />
+        <MiniStat label="Cung khả dụng (net)" value={`${formatKg(totalNet)} kg`} tone="primary" />
       </div>
 
       <div className="mt-5 overflow-hidden rounded-xl border border-border">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
-              <th className="px-3 py-2 text-left">Vung trong</th>
-              <th className="px-3 py-2 text-right">Toc do thu hoach</th>
-              <th className="px-3 py-2 text-right">San sang giao</th>
-              <th className="px-3 py-2 text-right">Thu hoach trong ky</th>
-              <th className="px-3 py-2 text-right">Tieu thu du kien</th>
-              <th className="px-3 py-2 text-left">Cung kha dung</th>
+              <th className="px-3 py-2 text-left">Vùng trồng</th>
+              <th className="px-3 py-2 text-right">Tốc độ thu hoạch</th>
+              <th className="px-3 py-2 text-right">Sẵn sàng giao</th>
+              <th className="px-3 py-2 text-right">Thu hoạch trong kỳ</th>
+              <th className="px-3 py-2 text-right">Tiêu thụ dự kiến</th>
+              <th className="px-3 py-2 text-left">Cung khả dụng</th>
             </tr>
           </thead>
           <tbody>
@@ -363,7 +361,7 @@ function SupplyCapacityPanel() {
               <tr key={r.province} className="border-t border-border">
                 <td className="px-3 py-2 font-medium">{r.province}</td>
                 <td className="px-3 py-2 text-right text-muted-foreground">
-                  {formatKg(r.dailyHarvestKg)} kg/ngay
+                  {formatKg(r.dailyHarvestKg)} kg/ngày
                 </td>
                 <td className="px-3 py-2 text-right">{formatKg(r.immediateKg)} kg</td>
                 <td className="px-3 py-2 text-right">{formatKg(r.incomingHarvestKg)} kg</td>
@@ -386,7 +384,7 @@ function SupplyCapacityPanel() {
             {!supplyQuery.isLoading && rows.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-3 py-6 text-center text-sm text-muted-foreground">
-                  Khong co vung trong nao khop tu khoa.
+                  Không có vùng trồng nào khớp từ khóa.
                 </td>
               </tr>
             )}
@@ -521,7 +519,7 @@ function LineChart({
   aLabel: string;
   bLabel: string;
 }) {
-  if (data.length === 0) return <EmptyText>Chua co du lieu bieu do.</EmptyText>;
+  if (data.length === 0) return <EmptyText>Chưa có dữ liệu biểu đồ</EmptyText>;
   const max = Math.max(1, ...data.flatMap((d) => [d.a, d.b]));
   const w = 100;
   const h = 50;
