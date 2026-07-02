@@ -1,16 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import {
-  AlertCircle,
-  Building2,
-  CheckCircle2,
-  Map,
-  MapPin,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Trash2,
-} from "lucide-react";
+import { AlertCircle, CheckCircle2, MapPin, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import type { RescuePoint, RescuePointInput } from "@/api/rescuePointApi";
 import { VietnamAddressSelect } from "@/components/address/VietnamAddressSelect";
 import { PageShell } from "@/components/site-layout";
@@ -80,23 +70,9 @@ function RescuePointsPage() {
           <p className="mt-2 max-w-2xl text-muted-foreground">
             Tìm điểm tiếp nhận và phân phối nông sản giải cứu gần bạn nhất.
           </p>
-          <div className="mt-6 inline-flex rounded-full border border-border bg-card p-1 shadow-card">
-            <Link
-              to="/rescue"
-              className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground"
-            >
-              <Map className="h-4 w-4" /> Khu vực giải cứu
-            </Link>
-            <Link
-              to="/rescue-points"
-              className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
-            >
-              <Building2 className="h-4 w-4" /> Điểm giải cứu
-            </Link>
-          </div>
           {isAdmin && (
             <Button
-              className="ml-3 rounded-full"
+              className="mt-6 rounded-full"
               onClick={() => {
                 setError("");
                 setEditor({ mode: "create" });

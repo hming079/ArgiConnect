@@ -12,7 +12,7 @@ import { useMyRescueRegistrations } from "@/hooks/use-rescue-registrations";
 import { useMyProfile } from "@/hooks/use-user-profile";
 
 export const Route = createFileRoute("/farmer/")({
-  head: () => ({ meta: [{ title: "Tong quan nguoi ban - AgriConnect" }] }),
+  head: () => ({ meta: [{ title: "Tổng quan người bán - AgriConnect" }] }),
   component: FarmerDashboard,
 });
 
@@ -44,29 +44,29 @@ function FarmerDashboard() {
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-primary">Bang dieu khien</div>
-            <h1 className="mt-1 text-3xl font-bold">Xin chao, {profile?.fullName ?? "nong dan"}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Quan ly lo nong san, don hang va doanh thu bang du lieu backend.</p>
+            <div className="text-xs font-semibold uppercase tracking-wider text-primary">Bảng điều khiển</div>
+            <h1 className="mt-1 text-3xl font-bold">Xin chào, {profile?.fullName ?? "nông dân"}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Quản lý lô nông sản, đơn hàng và doanh thu bằng dữ liệu backend.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link to="/shipments" className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-3 text-sm font-semibold hover:bg-muted">Van chuyen</Link>
+            <Link to="/shipments" className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-3 text-sm font-semibold hover:bg-muted">Vận chuyển</Link>
             <Link to="/farmer/rescue-requests" className="inline-flex items-center gap-2 rounded-full border border-destructive bg-card px-4 py-3 text-sm font-semibold text-destructive hover:bg-destructive/10">
-              <AlertTriangle className="h-4 w-4" /> Gui yeu cau giai cuu
+              <AlertTriangle className="h-4 w-4" /> Gửi yêu cầu giải cứu
             </Link>
             <Link to="/farmer/batches" className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft transition hover:opacity-95">
-              <Plus className="h-4 w-4" /> Quan ly lo
+              <Plus className="h-4 w-4" /> Quản lý lô
             </Link>
           </div>
         </div>
 
-        {isError && <div className="mt-6 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">Khong tai duoc du lieu nong dan tu backend.</div>}
+        {isError && <div className="mt-6 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">Không tải được dữ liệu nông dân từ backend.</div>}
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { i: Package, l: "Lo dang ban", v: batches.filter((batch) => Number(batch.currentQuantity) > 0).length, sub: `${batches.length} tong so lo`, tone: "primary" },
-            { i: ShoppingBag, l: "Don hang", v: orders.length, sub: "Lien quan lo cua ban", tone: "accent" },
-            { i: TrendingUp, l: "Da ban (kg)", v: totalSold.toLocaleString("vi-VN"), sub: formatVND(totalRevenue), tone: "primary" },
-            { i: AlertTriangle, l: "Can giai cuu", v: rescueRequests.filter((request) => request.status === "PENDING").length, sub: "Dang cho duyet", tone: "destructive" },
+            { i: Package, l: "Lô đang bán", v: batches.filter((batch) => Number(batch.currentQuantity) > 0).length, sub: `${batches.length} tổng số lô`, tone: "primary" },
+            { i: ShoppingBag, l: "Đơn hàng", v: orders.length, sub: "Liên quan lô của bạn", tone: "accent" },
+            { i: TrendingUp, l: "Đã bán (kg)", v: totalSold.toLocaleString("vi-VN"), sub: formatVND(totalRevenue), tone: "primary" },
+            { i: AlertTriangle, l: "Cần giải cứu", v: rescueRequests.filter((request) => request.status === "PENDING").length, sub: "Đang chờ duyệt", tone: "destructive" },
           ].map((s) => (
             <div key={s.l} className="rounded-2xl border border-border bg-card p-5 shadow-card">
               <div className={`grid h-10 w-10 place-items-center rounded-xl ${
@@ -85,8 +85,8 @@ function FarmerDashboard() {
           <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold">San luong ban theo thang</h2>
-                <p className="text-sm text-muted-foreground">6 thang gan nhat, tinh tu order item backend.</p>
+                <h2 className="text-lg font-semibold">Sản lượng bán theo tháng</h2>
+                <p className="text-sm text-muted-foreground">6 tháng gần nhất, tính từ order item backend.</p>
               </div>
             </div>
 
@@ -104,7 +104,7 @@ function FarmerDashboard() {
           </div>
 
           <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-            <h2 className="text-lg font-semibold">Hoat dong gan day</h2>
+            <h2 className="text-lg font-semibold">Hoạt động gần đây</h2>
             <ul className="mt-4 space-y-4">
               {buildActivities(orders, batches, rescueRequests.length).map((activity, index) => (
                 <li key={`${activity.t}-${index}`} className="flex gap-3">
@@ -121,19 +121,19 @@ function FarmerDashboard() {
 
         <div className="mt-8 overflow-hidden rounded-2xl border border-border bg-card shadow-card">
           <div className="flex items-center justify-between border-b border-border p-5">
-            <h2 className="text-lg font-semibold">Lo nong san cua ban</h2>
-            <Link to="/farmer/batches" className="text-sm font-medium text-primary hover:underline">Quan ly tat ca</Link>
+            <h2 className="text-lg font-semibold">Lô nông sản của bạn</h2>
+            <Link to="/farmer/batches" className="text-sm font-medium text-primary hover:underline">Quản lý tất cả</Link>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40 text-left text-xs uppercase text-muted-foreground">
-                  <th className="px-5 py-3">Ma</th>
-                  <th className="px-5 py-3">Nong san</th>
-                  <th className="px-5 py-3">Da ban / Tong</th>
-                  <th className="px-5 py-3">Don</th>
-                  <th className="px-5 py-3">Trang thai</th>
-                  <th className="px-5 py-3 text-right">Thao tac</th>
+                  <th className="px-5 py-3">Mã</th>
+                  <th className="px-5 py-3">Nông sản</th>
+                  <th className="px-5 py-3">Đã bán / Tổng</th>
+                  <th className="px-5 py-3">Đơn</th>
+                  <th className="px-5 py-3">Trạng thái</th>
+                  <th className="px-5 py-3 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -148,7 +148,7 @@ function FarmerDashboard() {
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2 font-medium">
                           {cropName}
-                          {rescueRequests.some((request) => request.batchId === batch.id) && <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">Giai cuu</span>}
+                          {rescueRequests.some((request) => request.batchId === batch.id) && <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">Giải cứu</span>}
                         </div>
                         <div className="text-xs text-muted-foreground">{batch.province}</div>
                       </td>
@@ -167,7 +167,7 @@ function FarmerDashboard() {
                     </tr>
                   );
                 })}
-                {!isLoading && batches.length === 0 && <tr><td colSpan={6} className="px-5 py-8 text-center text-muted-foreground">Ban chua co lo nong san.</td></tr>}
+                {!isLoading && batches.length === 0 && <tr><td colSpan={6} className="px-5 py-8 text-center text-muted-foreground">Bạn chưa có lô nông sản.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -195,15 +195,15 @@ function buildChart(orders: Order[], items: OrderItem[]) {
 
 function buildActivities(orders: Order[], batches: CropBatch[], rescueCount: number) {
   const activities = [
-    ...orders.slice(-2).reverse().map((order) => ({ t: `Don hang #${order.id} dang o trang thai ${order.status}`, d: formatDate(order.orderDate ?? order.createdAt), i: ShoppingBag })),
-    ...batches.slice(-1).map((batch) => ({ t: `Lo nong san #${batch.id} con ${batch.currentQuantity} ${batch.unit}`, d: batch.updatedAt ? formatDate(batch.updatedAt) : "Moi cap nhat", i: TrendingUp })),
+    ...orders.slice(-2).reverse().map((order) => ({ t: `Đơn hàng #${order.id} đang ở trạng thái ${order.status}`, d: formatDate(order.orderDate ?? order.createdAt), i: ShoppingBag })),
+    ...batches.slice(-1).map((batch) => ({ t: `Lô nông sản #${batch.id} còn ${batch.currentQuantity} ${batch.unit}`, d: batch.updatedAt ? formatDate(batch.updatedAt) : "Mới cập nhật", i: TrendingUp })),
   ];
-  if (rescueCount > 0) activities.push({ t: `${rescueCount} yeu cau giai cuu da gui`, d: "Theo doi trang thai duyet", i: Sprout });
-  return activities.length > 0 ? activities : [{ t: "Chua co hoat dong moi", d: "Du lieu se hien thi sau khi co lo va don hang", i: Sprout }];
+  if (rescueCount > 0) activities.push({ t: `${rescueCount} yêu cầu giải cứu đã gửi`, d: "Theo dõi trạng thái duyệt", i: Sprout });
+  return activities.length > 0 ? activities : [{ t: "Chưa có hoạt động mới", d: "Dữ liệu sẽ hiển thị sau khi có lô và đơn hàng", i: Sprout }];
 }
 
 function cropNameFor(batch: CropBatch, crops: Crop[]) {
-  return crops.find((crop) => crop.id === batch.cropId)?.name ?? `Nong san #${batch.cropId}`;
+  return crops.find((crop) => crop.id === batch.cropId)?.name ?? `Nông sản #${batch.cropId}`;
 }
 
 function orderCountForBatch(batchId: number, items: OrderItem[]) {
@@ -211,7 +211,7 @@ function orderCountForBatch(batchId: number, items: OrderItem[]) {
 }
 
 function formatDate(value?: string | null) {
-  if (!value) return "Chua co ngay";
+  if (!value) return "Chưa có ngày";
   return new Intl.DateTimeFormat("vi-VN", { dateStyle: "short" }).format(new Date(value));
 }
 

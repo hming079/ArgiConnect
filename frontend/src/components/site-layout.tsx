@@ -12,27 +12,35 @@ interface NavLink {
   label: string;
 }
 
+interface FooterLink extends NavLink {
+  roles?: UserRole[];
+}
+
+interface FooterSection {
+  title: string;
+  links: FooterLink[];
+}
+const homeLink: NavLink = { to: "/", label: "Trang chủ" };
 const commonLinks: NavLink[] = [
-  { to: "/", label: "Trang chủ" },
-  { to: "/rescue", label: "Giải cứu" },
+  { to: "/rescue-points", label: "Giải cứu" },
   { to: "/shipments", label: "Vận chuyển" },
 ];
 
 const roleLinks: Record<UserRole, NavLink[]> = {
   FARMER: [
-    { to: "/farmer", label: "Tổng quan nông dân" },
     { to: "/categories", label: "Danh mục" },
-    { to: "/farmer/batches", label: "Lô nông sản" },
+    // { to: "/farmer/batches", label: "Lô nông sản" },
     { to: "/farmer/rescue-requests", label: "Yêu cầu giải cứu" },
+    { to: "/farmer", label: "Tổng quan nông dân" },
   ],
   BUYER: [
-    { to: "/analytics", label: "Phân tích" },
-    { to: "/buyer", label: "Tổng quan người mua" },
     { to: "/products", label: "Nông sản" },
+    { to: "/buyer", label: "Tổng quan người mua" },
+    { to: "/analytics", label: "Phân tích" },
   ],
   LOGISTICS: [
-    { to: "/coordination", label: "Điều phối" },
     { to: "/categories", label: "Danh mục" },
+    { to: "/coordination", label: "Điều phối" },
   ],
 
   ADMIN: [
@@ -43,6 +51,36 @@ const roleLinks: Record<UserRole, NavLink[]> = {
     { to: "/analytics", label: "Phân tích" },
   ],
 };
+
+const footerSections: FooterSection[] = [
+  {
+    title: "Mua sắm và khám phá",
+    links: [
+      { to: "/rescue-points", label: "Điểm giải cứu" },
+      { to: "/products", label: "Nông sản", roles: ["BUYER"] },
+      { to: "/categories", label: "Danh mục nông sản", roles: ["FARMER", "LOGISTICS", "ADMIN"] },
+      { to: "/shipments", label: "Vận chuyển", roles: ["FARMER", "BUYER", "LOGISTICS", "ADMIN"] },
+    ],
+  },
+  {
+    title: "Dành cho nhà nông",
+    links: [
+      { to: "/farmer", label: "Tổng quan nông dân", roles: ["FARMER"] },
+      { to: "/farmer/batches", label: "Quản lý lô hàng", roles: ["FARMER"] },
+      { to: "/farmer/rescue-requests", label: "Gửu yêu cầu giải cứu", roles: ["FARMER"] },
+    ],
+  },
+  {
+    title: "Vận hành và phân tích",
+    links: [
+      { to: "/buyer", label: "Tổng quan người mua", roles: ["BUYER"] },
+      { to: "/admin", label: "Quản trị", roles: ["ADMIN"] },
+      { to: "/admin/rescue-requests", label: "Duyệt giải cứu", roles: ["ADMIN"] },
+      { to: "/coordination", label: "Điều phối vận chuyển", roles: ["LOGISTICS", "ADMIN"] },
+      { to: "/analytics", label: "Phân tích số liệu", roles: ["BUYER", "ADMIN"] },
+    ],
+  },
+];
 
 const roleLabels: Record<UserRole, string> = {
   FARMER: "Nông dân",
@@ -57,7 +95,7 @@ export function SiteHeader() {
   const { count } = useCart();
   const logout = useLogout();
   const { token, role } = useAuth();
-  const links = [...commonLinks, ...(role ? roleLinks[role] : [])];
+  const links = [homeLink, ...(role ? roleLinks[role] : []), ...commonLinks];
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur">
@@ -202,7 +240,12 @@ function CartButton({ count, compact = false }: { count: number; compact?: boole
 
 export function SiteFooter() {
   const { role } = useAuth();
-  const accountLinks = role ? roleLinks[role] : [];
+  const visibleFooterSections = footerSections
+    .map((section) => ({
+      ...section,
+      links: section.links.filter((link) => !link.roles || (role && link.roles.includes(role))),
+    }))
+    .filter((section) => section.links.length > 0);
 
   return (
     <footer className="mt-24 border-t border-border bg-muted/40">
@@ -218,29 +261,18 @@ export function SiteFooter() {
             Kết nối nông dân, người mua, đơn vị vận chuyển và các điểm giải cứu nông sản.
           </p>
         </div>
-        <div>
-          <h4 className="text-sm font-semibold">Khám phá</h4>
-          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-            {commonLinks.slice(1).map((link) => (
-              <li key={link.to}>
-                <Link to={link.to}>{link.label}</Link>
-              </li>
-            ))}
-            <li>
-              <Link to="/rescue-points">Điểm giải cứu</Link>
-            </li>
-          </ul>
-        </div>
-        <div>
-          <h4 className="text-sm font-semibold">Tài khoản</h4>
-          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-            {accountLinks.map((link) => (
-              <li key={link.to}>
-                <Link to={link.to}>{link.label}</Link>
-              </li>
-            ))}
-          </ul>
-        </div>
+        {visibleFooterSections.map((section) => (
+          <div key={section.title}>
+            <h4 className="text-sm font-semibold">{section.title}</h4>
+            <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+              {section.links.map((link) => (
+                <li key={link.to}>
+                  <Link to={link.to}>{link.label}</Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
         {/* <div>
           <h4 className="text-sm font-semibold">Liên hệ</h4>
           <ul className="mt-3 space-y-2 text-sm text-muted-foreground">

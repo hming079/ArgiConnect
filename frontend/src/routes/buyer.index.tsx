@@ -21,7 +21,7 @@ import { useMyProfile } from "@/hooks/use-user-profile";
 import { getCropImage } from "@/lib/crop-images";
 
 export const Route = createFileRoute("/buyer/")({
-  head: () => ({ meta: [{ title: "Tong quan nguoi mua - AgriConnect" }] }),
+  head: () => ({ meta: [{ title: "Tổng quan người mua - AgriConnect" }] }),
   component: BuyerDashboard,
 });
 
@@ -68,13 +68,13 @@ function BuyerDashboard() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <div className="text-xs font-semibold uppercase tracking-wider text-primary">
-              Tai khoan nguoi mua
+              Tài khoản người mua
             </div>
             <h1 className="mt-1 text-3xl font-bold">
-              Xin chao, {profile?.fullName ?? "nguoi mua"}
+              Xin chào, {profile?.fullName ?? "người mua"}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Theo doi don hang va nong san dang co trong he thong.
+              Theo dõi đơn hàng và nông sản đang có trong hệ thống.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -82,49 +82,49 @@ function BuyerDashboard() {
               to="/shipments"
               className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-3 text-sm font-semibold hover:bg-muted"
             >
-              <Truck className="h-4 w-4" /> Van chuyen
+              <Truck className="h-4 w-4" /> Vận chuyển
             </Link>
             <Link
               to="/cart"
               className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-3 text-sm font-semibold hover:bg-muted"
             >
-              <ShoppingBag className="h-4 w-4" /> Gio hang
+              <ShoppingBag className="h-4 w-4" /> Giỏ hàng
             </Link>
             <Link
               to="/products"
               className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft"
             >
-              <Search className="h-4 w-4" /> Tim nong san
+              <Search className="h-4 w-4" /> Tìm nông sản
             </Link>
           </div>
         </div>
 
         {isError && (
           <div className="mt-6 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-            Khong tai duoc du lieu nguoi mua tu backend.
+            Không tải được dữ liệu người mua từ backend.
           </div>
         )}
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { i: ShoppingBag, l: "Tong don hang", v: orders.length, sub: "Tu backend" },
+            { i: ShoppingBag, l: "Tổng đơn hàng", v: orders.length, sub: "Từ backend" },
             {
               i: Clock,
-              l: "Dang giao",
+              l: "Đang giao",
               v: orders.filter((order) => order.status === "SHIPPING").length,
-              sub: "Cap nhat theo trang thai",
+              sub: "Cập nhật theo trạng thái",
             },
             {
               i: CheckCircle2,
-              l: "Da hoan thanh",
+              l: "Đã hoàn thành",
               v: orders.filter((order) => order.status === "DELIVERED").length,
-              sub: "Don da giao",
+              sub: "Đơn đã giao",
             },
             {
               i: HeartHandshake,
-              l: "Giai cuu da tham gia",
+              l: "Giải cứu đã tham gia",
               v: rescueOrderCount,
-              sub: "Don hang cua ban",
+              sub: "Đơn hàng của bạn",
             },
           ].map((s) => (
             <div key={s.l} className="rounded-2xl border border-border bg-card p-5 shadow-card">
@@ -141,9 +141,9 @@ function BuyerDashboard() {
         <div className="mt-8 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
           <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
             <div className="flex items-center justify-between border-b border-border p-5">
-              <h2 className="text-lg font-semibold">Don hang gan day</h2>
+              <h2 className="text-lg font-semibold">Đơn hàng gần đây</h2>
               <Link to="/shipments" className="text-sm font-medium text-primary hover:underline">
-                Xem tat ca
+                Xem tất cả
               </Link>
             </div>
             <div className="divide-y divide-border">
@@ -174,7 +174,7 @@ function BuyerDashboard() {
               })}
               {!isLoading && recentOrders.length === 0 && (
                 <div className="p-8 text-center text-sm text-muted-foreground">
-                  Ban chua co don hang.
+                  Bạn chưa có đơn hàng.
                 </div>
               )}
             </div>
@@ -182,14 +182,14 @@ function BuyerDashboard() {
 
           <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Nong san goi y</h2>
+              <h2 className="text-lg font-semibold">Nông sản gợi ý</h2>
               <Search className="h-5 w-5 text-primary" />
             </div>
             <div className="space-y-3">
               {suggestedBatches.map((batch) => {
                 const cropName =
                   crops.find((crop) => crop.id === batch.cropId)?.name ??
-                  `Nong san #${batch.cropId}`;
+                  `Nông sản #${batch.cropId}`;
                 return (
                   <Link
                     key={batch.id}
@@ -214,7 +214,7 @@ function BuyerDashboard() {
               })}
               {!isLoading && suggestedBatches.length === 0 && (
                 <div className="rounded-lg border border-border p-4 text-sm text-muted-foreground">
-                  Chua co nong san dang ban.
+                  Chưa có nông sản đang bán.
                 </div>
               )}
             </div>
@@ -225,15 +225,15 @@ function BuyerDashboard() {
           <div className="flex items-end justify-between">
             <div>
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-destructive">
-                <HeartHandshake className="h-3.5 w-3.5" /> Chien dich giai cuu
+                <HeartHandshake className="h-3.5 w-3.5" /> Chiến dịch giải cứu
               </div>
-              <h2 className="mt-1 text-lg font-semibold">Ban da tham gia</h2>
+              <h2 className="mt-1 text-lg font-semibold">Bạn đã tham gia</h2>
             </div>
             <Link
-              to="/rescue"
+              to="/rescue-points"
               className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
             >
-              Tham gia them <ArrowRight className="h-4 w-4" />
+              Tham gia thêm <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -241,13 +241,13 @@ function BuyerDashboard() {
               const batch = batches.find((candidate) => candidate.id === item.batchId);
               const cropName = batch
                 ? (crops.find((crop) => crop.id === batch.cropId)?.name ??
-                  `Nong san #${batch.cropId}`)
-                : `Lo nong san #${item.batchId}`;
+                  `Nông sản #${batch.cropId}`)
+                : `Lô nông sản #${item.batchId}`;
               return (
                 <div key={item.id} className="rounded-xl border border-border bg-muted/30 p-4">
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-[11px] text-muted-foreground">
-                      Don #{item.orderId}
+                      Đơn #{item.orderId}
                     </span>
                     <span className="rounded-full bg-primary-soft px-2 py-0.5 text-[10px] font-semibold text-primary">
                       APPROVED
@@ -263,7 +263,7 @@ function BuyerDashboard() {
             })}
             {!isLoading && rescueOrderItems.length === 0 && (
               <div className="rounded-lg border border-border p-4 text-sm text-muted-foreground">
-                Chua co don hang giai cuu.
+                Chưa có đơn hàng giải cứu.
               </div>
             )}
           </div>
@@ -278,11 +278,11 @@ function getOrderSummary(orderId: number, items: OrderItem[], batches: CropBatch
   const names = orderItems.map((item) => {
     const batch = batches.find((candidate) => candidate.id === item.batchId);
     return batch
-      ? (crops.find((crop) => crop.id === batch.cropId)?.name ?? `Nong san #${batch.cropId}`)
-      : `Lo #${item.batchId}`;
+      ? (crops.find((crop) => crop.id === batch.cropId)?.name ?? `Nông sản #${batch.cropId}`)
+      : `Lô #${item.batchId}`;
   });
   return {
-    name: names.length > 0 ? names.join(", ") : "Don hang",
+    name: names.length > 0 ? names.join(", ") : "Đơn hàng",
     quantity: orderItems
       .reduce((sum, item) => sum + Number(item.quantity ?? 0), 0)
       .toLocaleString("vi-VN"),
@@ -326,7 +326,7 @@ function statusLabel(status: OrderStatus) {
 }
 
 function formatDate(value?: string | null) {
-  if (!value) return "Chua co ngay";
+  if (!value) return "Chưa có ngày";
   return new Intl.DateTimeFormat("vi-VN", { dateStyle: "short" }).format(new Date(value));
 }
 

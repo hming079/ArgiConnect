@@ -121,7 +121,12 @@ function AnalyticsPage() {
           </ChartCard>
         </div>
 
-        <ChartCard title="So sánh tỷ lệ giải cứu giữa các tỉnh" subtitle="Don vi: %">
+        
+
+        {canLoadDeepAnalytics && (
+          <>
+            <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+              <ChartCard title="So sánh tỷ lệ giải cứu giữa các tỉnh" subtitle="Don vi: %">
           <div className="mt-4 space-y-3">
             {provinceRates.map((p) => (
               <div key={p.name} className="flex items-center gap-3">
@@ -142,11 +147,7 @@ function AnalyticsPage() {
             )}
           </div>
         </ChartCard>
-
-        {canLoadDeepAnalytics && (
-          <>
-            <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-              <ChartCard title="Heatmap tỷ lệ giải cứu" subtitle="Mức độ tỷ lệ giải cứu theo tỉnh">
+              {/* <ChartCard title="Heatmap tỷ lệ giải cứu" subtitle="Mức độ tỷ lệ giải cứu theo tỉnh">
                 <div className="relative mt-4 aspect-[4/5] w-full overflow-hidden rounded-xl bg-gradient-to-b from-primary-soft/40 to-accent/10">
                   <svg viewBox="0 0 100 125" className="absolute inset-0 h-full w-full opacity-30">
                     <path
@@ -180,7 +181,7 @@ function AnalyticsPage() {
                   <Legend color="bg-accent" label="50-70%" />
                   <Legend color="bg-primary" label="> 70%" />
                 </div>
-              </ChartCard>
+              </ChartCard> */}
 
               <div className="space-y-6">
                 <ChartCard title="Tỷ lệ giải cứu theo nông sản">

@@ -277,7 +277,7 @@ function CoordinationPage() {
           </div>
         </section>
 
-        <section>
+        {/* <section>
           <SectionTitle>Bản đồ vùng dư thừa & shipment</SectionTitle>
           <div className="mt-4 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
             <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
@@ -369,7 +369,7 @@ function CoordinationPage() {
             <Legend color="bg-accent" label="Cần theo dõi" />
             <Legend color="bg-primary" label="Bình thường" />
           </div>
-        </section>
+        </section> */}
       </div>
     </PageShell>
   );
