@@ -15,7 +15,7 @@ export interface CropInput {
   defaultUnit: string;
 }
 
-export type CropBatchStatus = "available" | "sold_out" | "expired" | "cancelled";
+export type CropBatchStatus = "pending" | "available" | "sold_out" | "expired" | "cancelled";
 
 export interface CropBatch {
   id: number;
@@ -37,7 +37,10 @@ export interface CropBatch {
   updatedAt: string | null;
 }
 
-export type CropBatchInput = Omit<CropBatch, "id" | "farmerId" | "farmerName" | "createdAt" | "updatedAt">;
+export type CropBatchInput = Omit<
+  CropBatch,
+  "id" | "farmerId" | "farmerName" | "createdAt" | "updatedAt"
+>;
 
 export async function getCrops() {
   const response = await axiosClient.get<Crop[]>("/crops");
@@ -67,7 +70,9 @@ export async function getCropBatches(cropId?: number, mine = false) {
   const response = await axiosClient.get<CropBatch[]>(mine ? "/crop-batches/my" : "/crop-batches", {
     params: !mine && cropId !== undefined ? { cropId } : undefined,
   });
-  return mine && cropId !== undefined ? response.data.filter((batch) => batch.cropId === cropId) : response.data;
+  return mine && cropId !== undefined
+    ? response.data.filter((batch) => batch.cropId === cropId)
+    : response.data;
 }
 
 export async function createCropBatch(data: CropBatchInput) {

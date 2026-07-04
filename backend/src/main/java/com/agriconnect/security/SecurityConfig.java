@@ -56,7 +56,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/error").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/crops/**", "/api/crop-batches/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/crops/**", "/api/crop-batches/**", "/api/rescue-points/**").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )

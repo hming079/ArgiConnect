@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
@@ -12,6 +13,7 @@ import {
 
 import type { Crop, CropBatch, CropBatchStatus } from "@/api/cropApi";
 import type { RescueRegistrationStatus } from "@/api/rescueRegistrationApi";
+import { PaginationControls } from "@/components/pagination-controls";
 import { PageShell } from "@/components/site-layout";
 import { Button } from "@/components/ui/button";
 import { useCropBatches, useCrops } from "@/hooks/use-crops";
@@ -28,6 +30,14 @@ function BatchesPage() {
   const cropsQuery = useCrops();
   const registrationsQuery = useMyRescueRegistrations();
   const batches = batchesQuery.data ?? [];
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(batches.length / pageSize));
+    if (page > totalPages) setPage(totalPages);
+  }, [batches.length, page, pageSize]);
+  const start = (page - 1) * pageSize;
+  const pagedBatches = batches.slice(start, start + pageSize);
   const crops = cropsQuery.data ?? [];
   const registrations = registrationsQuery.data ?? [];
   const loading = batchesQuery.isPending || cropsQuery.isPending || registrationsQuery.isPending;
@@ -79,20 +89,34 @@ function BatchesPage() {
         )}
 
         {!loading && !failed && batches.length > 0 && (
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {batches.map((batch) => {
-              const crop = crops.find((item) => item.id === batch.cropId);
-              const registration = registrations.find((item) => item.batchId === batch.id);
-              return (
-                <BatchCard
-                  key={batch.id}
-                  batch={batch}
-                  crop={crop}
-                  rescueStatus={registration?.status}
-                />
-              );
-            })}
-          </div>
+          <>
+            <div className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              {pagedBatches.map((batch) => {
+                const crop = crops.find((item) => item.id === batch.cropId);
+                const registration = registrations.find((item) => item.batchId === batch.id);
+                return (
+                  <BatchCard
+                    key={batch.id}
+                    batch={batch}
+                    crop={crop}
+                    rescueStatus={registration?.status}
+                  />
+                );
+              })}
+            </div>
+            <div className="mt-6">
+              <PaginationControls
+                totalItems={batches.length}
+                page={page}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setPage(1);
+                }}
+              />
+            </div>
+          </>
         )}
       </div>
     </PageShell>
@@ -210,7 +234,8 @@ function RescueBadge({ status }: { status: RescueRegistrationStatus }) {
 }
 
 function statusLabel(status: CropBatchStatus) {
-  const labels: Record<CropBatchStatus, string> = {
+  if (status === "pending") return "Chờ duyệt";
+  const labels: Record<Exclude<CropBatchStatus, "pending">, string> = {
     available: "Còn hàng",
     sold_out: "Đã bán hết",
     expired: "Hết hạn",

@@ -33,6 +33,7 @@ export function useSupplyCapacity(
     startDate?: string;
     endDate?: string;
     province?: string;
+    cropId?: number;
   },
   enabled = true,
 ) {

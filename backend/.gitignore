@@ -42,4 +42,7 @@ src/main/resources/db/migration/*~
 src/main/resources/db/migration/*.bak
 src/main/resources/db/migration/.DS_Store
 
-scripts/
+scripts/*
+!scripts/data.csv
+!scripts/generate_synthetic_seed.py
+scripts/output/

@@ -28,7 +28,7 @@ public class RescuePointController {
     }
 
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("permitAll()")
     public ResponseEntity<List<RescuePoint>> getAll(
             @RequestParam(required = false) String province,
             @RequestParam(required = false) RescuePointStatus status) {
@@ -36,7 +36,7 @@ public class RescuePointController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("permitAll()")
     public ResponseEntity<RescuePoint> getById(@PathVariable Long id) {
         return ResponseEntity.ok(rescuePointService.getById(id));
     }

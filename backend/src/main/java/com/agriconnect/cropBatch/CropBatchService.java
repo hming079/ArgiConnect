@@ -7,10 +7,12 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.access.AccessDeniedException;
 
 import com.agriconnect.common.ResourceNotFoundException;
 import com.agriconnect.security.CurrentUser;
+import com.agriconnect.user.Role;
 import com.agriconnect.user.User;
 import com.agriconnect.user.UserRepository;
 
@@ -28,15 +30,18 @@ public class CropBatchService {
     }
 
     public List<CropBatch> getAllCropBatches(){
-        return addFarmerNames(cropBatchRepository.findAll());
+        List<CropBatch> batches = cropBatchRepository.findAll();
+        return addFarmerNames(isAdmin() ? batches : publicBatches(batches));
     }
 
     public List<CropBatch> getCropBatchesByCropId(Long cropId) {
-        return addFarmerNames(cropBatchRepository.findByCropId(cropId));
+        List<CropBatch> batches = cropBatchRepository.findByCropId(cropId);
+        return addFarmerNames(isAdmin() ? batches : publicBatches(batches));
     }
 
     public List<CropBatch> getCropBatchesByFarmerId(Long farmerId) {
-        return addFarmerNames(cropBatchRepository.findByFarmerId(farmerId));
+        List<CropBatch> batches = cropBatchRepository.findByFarmerId(farmerId);
+        return addFarmerNames(isAdmin() ? batches : publicBatches(batches));
     }
 
     public List<CropBatch> getMyCropBatches() {
@@ -44,6 +49,9 @@ public class CropBatchService {
     }
 
     public List<CropBatch> getCropBatchesByStatus(CropBatchStatus status) {
+        if (status == CropBatchStatus.pending && !isAdmin()) {
+            return List.of();
+        }
         return addFarmerNames(cropBatchRepository.findByStatus(status));
     }
 
@@ -61,9 +69,7 @@ public class CropBatchService {
         if (cropBatch.getUnitPrice() == null) {
             cropBatch.setUnitPrice(BigDecimal.ZERO);
         }
-        if (cropBatch.getStatus() == null) {
-            cropBatch.setStatus(CropBatchStatus.available);
-        }
+        cropBatch.setStatus(CropBatchStatus.pending);
         syncQuantityStatus(cropBatch);
         return cropBatchRepository.save(cropBatch);
     }
@@ -114,8 +120,24 @@ public class CropBatchService {
         return batches;
     }
 
+    private List<CropBatch> publicBatches(List<CropBatch> batches) {
+        return batches.stream()
+                .filter(batch -> batch.getStatus() != CropBatchStatus.pending)
+                .toList();
+    }
+
+    private boolean isAdmin() {
+        try {
+            return currentUser.getRole() == Role.ADMIN;
+        } catch (AuthenticationCredentialsNotFoundException exception) {
+            return false;
+        }
+    }
+
     private void syncQuantityStatus(CropBatch cropBatch) {
-        if (cropBatch.getStatus() == CropBatchStatus.expired || cropBatch.getStatus() == CropBatchStatus.cancelled) {
+        if (cropBatch.getStatus() == CropBatchStatus.pending
+                || cropBatch.getStatus() == CropBatchStatus.expired
+                || cropBatch.getStatus() == CropBatchStatus.cancelled) {
             return;
         }
         if (cropBatch.getCurrentQuantity() != null && cropBatch.getCurrentQuantity().compareTo(BigDecimal.ZERO) <= 0) {

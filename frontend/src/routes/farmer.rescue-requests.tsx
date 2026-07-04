@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { AlertCircle, AlertTriangle, ArrowLeft, CheckCircle2, RefreshCw, Send, Trash2 } from "lucide-react";
 import type { Crop, CropBatch } from "@/api/cropApi";
 import type { RescueRegistrationStatus } from "@/api/rescueRegistrationApi";
+import { PaginationControls } from "@/components/pagination-controls";
 import { PageShell } from "@/components/site-layout";
 import { Button } from "@/components/ui/button";
 import { useCropBatches, useCrops } from "@/hooks/use-crops";
@@ -30,11 +31,20 @@ function FarmerRescueRequests() {
   const [batchId, setBatchId] = useState(0);
   const [rescuePointId, setRescuePointId] = useState(0);
   const [pointEdits, setPointEdits] = useState<Record<number, number>>({});
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => { if (!batchId && batches[0]) setBatchId(batches[0].id); }, [batchId, batches]);
   useEffect(() => { if (!rescuePointId && points[0]) setRescuePointId(points[0].id); }, [points, rescuePointId]);
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(registrations.length / pageSize));
+    if (page > totalPages) setPage(totalPages);
+  }, [page, pageSize, registrations.length]);
+
+  const start = (page - 1) * pageSize;
+  const pagedRegistrations = registrations.slice(start, start + pageSize);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -91,7 +101,7 @@ function FarmerRescueRequests() {
         <section className="rounded-2xl border border-border bg-card p-6 shadow-card">
           <h2 className="text-lg font-semibold">Đăng ký của tôi</h2>
           <div className="mt-4 space-y-3">
-            {registrations.map((registration) => <article key={registration.id} className="rounded-xl border border-border p-4">
+            {pagedRegistrations.map((registration) => <article key={registration.id} className="rounded-xl border border-border p-4">
               <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-mono text-xs">#{registration.id} · Lô #{registration.batchId}</span><StatusBadge status={registration.status} /></div>
               <RegistrationCropSummary batchId={registration.batchId} batches={batches} crops={crops} />
               <div className="mt-3 text-sm">Điểm: <strong>{pointsQuery.data?.find((point) => point.id === registration.rescuePointId)?.name ?? `#${registration.rescuePointId}`}</strong></div>
@@ -99,6 +109,18 @@ function FarmerRescueRequests() {
               {registration.status === "PENDING" && <div className="mt-3 flex flex-wrap gap-2"><select value={pointEdits[registration.id] ?? registration.rescuePointId} onChange={(e) => setPointEdits((current) => ({ ...current, [registration.id]: Number(e.target.value) }))} className="min-w-48 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm">{points.map((point) => <option key={point.id} value={point.id}>{point.name}</option>)}</select><Button size="sm" variant="outline" onClick={() => void updatePoint(registration.id, registration.rescuePointId)}>Cập nhật</Button><Button size="sm" variant="destructive" onClick={() => void cancel(registration.id)}><Trash2 className="mr-1 h-3.5 w-3.5" /> Hủy</Button></div>}
             </article>)}
             {!pending && registrations.length === 0 && <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">Chưa có đăng ký nào.</p>}
+            {registrations.length > 0 && (
+              <PaginationControls
+                totalItems={registrations.length}
+                page={page}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setPage(1);
+                }}
+              />
+            )}
           </div>
         </section>
       </div>

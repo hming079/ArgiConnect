@@ -11,13 +11,14 @@ import {
   Truck,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { Crop, CropBatch } from "@/api/cropApi";
 import type { Order, OrderStatus } from "@/api/orderApi";
 import type { OrderItem } from "@/api/orderItemApi";
 import type { Shipment } from "@/api/shipmentApi";
 import type { UserProfile } from "@/api/userApi";
+import { PaginationControls } from "@/components/pagination-controls";
 import { PageShell } from "@/components/site-layout";
 import { useAuth } from "@/hooks/use-auth";
 import { useCropBatches, useCrops } from "@/hooks/use-crops";
@@ -81,6 +82,8 @@ interface CropInfo {
 function Page() {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "ALL">("ALL");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5); // Tối ưu: Đổi mặc định sang 5 cho gọn thẻ
   const { role, ready } = useAuth();
   const ordersQuery = useOrders(
     undefined,
@@ -139,6 +142,18 @@ function Page() {
       return matchesStatus && (!needle || haystack.includes(needle));
     });
   }, [q, rows, statusFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [q, statusFilter]);
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    if (page > totalPages) setPage(totalPages);
+  }, [filtered.length, page, pageSize]);
+
+  const start = (page - 1) * pageSize;
+  const pagedRows = filtered.slice(start, start + pageSize);
 
   const isLoading =
     !ready ||
@@ -237,7 +252,7 @@ function Page() {
           </div>
         ) : (
           <div className="space-y-4">
-            {filtered.map((row) => (
+            {pagedRows.map((row) => (
               <TrackingCard
                 key={row.id}
                 row={row}
@@ -246,6 +261,16 @@ function Page() {
                 onChangeStatus={changeStatus}
               />
             ))}
+            <PaginationControls
+              totalItems={filtered.length}
+              page={page}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPage(1);
+              }}
+            />
           </div>
         )}
       </div>
@@ -267,8 +292,9 @@ function TrackingCard({
   const actions = getAllowedActions(role, row.status);
 
   return (
-    <article className="rounded-lg border border-border bg-card p-5 shadow-card">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <article className="rounded-lg border border-border bg-card p-4 shadow-card">
+      {/* HEADER CARD */}
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <ShoppingBag className="h-4 w-4 text-primary" />
@@ -278,22 +304,21 @@ function TrackingCard({
             )}
             <StatusPill status={row.status} />
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            {row.totalAmount !== undefined && <span>Tổng {formatVND(row.totalAmount)}</span>}
-            {row.orderDate && <span>Ngày {formatDate(row.orderDate)}</span>}
-            <span>Người mua: {row.buyer?.fullName ?? `#${row.buyerId}`}</span>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            {row.totalAmount !== undefined && (
+              <span className="font-semibold text-foreground">Tổng: {formatVND(row.totalAmount)}</span>
+            )}
+            {row.orderDate && <span>Ngày: {formatDate(row.orderDate)}</span>}
             {row.logisticsUserId !== undefined && (
               <span className="inline-flex items-center gap-1">
-                <ShieldCheck className="h-3.5 w-3.5" /> Logistics #{row.logisticsUserId}
+                <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Logistics #{row.logisticsUserId}
               </span>
             )}
-            {row.shippedAt && <span>Giao từ {formatDate(row.shippedAt)}</span>}
-            {row.deliveredAt && <span>Hoàn tất {formatDate(row.deliveredAt)}</span>}
           </div>
         </div>
 
         {actions.length > 0 && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {actions.map((status) => (
               <button
                 key={status}
@@ -310,72 +335,68 @@ function TrackingCard({
         )}
       </div>
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-2">
-        <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
-          <div className="text-xs text-muted-foreground">Người mua</div>
-          <div className="mt-1 font-semibold">{row.buyer?.fullName ?? `Người mua #${row.buyerId}`}</div>
-          <div className="mt-1 flex flex-col gap-1 text-xs text-muted-foreground">
-            {row.buyer?.phone && <span>SĐT: {row.buyer.phone}</span>}
-            {row.buyer?.email && <span className="break-all">Email: {row.buyer.email}</span>}
-            {!row.buyer && <span>Không tải được thông tin người mua.</span>}
+      {/* BODY THU GỌN: THÔNG TIN KHÁCH HÀNG + ĐỊA CHỈ & DANH SÁCH LÔ NÔNG SẢN */}
+      <div className="mt-3 grid gap-3 lg:grid-cols-2">
+        {/* Cột trái: Người mua & Nơi giao nhận */}
+        <div className="space-y-2 rounded-lg border border-border bg-muted/20 p-3 text-xs">
+          <div>
+            <span className="font-semibold text-foreground">Khách hàng: </span>
+            <span>{row.buyer?.fullName ?? `Người mua #${row.buyerId}`}</span>
+            {row.buyer?.phone && <span className="text-muted-foreground"> ({row.buyer.phone})</span>}
           </div>
-        </div>
-
-        {row.items.length > 0 ? (
-          <div className="grid gap-3 xl:grid-cols-1">
-            {row.items.map((item) => (
-              <div
-                key={item.id}
-                className="flex min-w-0 gap-3 rounded-lg border border-border bg-muted/20 p-3"
-              >
-                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-md bg-primary-soft">
-                  {item.image ? (
-                    <img
-                      src={item.image}
-                      alt={item.cropName}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="grid h-full place-items-center text-xs font-bold text-primary">
-                      #{item.batchId}
-                    </div>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold">{item.cropName}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">Lô #{item.batchId}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Nông dân: {item.farmerName}
-                  </div>
-                  <div className="mt-1 text-xs font-semibold text-primary">
-                    {item.quantity} kg x {formatVND(item.unitPrice)}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
-            Chưa có thông tin lô nông sản.
-          </div>
-        )}
-      </div>
-
-      {(row.pickupAddress || row.deliveryAddress) && (
-        <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
           {row.pickupAddress && (
-            <AddressBox iconColor="text-primary" label="Nơi lấy hàng" value={row.pickupAddress} />
+            <div className="flex items-start gap-1">
+              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+              <span><strong className="font-medium text-foreground">Lấy:</strong> {row.pickupAddress}</span>
+            </div>
           )}
           {row.deliveryAddress && (
-            <AddressBox
-              iconColor="text-destructive"
-              label="Nơi giao hàng"
-              value={row.deliveryAddress}
-            />
+            <div className="flex items-start gap-1">
+              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" />
+              <span><strong className="font-medium text-foreground">Giao:</strong> {row.deliveryAddress}</span>
+            </div>
           )}
         </div>
-      )}
 
+        {/* Cột phải: Danh sách nông sản có scroll nội bộ nếu quá nhiều */}
+        <div className="max-h-40 overflow-y-auto pr-1 space-y-2">
+          {row.items.length > 0 ? (
+            row.items.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/10 p-2 text-xs"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded bg-primary-soft">
+                    {item.image ? (
+                      <img src={item.image} alt={item.cropName} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="grid h-full place-items-center text-[10px] font-bold text-primary">
+                        #{item.batchId}
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate font-semibold">{item.cropName}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      Lô #{item.batchId} • ND: {item.farmerName}
+                    </div>
+                  </div>
+                </div>
+                <div className="shrink-0 text-right font-medium text-primary">
+                  {item.quantity} kg x {formatVND(item.unitPrice)}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-lg border border-border bg-muted/10 p-3 text-xs text-muted-foreground">
+              Chưa có thông tin lô nông sản.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* TIMELINE THU NHỎ */}
       <Timeline status={row.status} />
     </article>
   );
@@ -467,25 +488,6 @@ function buildItemsByOrder(orderItems: OrderItem[], batches: CropBatch[], crops:
   return itemsByOrder;
 }
 
-function AddressBox({
-  label,
-  value,
-  iconColor,
-}: {
-  label: string;
-  value: string;
-  iconColor: string;
-}) {
-  return (
-    <div className="rounded-lg border border-border bg-muted/30 p-3">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1 inline-flex items-start gap-1 font-medium">
-        <MapPin className={`mt-0.5 h-4 w-4 shrink-0 ${iconColor}`} /> {value}
-      </div>
-    </div>
-  );
-}
-
 function Timeline({ status }: { status: OrderStatus }) {
   const activeOrder =
     status === "CANCELLED"
@@ -495,28 +497,28 @@ function Timeline({ status }: { status: OrderStatus }) {
     status === "CANCELLED" ? statusOrder : statusOrder.filter((step) => step !== "CANCELLED");
 
   return (
-    <div className="mt-5 overflow-x-auto pb-1">
-      <div className="flex min-w-[680px] items-start">
+    <div className="mt-3 overflow-x-auto pt-2 border-t border-border/50">
+      <div className="flex min-w-[560px] items-start">
         {flow.map((step, index) => {
           const done = index <= activeOrder;
           const isLast = index === flow.length - 1;
           return (
             <div key={step} className="flex flex-1 items-start">
-              <div className="flex w-24 flex-col items-center">
+              <div className="flex w-20 flex-col items-center">
                 <div
-                  className={`grid h-8 w-8 place-items-center rounded-full ${done ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                  className={`grid h-6 w-6 place-items-center rounded-full ${done ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
                 >
-                  {done ? <CheckCircle2 className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
+                  {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Clock className="h-3.5 w-3.5" />}
                 </div>
                 <div
-                  className={`mt-1 text-center text-[11px] leading-tight ${done ? "font-semibold text-foreground" : "text-muted-foreground"}`}
+                  className={`mt-1 text-center text-[10px] leading-tight ${done ? "font-semibold text-foreground" : "text-muted-foreground"}`}
                 >
                   {statusLabels[step]}
                 </div>
               </div>
               {!isLast && (
                 <div
-                  className={`mt-4 h-0.5 flex-1 ${index < activeOrder ? "bg-primary" : "bg-border"}`}
+                  className={`mt-3 h-0.5 flex-1 ${index < activeOrder ? "bg-primary" : "bg-border"}`}
                 />
               )}
             </div>
@@ -547,7 +549,7 @@ function StatusPill({ status }: { status: OrderStatus }) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${tone}`}
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${tone}`}
     >
       <Icon className="h-3 w-3" /> {statusLabels[status]}
     </span>
@@ -573,7 +575,7 @@ function actionButtonClass(status: OrderStatus) {
     status === "CANCELLED"
       ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
       : "bg-primary text-primary-foreground hover:bg-primary/90";
-  return `inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${tone}`;
+  return `inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${tone}`;
 }
 
 function formatDate(value: string) {

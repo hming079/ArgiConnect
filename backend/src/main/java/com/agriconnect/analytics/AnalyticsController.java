@@ -56,8 +56,9 @@ public class AnalyticsController {
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
             LocalDate endDate,
-            @RequestParam(required = false) String province) {
-        return service.supplyCapacity(startDate, endDate, province);
+            @RequestParam(required = false) String province,
+            @RequestParam(required = false) Long cropId) {
+        return service.supplyCapacity(startDate, endDate, province, cropId);
     }
 
     @GetMapping("/congestion-risk")

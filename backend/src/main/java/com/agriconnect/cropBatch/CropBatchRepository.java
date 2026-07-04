@@ -24,7 +24,7 @@ public interface CropBatchRepository extends JpaRepository<CropBatch, Long> {
             SET current_quantity = current_quantity - :quantity
             WHERE id = :id
               AND current_quantity >= :quantity
-              AND status NOT IN ('expired', 'cancelled', 'EXPIRED', 'CANCELLED', 'sold_out', 'SOLD_OUT')
+              AND status IN ('available', 'AVAILABLE')
             """, nativeQuery = true)
     int reserveAvailableQuantity(@Param("id") Long id, @Param("quantity") BigDecimal quantity);
 

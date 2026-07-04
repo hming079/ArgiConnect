@@ -61,9 +61,7 @@ public class OrderService {
         List<Order> orders = switch (currentUser.getRole()) {
             case ADMIN, LOGISTICS -> repository.findAll();
             case BUYER -> repository.findByBuyerId(currentUser.getId());
-            case FARMER -> repository.findAll().stream()
-                    .filter(this::isCurrentFarmerOrder)
-                    .toList();
+            case FARMER -> repository.findVisibleForFarmer(currentUser.getId());
         };
 
         return orders.stream()
@@ -275,7 +273,9 @@ public class OrderService {
     }
 
     private void syncQuantityStatus(CropBatch batch) {
-        if (batch.getStatus() == CropBatchStatus.expired || batch.getStatus() == CropBatchStatus.cancelled) {
+        if (batch.getStatus() == CropBatchStatus.pending
+                || batch.getStatus() == CropBatchStatus.expired
+                || batch.getStatus() == CropBatchStatus.cancelled) {
             return;
         }
         if (batch.getCurrentQuantity().compareTo(java.math.BigDecimal.ZERO) <= 0) {

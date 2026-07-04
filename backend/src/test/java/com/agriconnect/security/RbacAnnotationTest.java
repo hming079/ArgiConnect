@@ -8,6 +8,7 @@ import com.agriconnect.cropLock.CropLockController;
 import com.agriconnect.order.OrderController;
 import com.agriconnect.order.dto.CheckoutRequest;
 import com.agriconnect.order.dto.OrderStatusUpdateRequest;
+import com.agriconnect.rescuePoint.RescuePointController;
 import com.agriconnect.rescueRegistration.RescueRegistrationController;
 import com.agriconnect.shipment.ShipmentController;
 import com.agriconnect.shipment.ShipmentStatus;
@@ -53,6 +54,13 @@ class RbacAnnotationTest {
     void rescueReviewRequiresAdmin() throws Exception {
         assertRule(RescueRegistrationController.class, "approve", "hasRole('ADMIN')", Long.class);
         assertRule(RescueRegistrationController.class, "reject", "hasRole('ADMIN')", Long.class);
+    }
+
+    @Test
+    void rescuePointReadsArePublic() throws Exception {
+        assertRule(RescuePointController.class, "getAll", "permitAll()", String.class,
+                com.agriconnect.rescuePoint.RescuePointStatus.class);
+        assertRule(RescuePointController.class, "getById", "permitAll()", Long.class);
     }
 
     @Test

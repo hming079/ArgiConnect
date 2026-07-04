@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import type { Crop, CropBatch } from "@/api/cropApi";
+import { PaginationControls } from "@/components/pagination-controls";
 import { PageShell } from "@/components/site-layout";
 import { Button } from "@/components/ui/button";
 import { useCropBatches, useCrops } from "@/hooks/use-crops";
@@ -47,6 +48,8 @@ function ProductsList() {
   const [reg, setReg] = useState("Tất cả khu vực");
   const [urgentOnly, setUrgentOnly] = useState(false);
   const [maxPrice, setMaxPrice] = useState(100000);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const crops = useMemo(() => cropsQuery.data ?? [], [cropsQuery.data]);
   const batches = useMemo(() => batchesQuery.data ?? [], [batchesQuery.data]);
@@ -99,6 +102,18 @@ function ProductsList() {
       }),
     [items, q, cat, reg, urgentOnly, maxPrice],
   );
+
+  useEffect(() => {
+    setPage(1);
+  }, [q, cat, reg, urgentOnly, maxPrice]);
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    if (page > totalPages) setPage(totalPages);
+  }, [filtered.length, page, pageSize]);
+
+  const start = (page - 1) * pageSize;
+  const paged = filtered.slice(start, start + pageSize);
 
   return (
     <PageShell>
@@ -226,11 +241,24 @@ function ProductsList() {
           ) : null}
 
           {!loading && !failed && filtered.length > 0 && (
-            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-              {filtered.map((item) => (
-                <ProductBatchCard key={item.id} item={item} />
-              ))}
-            </div>
+            <>
+              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                {paged.map((item) => (
+                  <ProductBatchCard key={item.id} item={item} />
+                ))}
+              </div>
+              <PaginationControls
+                className="mt-6"
+                totalItems={filtered.length}
+                page={page}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setPage(1);
+                }}
+              />
+            </>
           )}
         </div>
       </div>

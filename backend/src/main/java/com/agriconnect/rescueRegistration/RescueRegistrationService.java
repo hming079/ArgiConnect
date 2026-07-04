@@ -5,10 +5,12 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.agriconnect.common.ResourceNotFoundException;
 import com.agriconnect.cropBatch.CropBatch;
 import com.agriconnect.cropBatch.CropBatchRepository;
+import com.agriconnect.cropBatch.CropBatchStatus;
 import com.agriconnect.security.CurrentUser;
 import com.agriconnect.user.Role;
 
@@ -90,12 +92,21 @@ public class RescueRegistrationService {
         return repository.save(registration);
     }
 
+    @Transactional
     public RescueRegistration review(Long id, RescueRegistrationStatus status) {
         if (status == RescueRegistrationStatus.PENDING) {
             throw new IllegalArgumentException("Review status must be APPROVED or REJECTED");
         }
 
         RescueRegistration registration = getById(id);
+        if (status == RescueRegistrationStatus.APPROVED) {
+            CropBatch batch = cropBatchRepository.findById(registration.getBatchId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Crop batch not found with id: " + registration.getBatchId()));
+            batch.setStatus(CropBatchStatus.available);
+            cropBatchRepository.save(batch);
+        }
+
         registration.setStatus(status);
         registration.setApprovedBy(currentUser.getId());
         registration.setApprovedAt(LocalDateTime.now());

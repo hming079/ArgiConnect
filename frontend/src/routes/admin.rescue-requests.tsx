@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { Crop, CropBatch } from "@/api/cropApi";
 import type { RescueRegistrationStatus } from "@/api/rescueRegistrationApi";
+import { PaginationControls } from "@/components/pagination-controls";
 import { PageShell } from "@/components/site-layout";
 import { Button } from "@/components/ui/button";
 import { useCropBatches, useCrops } from "@/hooks/use-crops";
@@ -35,12 +36,23 @@ function AdminRescueRequests() {
   const pointsQuery = useRescuePoints();
   const review = useReviewRescueRegistration();
   const [filter, setFilter] = useState<Filter>("PENDING");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [error, setError] = useState("");
   const registrations = registrationsQuery.data ?? [];
   const batches = batchesQuery.data ?? [];
   const crops = cropsQuery.data ?? [];
   const points = pointsQuery.data ?? [];
   const list = registrations.filter((item) => filter === "ALL" || item.status === filter);
+  useEffect(() => {
+    setPage(1);
+  }, [filter]);
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+    if (page > totalPages) setPage(totalPages);
+  }, [list.length, page, pageSize]);
+  const start = (page - 1) * pageSize;
+  const pagedList = list.slice(start, start + pageSize);
   const pendingCount = registrations.filter((item) => item.status === "PENDING").length;
   const loading =
     registrationsQuery.isPending ||
@@ -122,7 +134,7 @@ function AdminRescueRequests() {
         {loading && <div className="h-64 animate-pulse rounded-2xl bg-muted" />}
         {!loading && (
           <div className="space-y-4">
-            {list.map((registration) => {
+            {pagedList.map((registration) => {
               const batch = batches.find((item) => item.id === registration.batchId);
               const crop = batch ? crops.find((item) => item.id === batch.cropId) : undefined;
               const point = points.find((item) => item.id === registration.rescuePointId);
@@ -189,6 +201,18 @@ function AdminRescueRequests() {
               <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-muted-foreground">
                 Không có đăng ký nào.
               </div>
+            )}
+            {list.length > 0 && (
+              <PaginationControls
+                totalItems={list.length}
+                page={page}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setPage(1);
+                }}
+              />
             )}
           </div>
         )}

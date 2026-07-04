@@ -1,18 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertCircle,
   AlertTriangle,
   ArrowRight,
   BarChart3,
+  Filter,
   Package,
   Radio,
+  Search,
   TrendingUp,
   Truck,
 } from "lucide-react";
 
 import type { RiskLevel } from "@/api/analyticsApi";
 import { PageShell } from "@/components/site-layout";
+import { PaginationControls } from "@/components/pagination-controls";
 import {
   useAnalyticsOverview,
   useCongestionRisk,
@@ -61,6 +65,32 @@ function CoordinationPage() {
     forecastQuery.isError ||
     shipmentsQuery.isError;
 
+  // --- STATE TÌM KIẾM VÀ LỌC TỈNH THÀNH ---
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterRisk, setFilterRisk] = useState<string>("ALL");
+  const [page, setPage] = useState(1);
+  const pageSize = 6; // Hiển thị 6 card (grid 2 cột x 3 hàng) mỗi trang cho gọn
+
+  // Danh sách tỉnh được lọc (áp dụng chung cho bảng và card)
+  const filteredProvinces = useMemo(() => {
+    return provinceStats.filter((p) => {
+      const matchSearch = p.province.toLowerCase().includes(searchQuery.trim().toLowerCase());
+      const matchRisk = filterRisk === "ALL" || p.congestionRiskLevel === filterRisk;
+      return matchSearch && matchRisk;
+    });
+  }, [provinceStats, searchQuery, filterRisk]);
+
+  // Reset trang về 1 mỗi khi lọc
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, filterRisk]);
+
+  // Phân trang riêng cho phần Card Khả năng cung ứng
+  const paginatedProvinces = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredProvinces.slice(start, start + pageSize);
+  }, [filteredProvinces, page]);
+
   return (
     <PageShell>
       <div className="border-b border-border bg-leaf-pattern">
@@ -91,6 +121,7 @@ function CoordinationPage() {
         {isError && <StateBox tone="error">Không tải được dữ liệu điều phối từ backend.</StateBox>}
         {isLoading && <StateBox>Đang tải dữ liệu điều phối...</StateBox>}
 
+        {/* THẺ THỐNG KÊ TỔNG QUAN */}
         <section>
           <SectionTitle>Thống kê sản lượng</SectionTitle>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -123,9 +154,27 @@ function CoordinationPage() {
               value={`${formatTons(overview?.inTransitQuantity ?? 0)}t`}
             />
           </div>
-          <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-card shadow-card">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
+
+          {/* THANH TÌM KIẾM CHUNG */}
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-t-2xl border border-b-0 border-border bg-card p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+              <span>Hiển thị chi tiết theo tỉnh thành:</span>
+            </div>
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-1.5 w-full sm:w-72">
+              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm nhanh tên tỉnh..."
+                className="bg-transparent text-sm outline-none w-full"
+              />
+            </div>
+          </div>
+
+          {/* BẢNG THỐNG KÊ CÓ SCROLL NỘI BỘ */}
+          <div className="max-h-[380px] overflow-y-auto rounded-b-2xl border border-border bg-card shadow-card">
+            <table className="w-full text-sm relative">
+              <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur text-xs uppercase tracking-wider text-muted-foreground shadow-sm">
                 <tr>
                   <th className="px-4 py-3 text-left">Tỉnh</th>
                   <th className="px-4 py-3 text-right">Tổng</th>
@@ -136,24 +185,24 @@ function CoordinationPage() {
                 </tr>
               </thead>
               <tbody>
-                {provinceStats.map((p) => (
-                  <tr key={p.province} className="border-t border-border">
+                {filteredProvinces.map((p) => (
+                  <tr key={p.province} className="border-t border-border hover:bg-muted/30">
                     <td className="px-4 py-3 font-medium">{p.province}</td>
                     <td className="px-4 py-3 text-right">{formatKg(p.totalKg)} kg</td>
                     <td className="px-4 py-3 text-right">{formatKg(p.inventoryKg)} kg</td>
-                    <td className="px-4 py-3 text-right text-destructive">
+                    <td className="px-4 py-3 text-right text-destructive font-medium">
                       {formatKg(p.rescuingKg)} kg
                     </td>
-                    <td className="px-4 py-3 text-right text-primary">
+                    <td className="px-4 py-3 text-right text-primary font-medium">
                       {formatKg(p.consumedKg)} kg
                     </td>
                     <td className="px-4 py-3 text-right">{formatKg(p.inTransitKg)} kg</td>
                   </tr>
                 ))}
-                {!isLoading && provinceStats.length === 0 && (
+                {!isLoading && filteredProvinces.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
-                      Chưa có dữ liệu tỉnh.
+                    <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                      Không tìm thấy dữ liệu tỉnh thành phù hợp.
                     </td>
                   </tr>
                 )}
@@ -162,23 +211,49 @@ function CoordinationPage() {
           </div>
         </section>
 
+        {/* PHÂN TÍCH KHẢ NĂNG CUNG ỨNG (CÓ PHÂN TRANG VÀ LỌC) */}
         <section>
-          <SectionTitle>Phân tích khả năng cung ứng</SectionTitle>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <SectionTitle>Phân tích khả năng cung ứng</SectionTitle>
+            
+            {/* Bộ lọc tình trạng ùn ứ */}
+            <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-card p-1 text-xs">
+              {[
+                { id: "ALL", label: "Tất cả" },
+                { id: "HIGH", label: "Nguy cơ cao" },
+                { id: "MEDIUM", label: "Cần theo dõi" },
+                { id: "LOW", label: "Ổn định" },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setFilterRisk(tab.id)}
+                  className={`rounded-lg px-3 py-1.5 font-semibold transition ${
+                    filterRisk === tab.id
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            {provinceStats.map((p) => (
+            {paginatedProvinces.map((p) => (
               <div
                 key={p.province}
-                className="rounded-2xl border border-border bg-card p-5 shadow-card"
+                className="rounded-2xl border border-border bg-card p-5 shadow-card transition hover:border-primary/40"
               >
                 <div className="flex items-center justify-between">
-                  <div className="font-semibold">{p.province}</div>
+                  <div className="font-semibold text-base">{p.province}</div>
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-semibold ${riskPill(p.congestionRiskLevel)}`}
                   >
                     {riskLabel(p.congestionRiskLevel)}
                   </span>
                 </div>
-                <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
+                <div className="mt-4 grid grid-cols-3 gap-3 text-xs">
                   <Metric label="Hiện có" value={`${formatTons(p.inventoryKg + p.rescuingKg)}t`} />
                   <Metric
                     label="Tốc độ TB"
@@ -189,17 +264,35 @@ function CoordinationPage() {
                     value={`${formatNumber(p.inventoryCoverageDays)} ngày`}
                   />
                 </div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
                   <div
-                    className={`${riskBar(p.congestionRiskLevel)} h-full`}
+                    className={`${riskBar(p.congestionRiskLevel)} h-full transition-all duration-500`}
                     style={{ width: `${Math.min(100, p.congestionRiskScore)}%` }}
                   />
                 </div>
               </div>
             ))}
+            {!isLoading && paginatedProvinces.length === 0 && (
+              <div className="col-span-full rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+                Không có khu vực nào khớp với điều kiện lọc hiện tại.
+              </div>
+            )}
           </div>
+
+          {/* Phân trang cho các Card */}
+          {!isLoading && filteredProvinces.length > pageSize && (
+            <div className="mt-4 rounded-2xl border border-border bg-card p-3 shadow-card">
+              <PaginationControls
+                totalItems={filteredProvinces.length}
+                page={page}
+                pageSize={pageSize}
+                onPageChange={setPage}
+              />
+            </div>
+          )}
         </section>
 
+        {/* DỰ BÁO CUNG CẦU */}
         <section>
           <SectionTitle>Dự báo cung cầu</SectionTitle>
           <div className="mt-4 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
@@ -221,11 +314,11 @@ function CoordinationPage() {
                       <div className="text-[10px] font-semibold">{formatNumber(projected)}t</div>
                       <div className="flex w-full items-end gap-1">
                         <div
-                          className="w-1/2 rounded-t-lg bg-primary"
+                          className="w-1/2 rounded-t-lg bg-primary transition-all duration-500"
                           style={{ height: `${(current / max) * 100}%` }}
                         />
                         <div
-                          className="w-1/2 rounded-t-lg border border-dashed border-primary bg-primary/30"
+                          className="w-1/2 rounded-t-lg border border-dashed border-primary bg-primary/30 transition-all duration-500"
                           style={{ height: `${(projected / max) * 100}%` }}
                         />
                       </div>
@@ -276,100 +369,6 @@ function CoordinationPage() {
             </div>
           </div>
         </section>
-
-        {/* <section>
-          <SectionTitle>Bản đồ vùng dư thừa & shipment</SectionTitle>
-          <div className="mt-4 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-            <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-              <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl bg-gradient-to-b from-primary-soft/40 to-accent/10">
-                <svg viewBox="0 0 100 125" className="absolute inset-0 h-full w-full opacity-30">
-                  <path
-                    d="M55 5 Q60 15 58 25 Q70 35 60 45 Q70 55 62 65 Q75 75 65 88 Q60 100 55 115 Q50 120 48 115 Q52 105 50 95 Q40 85 50 75 Q42 65 52 55 Q45 45 55 35 Q48 25 52 15 Z"
-                    fill="var(--primary)"
-                  />
-                </svg>
-                {riskRows.slice(0, 8).map((row, index) => {
-                  const size = Math.max(
-                    28,
-                    Math.min(72, Math.sqrt(row.currentInventory + row.incomingHarvest) / 30),
-                  );
-                  const pos = provincePosition(index);
-                  return (
-                    <div
-                      key={`${row.province}-${row.cropName}`}
-                      className="absolute -translate-x-1/2 -translate-y-1/2"
-                      style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-                    >
-                      <div className="relative">
-                        <span
-                          className={`block animate-ping rounded-full opacity-40 ${riskColor(row.riskLevel)}`}
-                          style={{ width: size, height: size }}
-                        />
-                        <span
-                          className={`absolute inset-0 grid place-items-center rounded-full ${riskColor(row.riskLevel)} text-[10px] font-bold text-white shadow-soft`}
-                        >
-                          {formatTons(row.currentInventory)}t
-                        </span>
-                      </div>
-                      <div className="mt-1 whitespace-nowrap rounded-full bg-background/90 px-2 py-0.5 text-[10px] font-medium shadow-card">
-                        {row.province} - {row.cropName}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-              <div className="flex items-center justify-between">
-                <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
-                  <Radio className="h-3.5 w-3.5 animate-pulse" /> Live shipment
-                </div>
-                <Link
-                  to="/shipments"
-                  className="text-xs font-semibold text-primary hover:underline"
-                >
-                  Xem tất cả &gt;
-                </Link>
-              </div>
-              <div className="mt-3 space-y-2">
-                {shipments
-                  .filter((s) => s.status !== "DELIVERED" && s.status !== "CANCELLED")
-                  .slice(0, 5)
-                  .map((s) => (
-                    <div
-                      key={s.id}
-                      className="flex items-center gap-3 rounded-xl border border-border bg-background p-2.5"
-                    >
-                      <span className="grid h-8 w-8 place-items-center rounded-full bg-primary-soft text-primary">
-                        <Truck className="h-4 w-4" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-[10px]">#{s.id}</span>
-                          <span className="rounded-full bg-accent/20 px-1.5 py-0.5 text-[9px] font-semibold text-accent-foreground">
-                            {s.status}
-                          </span>
-                        </div>
-                        <div className="truncate text-xs">Order #{s.orderId}</div>
-                        <div className="truncate text-[10px] text-muted-foreground">
-                          {s.pickupAddress} &gt; {s.deliveryAddress}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                {!shipmentsQuery.isLoading && shipments.length === 0 && (
-                  <StateBox>Chưa có shipment.</StateBox>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="mt-3 flex gap-3 text-xs">
-            <Legend color="bg-destructive" label="Khẩn cấp" />
-            <Legend color="bg-accent" label="Cần theo dõi" />
-            <Legend color="bg-primary" label="Bình thường" />
-          </div>
-        </section> */}
       </div>
     </PageShell>
   );
@@ -480,20 +479,6 @@ function riskBar(level: RiskLevel) {
 
 function riskColor(level: RiskLevel) {
   return level === "HIGH" ? "bg-destructive" : level === "MEDIUM" ? "bg-accent" : "bg-primary";
-}
-
-function provincePosition(index: number) {
-  const positions = [
-    { x: 60, y: 82 },
-    { x: 68, y: 79 },
-    { x: 74, y: 70 },
-    { x: 56, y: 84 },
-    { x: 60, y: 58 },
-    { x: 66, y: 64 },
-    { x: 58, y: 72 },
-    { x: 70, y: 60 },
-  ];
-  return positions[index] ?? { x: 50, y: 50 };
 }
 
 function formatTons(value: number) {

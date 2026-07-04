@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Sprout, ShoppingBasket, TrendingUp, ShieldCheck, Users, Leaf, Truck, HeartHandshake } from "lucide-react";
+import { useMemo } from "react";
+import { AlertCircle, ArrowRight, HeartHandshake, Leaf, MapPin, RefreshCw, ShieldCheck, ShoppingBasket, Sprout, TrendingUp, Truck, Users } from "lucide-react";
+import type { Crop, CropBatch } from "@/api/cropApi";
 import { PageShell } from "@/components/site-layout";
-import { ProductCard } from "@/components/product-card";
-import { products, stats, campaigns } from "@/lib/mock-data";
+import { useCropBatches, useCrops } from "@/hooks/use-crops";
+import { getCropImage } from "@/lib/crop-images";
 import heroImg from "@/assets/hero-farm.jpg";
 
 export const Route = createFileRoute("/")({
@@ -17,8 +19,57 @@ export const Route = createFileRoute("/")({
   component: Home,
 });
 
+type BatchCardItem = {
+  id: string;
+  batch: CropBatch;
+  crop?: Crop;
+  name: string;
+  image?: string;
+  location: string;
+  price: number;
+  currentQuantity: number;
+  initialQuantity: number;
+};
+
 function Home() {
-  const featured = products.slice(0, 4);
+  const cropsQuery = useCrops();
+  const batchesQuery = useCropBatches();
+  const crops = useMemo(() => cropsQuery.data ?? [], [cropsQuery.data]);
+  const batches = useMemo(() => batchesQuery.data ?? [], [batchesQuery.data]);
+  const cropById = useMemo(() => new Map(crops.map((crop) => [crop.id, crop])), [crops]);
+  const availableItems = useMemo(
+    () =>
+      batches
+        .filter((batch) => batch.status === "available")
+        .map((batch): BatchCardItem => {
+          const crop = cropById.get(batch.cropId);
+          const name = crop?.name ?? `NÃ´ng sáº£n #${batch.cropId}`;
+          return {
+            id: String(batch.id),
+            batch,
+            crop,
+            name,
+            image: getCropImage(name),
+            location: formatBatchAddress(batch),
+            price: Number(batch.unitPrice),
+            currentQuantity: Number(batch.currentQuantity),
+            initialQuantity: Number(batch.initialQuantity),
+          };
+        }),
+    [batches, cropById],
+  );
+  const featured = availableItems.slice(0, 4);
+  const campaignItems = availableItems
+    .filter((item) => item.currentQuantity > 0)
+    .slice()
+    .sort((a, b) => b.currentQuantity - a.currentQuantity)
+    .slice(0, 2);
+  const soldQuantity = availableItems.reduce(
+    (sum, item) => sum + Math.max(item.initialQuantity - item.currentQuantity, 0),
+    0,
+  );
+  const loading = cropsQuery.isPending || batchesQuery.isPending;
+  const failed = cropsQuery.isError || batchesQuery.isError;
   return (
     <PageShell>
       {/* HERO */}
@@ -50,9 +101,9 @@ function Home() {
 
             <div className="mt-10 grid max-w-lg grid-cols-3 gap-4 rounded-2xl bg-white/10 p-5 backdrop-blur">
               {[
-                { v: stats.farmers.toLocaleString("vi-VN") + "+", l: "Nông dân" },
-                { v: stats.tonsSold.toLocaleString("vi-VN") + " tấn", l: "Đã tiêu thụ" },
-                { v: stats.activeCampaigns + "", l: "Chiến dịch" },
+                { v: uniqueCount(batches.map((batch) => batch.farmerId)).toLocaleString("vi-VN"), l: "Nông dân" },
+                { v: formatTons(soldQuantity), l: "Đã tiêu thụ" },
+                { v: availableItems.length.toLocaleString("vi-VN"), l: "Lô đang bán" },
               ].map((s) => (
                 <div key={s.l}>
                   <div className="text-2xl font-bold sm:text-3xl">{s.v}</div>
@@ -85,6 +136,25 @@ function Home() {
         </div>
       </section>
 
+      {failed && (
+        <section className="mx-auto max-w-7xl px-4 pt-10 sm:px-6 lg:px-8">
+          <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-5 text-sm text-destructive">
+            <div className="flex items-center gap-2 font-semibold">
+              <AlertCircle className="h-4 w-4" /> Không thể tải dữ liệu từ backend
+            </div>
+            <button
+              onClick={() => {
+                void cropsQuery.refetch();
+                void batchesQuery.refetch();
+              }}
+              className="mt-3 inline-flex items-center gap-2 rounded-full bg-background px-4 py-2 text-sm font-semibold text-foreground"
+            >
+              <RefreshCw className="h-4 w-4" /> Tải lại
+            </button>
+          </div>
+        </section>
+      )}
+
       {/* CAMPAIGNS */}
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="flex items-end justify-between gap-4">
@@ -96,34 +166,56 @@ function Home() {
         </div>
 
         <div className="mt-6 grid gap-5 md:grid-cols-2">
-          {campaigns.map((c) => (
-            <div key={c.id} className="group relative overflow-hidden rounded-3xl border border-border bg-card shadow-card">
-              <div className="grid md:grid-cols-[1fr_1.2fr]">
-                <div className="aspect-[4/3] overflow-hidden md:aspect-auto">
-                  <img src={c.image} alt={c.title} loading="lazy" className="h-full w-full object-cover transition group-hover:scale-105" />
-                </div>
-                <div className="flex flex-col gap-3 p-6">
-                  <span className="inline-flex w-fit items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive">
-                    Đang diễn ra
-                  </span>
-                  <h3 className="text-lg font-bold leading-snug">{c.title}</h3>
-                  <p className="text-sm text-muted-foreground">{c.desc}</p>
-                  <div className="mt-auto">
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Tiến độ</span>
-                      <span className="font-semibold text-foreground">{c.progress}%</span>
+          {loading &&
+            [0, 1].map((item) => (
+              <div key={item} className="h-64 animate-pulse rounded-3xl bg-muted" />
+            ))}
+          {!loading &&
+            campaignItems.map((item) => {
+              const sold = Math.max(item.initialQuantity - item.currentQuantity, 0);
+              const progress = progressPercent(sold, item.initialQuantity);
+              return (
+                <div key={item.id} className="group relative overflow-hidden rounded-3xl border border-border bg-card shadow-card">
+                  <div className="grid md:grid-cols-[1fr_1.2fr]">
+                    <div className="aspect-[4/3] overflow-hidden bg-primary-soft md:aspect-auto">
+                      {item.image ? (
+                        <img src={item.image} alt={item.name} loading="lazy" className="h-full w-full object-cover transition group-hover:scale-105" />
+                      ) : (
+                        <div className="grid h-full place-items-center text-4xl font-bold text-primary">#{item.batch.cropId}</div>
+                      )}
                     </div>
-                    <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${c.progress}%` }} />
+                    <div className="flex flex-col gap-3 p-6">
+                      <span className="inline-flex w-fit items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive">
+                        Đang diễn ra
+                      </span>
+                      <h3 className="text-lg font-bold leading-snug">
+                        Giải cứu {formatNumber(item.currentQuantity)} {item.batch.unit} {item.name}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Lô #{item.batch.id} từ {item.location || item.batch.province}, nông dân {item.batch.farmerName}.
+                      </p>
+                      <div className="mt-auto">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Tiến độ</span>
+                          <span className="font-semibold text-foreground">{progress}%</span>
+                        </div>
+                        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted">
+                          <div className="h-full rounded-full bg-primary" style={{ width: `${progress}%` }} />
+                        </div>
+                        <Link to="/categories/$id" params={{ id: String(item.batch.cropId) }} className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-primary">
+                          Ủng hộ ngay <ArrowRight className="h-4 w-4" />
+                        </Link>
+                      </div>
                     </div>
-                    <Link to="/products" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-primary">
-                      Ủng hộ ngay <ArrowRight className="h-4 w-4" />
-                    </Link>
                   </div>
                 </div>
-              </div>
+              );
+            })}
+          {!loading && campaignItems.length === 0 && (
+            <div className="rounded-3xl border border-dashed border-border bg-card p-8 text-center text-muted-foreground md:col-span-2">
+              Chưa có lô nông sản khả dụng từ backend.
             </div>
-          ))}
+          )}
         </div>
       </section>
 
@@ -137,7 +229,16 @@ function Home() {
           <Link to="/products" className="text-sm font-medium text-primary hover:underline">Xem tất cả →</Link>
         </div>
         <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {featured.map((p) => <ProductCard key={p.id} p={p} />)}
+          {loading &&
+            [0, 1, 2, 3].map((item) => (
+              <div key={item} className="h-80 animate-pulse rounded-2xl bg-muted" />
+            ))}
+          {!loading && featured.map((item) => <BackendProductCard key={item.id} item={item} />)}
+          {!loading && featured.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-muted-foreground sm:col-span-2 lg:col-span-4">
+              Chưa có nông sản nổi bật từ backend.
+            </div>
+          )}
         </div>
       </section>
 
@@ -187,4 +288,95 @@ function Home() {
       </section>
     </PageShell>
   );
+}
+
+function BackendProductCard({ item }: { item: BatchCardItem }) {
+  const sold = Math.max(item.initialQuantity - item.currentQuantity, 0);
+  const pct = progressPercent(sold, item.initialQuantity);
+
+  return (
+    <Link
+      to="/categories/$id"
+      params={{ id: String(item.batch.cropId) }}
+      className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-card transition hover:-translate-y-0.5 hover:shadow-soft"
+    >
+      <div className="relative aspect-[4/3] overflow-hidden bg-primary-soft">
+        {item.image ? (
+          <img
+            src={item.image}
+            alt={item.name}
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        ) : (
+          <div className="grid h-full place-items-center text-4xl font-bold text-primary">
+            #{item.batch.cropId}
+          </div>
+        )}
+        <span className="absolute right-3 top-3 rounded-full bg-background/90 px-2.5 py-1 text-xs font-medium text-foreground backdrop-blur">
+          Lô #{item.batch.id}
+        </span>
+      </div>
+
+      <div className="flex flex-1 flex-col gap-2 p-4">
+        <h3 className="line-clamp-1 text-base font-semibold">{item.name}</h3>
+        <div className="flex items-start gap-1 text-xs text-muted-foreground">
+          <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {item.location || "Chưa có địa chỉ"}
+        </div>
+        <div className="mt-1 flex items-end justify-between">
+          <div>
+            <div className="text-lg font-bold text-primary">
+              {formatVND(item.price)}
+              <span className="text-xs font-normal text-muted-foreground">/{item.batch.unit}</span>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Còn {formatNumber(item.currentQuantity)} {item.batch.unit}
+            </div>
+          </div>
+          <div className="text-right text-xs font-medium text-muted-foreground">{pct}% đã bán</div>
+        </div>
+        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function formatBatchAddress(batch: CropBatch) {
+  if (
+    batch.addressDetail &&
+    [batch.ward, batch.district, batch.province].some((part) =>
+      part ? batch.addressDetail?.includes(part) : false,
+    )
+  ) {
+    return batch.addressDetail;
+  }
+  return [batch.addressDetail, batch.ward, batch.district, batch.province]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function progressPercent(value: number, total: number) {
+  return total > 0 ? Math.min(100, Math.max(0, Math.round((value / total) * 100))) : 0;
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 }).format(value);
+}
+
+function formatTons(value: number) {
+  return `${formatNumber(value / 1000)} tấn`;
+}
+
+function formatVND(value: number) {
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function uniqueCount(values: Array<number | string>) {
+  return new Set(values).size;
 }

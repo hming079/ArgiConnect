@@ -33,10 +33,15 @@ public class OrderItemService {
     }
 
     public List<OrderItem> getAll(Long orderId, Long batchId) {
-        return repository.findAll().stream()
+        List<OrderItem> visibleItems = switch (currentUser.getRole()) {
+            case ADMIN, LOGISTICS -> repository.findAll();
+            case BUYER -> repository.findVisibleForBuyer(currentUser.getId());
+            case FARMER -> repository.findVisibleForFarmer(currentUser.getId());
+        };
+
+        return visibleItems.stream()
                 .filter(item -> orderId == null || orderId.equals(item.getOrderId()))
                 .filter(item -> batchId == null || batchId.equals(item.getBatchId()))
-                .filter(this::isVisible)
                 .toList();
     }
 

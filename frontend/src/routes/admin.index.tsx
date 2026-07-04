@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -14,6 +14,7 @@ import {
 
 import type { CropBatch } from "@/api/cropApi";
 import type { UserProfile } from "@/api/userApi";
+import { PaginationControls } from "@/components/pagination-controls";
 import { PageShell } from "@/components/site-layout";
 import { useCropBatches, useCrops } from "@/hooks/use-crops";
 import { useOrders } from "@/hooks/use-orders";
@@ -28,6 +29,8 @@ export const Route = createFileRoute("/admin/")({
 
 function AdminDashboard() {
   const [userSearch, setUserSearch] = useState("");
+  const [userPage, setUserPage] = useState(1);
+  const [userPageSize, setUserPageSize] = useState(10);
   const usersQuery = useUsers();
   const batchesQuery = useCropBatches();
   const cropsQuery = useCrops();
@@ -41,16 +44,28 @@ function AdminDashboard() {
   const rescueRequests = rescueQuery.data ?? [];
   const pendingRescue = rescueRequests.filter((request) => request.status === "PENDING").length;
   const totalTransactions = orders.reduce((sum, order) => sum + Number(order.totalAmount ?? 0), 0);
-  const recentUsers = users
-    .filter((user) => {
-      const query = userSearch.trim().toLowerCase();
-      if (!query) return true;
-      return [user.fullName, user.email, user.role, user.status].some((value) =>
-        value?.toLowerCase().includes(query),
-      );
-    })
-    .sort((a, b) => b.id - a.id)
-    .slice(0, 8);
+  const recentUsers = useMemo(
+    () =>
+      users
+        .filter((user) => {
+          const query = userSearch.trim().toLowerCase();
+          if (!query) return true;
+          return [user.fullName, user.email, user.role, user.status].some((value) =>
+            value?.toLowerCase().includes(query),
+          );
+        })
+        .sort((a, b) => b.id - a.id),
+    [userSearch, users],
+  );
+  useEffect(() => {
+    setUserPage(1);
+  }, [userSearch]);
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(recentUsers.length / userPageSize));
+    if (userPage > totalPages) setUserPage(totalPages);
+  }, [recentUsers.length, userPage, userPageSize]);
+  const userStart = (userPage - 1) * userPageSize;
+  const pagedUsers = recentUsers.slice(userStart, userStart + userPageSize);
   const isLoading =
     usersQuery.isLoading ||
     batchesQuery.isLoading ||
@@ -168,7 +183,7 @@ function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentUsers.map((user) => (
+                  {pagedUsers.map((user) => (
                     <tr
                       key={user.id}
                       className="border-b border-border last:border-0 hover:bg-muted/30"
@@ -227,6 +242,20 @@ function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+            {!isLoading && recentUsers.length > 0 && (
+              <div className="border-t border-border p-4">
+                <PaginationControls
+                  totalItems={recentUsers.length}
+                  page={userPage}
+                  pageSize={userPageSize}
+                  onPageChange={setUserPage}
+                  onPageSizeChange={(size) => {
+                    setUserPageSize(size);
+                    setUserPage(1);
+                  }}
+                />
+              </div>
+            )}
           </div>
 
           <div className="rounded-2xl border border-border bg-card p-5 shadow-card lg:col-span-1">

@@ -99,28 +99,7 @@ public class UserService implements UserDetailsService {
     }
 
     private List<UserProfileResponse> getBuyerProfilesForFarmer(Long farmerId) {
-        Set<Long> farmerBatchIds = cropBatchRepository.findByFarmerId(farmerId).stream()
-                .map(CropBatch::getId)
-                .collect(Collectors.toSet());
-        if (farmerBatchIds.isEmpty()) {
-            return List.of();
-        }
-
-        Set<Long> orderIds = orderItemRepository.findAll().stream()
-                .filter(item -> farmerBatchIds.contains(item.getBatchId()))
-                .map(item -> item.getOrderId())
-                .collect(Collectors.toSet());
-        if (orderIds.isEmpty()) {
-            return List.of();
-        }
-
-        Set<Long> buyerIds = orderRepository.findAll().stream()
-                .filter(order -> orderIds.contains(order.getId()))
-                .map(Order::getBuyerId)
-                .collect(Collectors.toSet());
-
-        return userRepository.findAllById(buyerIds).stream()
-                .filter(candidate -> candidate.getRole() == Role.BUYER)
+        return userRepository.findVisibleBuyersForFarmer(farmerId).stream()
                 .map(this::toProfileResponse)
                 .toList();
     }

@@ -133,19 +133,23 @@ public class AnalyticsService {
         };
     }
 
-    public List<SupplyCapacityRow> supplyCapacity(LocalDate startDate, LocalDate endDate, String province) {
+    public List<SupplyCapacityRow> supplyCapacity(LocalDate startDate, LocalDate endDate, String province, Long cropId) {
         Snapshot snapshot = loadSnapshot();
         LocalDate start = startDate != null ? startDate : LocalDate.now();
         LocalDate end = endDate != null ? endDate : start.plusDays(DEFAULT_FORECAST_DAYS - 1L);
         int days = daysBetween(start, end);
         String query = province == null ? "" : province.trim().toLowerCase(Locale.ROOT);
+        List<CropBatch> filteredBatches = snapshot.batches().stream()
+                .filter(batch -> cropId == null || cropId.equals(batch.getCropId()))
+                .toList();
+        Snapshot filteredSnapshot = snapshot.withBatches(filteredBatches);
 
-        return snapshot.batches().stream()
+        return filteredBatches.stream()
                 .map(batch -> blankToUnknown(batch.getProvince()))
                 .distinct()
                 .filter(name -> query.isEmpty() || name.toLowerCase(Locale.ROOT).contains(query))
                 .sorted()
-                .map(name -> supplyCapacityForProvince(snapshot, name, days))
+                .map(name -> supplyCapacityForProvince(filteredSnapshot, name, days))
                 .toList();
     }
 
@@ -567,5 +571,34 @@ public class AnalyticsService {
             Set<Long> approvedRescueBatchIds,
             Map<Long, RescuePoint> rescuePointsById,
             List<Shipment> shipments,
-            Map<Long, Crop> cropsById) {}
+            Map<Long, Crop> cropsById) {
+        private Snapshot withBatches(List<CropBatch> filteredBatches) {
+            Set<Long> filteredBatchIds = filteredBatches.stream()
+                    .map(CropBatch::getId)
+                    .collect(Collectors.toSet());
+            List<OrderItem> filteredOrderItems = visibleOrderItems.stream()
+                    .filter(item -> filteredBatchIds.contains(item.getBatchId()))
+                    .toList();
+            Set<Long> filteredRescueBatchIds = approvedRescueBatchIds.stream()
+                    .filter(filteredBatchIds::contains)
+                    .collect(Collectors.toSet());
+            List<RescueRegistration> filteredRescueRegistrations = approvedRescueRegistrations.stream()
+                    .filter(registration -> filteredBatchIds.contains(registration.getBatchId()))
+                    .toList();
+            return new Snapshot(
+                    filteredBatches,
+                    filteredBatches.stream()
+                            .filter(batch -> batch.getId() != null)
+                            .collect(Collectors.toMap(CropBatch::getId, Function.identity(), (first, duplicate) -> first)),
+                    orders,
+                    visibleOrders,
+                    ordersById,
+                    filteredOrderItems,
+                    filteredRescueRegistrations,
+                    filteredRescueBatchIds,
+                    rescuePointsById,
+                    shipments,
+                    cropsById);
+        }
+    }
 }

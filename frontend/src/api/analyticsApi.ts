@@ -108,6 +108,7 @@ export async function getSupplyCapacity(params: {
   startDate?: string;
   endDate?: string;
   province?: string;
+  cropId?: number;
 }) {
   return (await axiosClient.get<SupplyCapacityRow[]>("/analytics/supply-capacity", { params }))
     .data;

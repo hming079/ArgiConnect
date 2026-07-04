@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { AlertCircle, CheckCircle2, MapPin, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, MapPin, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import type { RescuePoint, RescuePointInput } from "@/api/rescuePointApi";
 import { VietnamAddressSelect } from "@/components/address/VietnamAddressSelect";
+import { PaginationControls } from "@/components/pagination-controls";
 import { PageShell } from "@/components/site-layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,16 +39,44 @@ function RescuePointsPage() {
   const updatePoint = useUpdateRescuePoint();
   const deletePoint = useDeleteRescuePoint();
   const points = useMemo(() => pointsQuery.data ?? [], [pointsQuery.data]);
+  
   const [activeId, setActiveId] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5); // Đổi mặc định thành 5 cho cân đối với bản đồ
   const [editor, setEditor] = useState<Editor | null>(null);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (points.length > 0 && !points.some((point) => point.id === activeId))
-      setActiveId(points[0].id);
-  }, [activeId, points]);
+  // Lọc điểm giải cứu theo từ khóa tìm kiếm
+  const filteredPoints = useMemo(() => {
+    if (!searchQuery.trim()) return points;
+    const query = searchQuery.trim().toLowerCase();
+    return points.filter((p) =>
+      [p.name, p.province, p.district, p.addressDetail].some((val) =>
+        val?.toLowerCase().includes(query)
+      )
+    );
+  }, [points, searchQuery]);
 
-  const selected = points.find((point) => point.id === activeId) ?? null;
+  // Reset về trang 1 khi gõ tìm kiếm
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredPoints.length / pageSize));
+    if (page > totalPages) setPage(totalPages);
+  }, [page, pageSize, filteredPoints.length]);
+
+  const start = (page - 1) * pageSize;
+  const pagedPoints = filteredPoints.slice(start, start + pageSize);
+
+  useEffect(() => {
+    if (pagedPoints.length > 0 && !pagedPoints.some((point) => point.id === activeId))
+      setActiveId(pagedPoints[0].id);
+  }, [activeId, pagedPoints]);
+
+  const selected = pagedPoints.find((point) => point.id === activeId) ?? null;
 
   async function remove(point: RescuePoint) {
     if (!isAdmin || !window.confirm(`Xóa điểm giải cứu “${point.name}”?`)) return;
@@ -105,26 +134,63 @@ function RescuePointsPage() {
 
       {points.length > 0 && (
         <div className="mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:px-6 lg:grid-cols-[360px_1fr] lg:px-8">
-          <aside className="space-y-3">
-            {points.map((point) => (
-              <button
-                key={point.id}
-                onClick={() => setActiveId(point.id)}
-                className={`w-full rounded-2xl border p-4 text-left shadow-card transition ${point.id === activeId ? "border-primary bg-primary-soft/50" : "border-border bg-card hover:border-primary/40"}`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <span className="font-semibold">{point.name}</span>
-                  <Status status={point.status} />
+          <aside className="space-y-3.5">
+            {/* Ô tìm kiếm nhanh */}
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 shadow-sm focus-within:border-primary">
+              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm theo tên, tỉnh, địa chỉ..."
+                className="w-full bg-transparent text-sm outline-none"
+              />
+            </div>
+
+            {/* Danh sách các điểm giải cứu */}
+            <div className="space-y-3">
+              {pagedPoints.map((point) => (
+                <button
+                  key={point.id}
+                  onClick={() => setActiveId(point.id)}
+                  className={`w-full rounded-2xl border p-4 text-left shadow-card transition ${point.id === activeId ? "border-primary bg-primary-soft/50" : "border-border bg-card hover:border-primary/40"}`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-semibold">{point.name}</span>
+                    <Status status={point.status} />
+                  </div>
+                  <div className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
+                    <MapPin className="mt-0.5 h-3 w-3 shrink-0" /> {formatPointAddress(point)}
+                  </div>
+                  <div className="mt-2 text-xs font-medium text-primary">{point.province}</div>
+                </button>
+              ))}
+
+              {filteredPoints.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                  Không tìm thấy điểm giải cứu phù hợp.
                 </div>
-                <div className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
-                  <MapPin className="mt-0.5 h-3 w-3 shrink-0" /> {formatPointAddress(point)}
-                </div>
-                <div className="mt-2 text-xs font-medium text-primary">{point.province}</div>
-              </button>
-            ))}
+              )}
+            </div>
+
+            Phân trang
+            {filteredPoints.length > 0 && (
+              <div className="pt-1">
+                <PaginationControls
+                  totalItems={filteredPoints.length}
+                  page={page}
+                  pageSize={pageSize}
+                  onPageChange={setPage}
+                  onPageSizeChange={(size) => {
+                    setPageSize(size);
+                    setPage(1);
+                  }}
+                />
+              </div>
+            )}
           </aside>
 
-          {selected && (
+          {selected ? (
             <section className="space-y-5">
               <RescuePointMap point={selected} />
               <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
@@ -155,6 +221,10 @@ function RescuePointsPage() {
                 )}
               </div>
             </section>
+          ) : (
+            <div className="grid h-full min-h-[300px] place-items-center rounded-2xl border border-dashed border-border bg-card/50 p-6 text-center text-sm text-muted-foreground">
+              Chọn một điểm giải cứu bên trái để xem chi tiết bản đồ.
+            </div>
           )}
         </div>
       )}

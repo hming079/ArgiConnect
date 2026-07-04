@@ -37,12 +37,8 @@ public class ShipmentService {
     public List<Shipment> getAll(Long logisticsUserId, ShipmentStatus status) {
         List<Shipment> shipments = switch (currentUser.getRole()) {
             case ADMIN, LOGISTICS -> repository.findAll();
-            case BUYER -> repository.findAll().stream()
-                    .filter(this::isCurrentBuyerShipment)
-                    .toList();
-            case FARMER -> repository.findAll().stream()
-                    .filter(this::isCurrentFarmerShipment)
-                    .toList();
+            case BUYER -> repository.findVisibleForBuyer(currentUser.getId());
+            case FARMER -> repository.findVisibleForFarmer(currentUser.getId());
         };
 
         return shipments.stream()

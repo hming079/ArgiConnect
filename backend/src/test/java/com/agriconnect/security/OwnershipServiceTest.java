@@ -70,6 +70,46 @@ class OwnershipServiceTest {
     }
 
     @Test
+    void adminCanListPendingCropBatchesForRescueReview() {
+        CropBatch pendingBatch = new CropBatch();
+        pendingBatch.setId(10L);
+        pendingBatch.setFarmerId(2L);
+        pendingBatch.setStatus(CropBatchStatus.pending);
+        CropBatch availableBatch = new CropBatch();
+        availableBatch.setId(11L);
+        availableBatch.setFarmerId(2L);
+        availableBatch.setStatus(CropBatchStatus.available);
+
+        when(currentUser.getRole()).thenReturn(Role.ADMIN);
+        when(cropBatchRepository.findAll()).thenReturn(List.of(pendingBatch, availableBatch));
+        when(userRepository.findAllById(List.of(2L))).thenReturn(List.of());
+
+        CropBatchService service = new CropBatchService(cropBatchRepository, currentUser, userRepository);
+
+        assertEquals(List.of(pendingBatch, availableBatch), service.getAllCropBatches());
+    }
+
+    @Test
+    void publicCropBatchListHidesPendingBatches() {
+        CropBatch pendingBatch = new CropBatch();
+        pendingBatch.setId(10L);
+        pendingBatch.setFarmerId(2L);
+        pendingBatch.setStatus(CropBatchStatus.pending);
+        CropBatch availableBatch = new CropBatch();
+        availableBatch.setId(11L);
+        availableBatch.setFarmerId(2L);
+        availableBatch.setStatus(CropBatchStatus.available);
+
+        when(currentUser.getRole()).thenThrow(new org.springframework.security.authentication.AuthenticationCredentialsNotFoundException("Authentication required"));
+        when(cropBatchRepository.findAll()).thenReturn(List.of(pendingBatch, availableBatch));
+        when(userRepository.findAllById(List.of(2L))).thenReturn(List.of());
+
+        CropBatchService service = new CropBatchService(cropBatchRepository, currentUser, userRepository);
+
+        assertEquals(List.of(availableBatch), service.getAllCropBatches());
+    }
+
+    @Test
     void farmerCannotRegisterAnotherFarmersBatchForRescue() {
         CropBatch batch = new CropBatch();
         batch.setFarmerId(2L);
@@ -83,6 +123,31 @@ class OwnershipServiceTest {
                 rescueRegistrationRepository, cropBatchRepository, currentUser);
 
         assertThrows(AccessDeniedException.class, () -> service.create(registration));
+    }
+
+    @Test
+    void approvingRescueRegistrationPublishesCropBatch() {
+        RescueRegistration registration = new RescueRegistration();
+        registration.setId(1L);
+        registration.setBatchId(10L);
+        registration.setStatus(com.agriconnect.rescueRegistration.RescueRegistrationStatus.PENDING);
+        CropBatch batch = new CropBatch();
+        batch.setId(10L);
+        batch.setStatus(CropBatchStatus.pending);
+
+        when(rescueRegistrationRepository.findById(1L)).thenReturn(Optional.of(registration));
+        when(cropBatchRepository.findById(10L)).thenReturn(Optional.of(batch));
+        when(currentUser.getId()).thenReturn(99L);
+        when(rescueRegistrationRepository.save(registration)).thenReturn(registration);
+
+        RescueRegistrationService service = new RescueRegistrationService(
+                rescueRegistrationRepository, cropBatchRepository, currentUser);
+        RescueRegistration saved = service.review(
+                1L, com.agriconnect.rescueRegistration.RescueRegistrationStatus.APPROVED);
+
+        assertEquals(com.agriconnect.rescueRegistration.RescueRegistrationStatus.APPROVED, saved.getStatus());
+        assertEquals(CropBatchStatus.available, batch.getStatus());
+        verify(cropBatchRepository).save(batch);
     }
 
     @Test

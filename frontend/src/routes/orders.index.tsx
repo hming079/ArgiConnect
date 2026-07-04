@@ -81,11 +81,11 @@ function OrdersPage() {
       <div className="border-b border-border bg-muted/30">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase text-primary">
-            <ShoppingBag className="h-3.5 w-3.5" /> Don hang
+            <ShoppingBag className="h-3.5 w-3.5" /> Đơn hàng
           </div>
-          <h1 className="mt-1 text-3xl font-bold sm:text-4xl">Trang thai don hang</h1>
+          <h1 className="mt-1 text-3xl font-bold sm:text-4xl">Trạng thái đơn hàng</h1>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Nong dan theo doi don tu lo nong san cua minh; nguoi mua theo doi don da mua; admin va logistics xem toan bo.
+            Nông dân theo dõi đơn từ lô nông sản của mình; người mua theo dõi đơn đã mua; admin và logistics xem toàn bộ.
           </p>
         </div>
       </div>
@@ -93,15 +93,15 @@ function OrdersPage() {
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {isLoading ? (
           <div className="flex items-center justify-center gap-2 rounded-lg border border-border bg-card p-10 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Dang tai don hang...
+            <Loader2 className="h-4 w-4 animate-spin" /> Đang tải đơn hàng...
           </div>
         ) : isError ? (
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-5 text-sm text-destructive">
-            Khong tai duoc danh sach don hang. Vui long kiem tra quyen truy cap hoac backend.
+            Không tải được danh sách đơn hàng. Vui lòng kiểm tra quyền truy cập hoặc backend.
           </div>
         ) : rows.length === 0 ? (
           <div className="rounded-lg border border-border bg-card p-10 text-center text-sm text-muted-foreground">
-            Chua co don hang phu hop.
+            Chưa có đơn hàng phù hợp.
           </div>
         ) : (
           <div className="space-y-4">
@@ -134,15 +134,15 @@ function OrderCard({
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <ShoppingBag className="h-4 w-4 text-primary" />
-            <span className="font-mono text-sm font-semibold">Don #{row.id}</span>
+            <span className="font-mono text-sm font-semibold">Đơn #{row.id}</span>
             <StatusPill status={row.status} />
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
             {row.totalAmount !== undefined && <span>Tong {formatVND(row.totalAmount)}</span>}
-            {row.orderDate && <span>Ngay {formatDate(row.orderDate)}</span>}
+            {row.orderDate && <span>Ngày {formatDate(row.orderDate)}</span>}
             {row.source === "shipment" && (
               <span className="inline-flex items-center gap-1">
-                <Truck className="h-3.5 w-3.5" /> Van chuyen #{row.shipmentId}
+                <Truck className="h-3.5 w-3.5" /> Vận chuyển #{row.shipmentId}
               </span>
             )}
             {row.logisticsUserId !== undefined && (

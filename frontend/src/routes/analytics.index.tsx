@@ -5,6 +5,7 @@ import {
   BarChart3,
   Boxes,
   CalendarRange,
+  Filter,
   MapPin,
   Search,
   Target,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { PageShell } from "@/components/site-layout";
+import { PaginationControls } from "@/components/pagination-controls";
 import {
   useAnalyticsOverview,
   useProvinceStats,
@@ -19,6 +21,7 @@ import {
   useSupplyCapacity,
 } from "@/hooks/use-analytics";
 import { useAuth } from "@/hooks/use-auth";
+import { useCrops } from "@/hooks/use-crops";
 import { getVietnamProvinces, type VietnamProvince } from "@/services/addressApi";
 
 export const Route = createFileRoute("/analytics/")({
@@ -41,6 +44,7 @@ function AnalyticsPage() {
   const provinceRates = provinceRatesQuery.data ?? [];
   const cropRates = cropRatesQuery.data ?? [];
   const pointRates = pointRatesQuery.data ?? [];
+  
   const isLoading =
     overviewQuery.isLoading ||
     provinceQuery.isLoading ||
@@ -51,6 +55,18 @@ function AnalyticsPage() {
     provinceQuery.isError ||
     provinceRatesQuery.isError ||
     (canLoadDeepAnalytics && (cropRatesQuery.isError || pointRatesQuery.isError));
+
+  // --- STATE LỌC TỶ LỆ GIẢI CỨU THEO TỈNH ---
+  const [rateFilter, setRateFilter] = useState<string>("ALL");
+  
+  const filteredProvinceRates = useMemo(() => {
+    return provinceRates.filter((p) => {
+      if (rateFilter === "HIGH") return p.rate >= 70;
+      if (rateFilter === "MID") return p.rate >= 50 && p.rate < 70;
+      if (rateFilter === "LOW") return p.rate < 50;
+      return true;
+    });
+  }, [provinceRates, rateFilter]);
 
   const forecastSeries =
     overview?.forecastInventory.map((point) => ({
@@ -121,71 +137,59 @@ function AnalyticsPage() {
           </ChartCard>
         </div>
 
-        
-
         {canLoadDeepAnalytics && (
           <>
             <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-              <ChartCard title="So sánh tỷ lệ giải cứu giữa các tỉnh" subtitle="Don vi: %">
-          <div className="mt-4 space-y-3">
-            {provinceRates.map((p) => (
-              <div key={p.name} className="flex items-center gap-3">
-                <div className="w-28 shrink-0 text-sm font-medium">{p.name}</div>
-                <div className="relative h-7 flex-1 overflow-hidden rounded-lg bg-muted">
-                  <div
-                    className={`h-full rounded-lg ${rateTone(p.rate)}`}
-                    style={{ width: `${p.rate}%` }}
-                  />
-                  <span className="absolute inset-y-0 right-2 grid items-center text-xs font-bold">
-                    {formatPercent(p.rate)}%
-                  </span>
-                </div>
-              </div>
-            ))}
-            {!isLoading && provinceRates.length === 0 && (
-              <EmptyText>Chưa có tỷ lệ giải cứu</EmptyText>
-            )}
-          </div>
-        </ChartCard>
-              {/* <ChartCard title="Heatmap tỷ lệ giải cứu" subtitle="Mức độ tỷ lệ giải cứu theo tỉnh">
-                <div className="relative mt-4 aspect-[4/5] w-full overflow-hidden rounded-xl bg-gradient-to-b from-primary-soft/40 to-accent/10">
-                  <svg viewBox="0 0 100 125" className="absolute inset-0 h-full w-full opacity-30">
-                    <path
-                      d="M55 5 Q60 15 58 25 Q70 35 60 45 Q70 55 62 65 Q75 75 65 88 Q60 100 55 115 Q50 120 48 115 Q52 105 50 95 Q40 85 50 75 Q42 65 52 55 Q45 45 55 35 Q48 25 52 15 Z"
-                      fill="var(--primary)"
-                    />
-                  </svg>
-                  {provinceStats.map((p, i) => {
-                    const rate = provinceRates.find((row) => row.name === p.province)?.rate ?? 0;
-                    const pos = provincePosition(i);
-                    return (
-                      <div
-                        key={p.province}
-                        className="absolute -translate-x-1/2 -translate-y-1/2"
-                        style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+              <ChartCard 
+                title="So sánh tỷ lệ giải cứu giữa các tỉnh" 
+                subtitle="Đơn vị: %"
+                headerAction={
+                  <div className="flex items-center gap-1 text-xs">
+                    {[
+                      { id: "ALL", label: "Tất cả" },
+                      { id: "HIGH", label: "≥ 70%" },
+                      { id: "MID", label: "50-70%" },
+                      { id: "LOW", label: "< 50%" },
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setRateFilter(tab.id)}
+                        className={`rounded-md px-2 py-1 font-medium transition ${
+                          rateFilter === tab.id
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                        }`}
                       >
-                        <span
-                          className={`grid h-12 w-12 place-items-center rounded-full ${rateTone(rate)} text-xs font-bold text-white shadow-soft`}
-                        >
-                          {formatPercent(rate)}%
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                }
+              >
+                <div className="mt-4 max-h-[380px] space-y-3 overflow-y-auto pr-2">
+                  {filteredProvinceRates.map((p) => (
+                    <div key={p.name} className="flex items-center gap-3">
+                      <div className="w-28 shrink-0 text-sm font-medium">{p.name}</div>
+                      <div className="relative h-7 flex-1 overflow-hidden rounded-lg bg-muted">
+                        <div
+                          className={`h-full rounded-lg ${rateTone(p.rate)} transition-all duration-500`}
+                          style={{ width: `${p.rate}%` }}
+                        />
+                        <span className="absolute inset-y-0 right-2 grid items-center text-xs font-bold">
+                          {formatPercent(p.rate)}%
                         </span>
-                        <div className="mt-1 whitespace-nowrap rounded-full bg-background/95 px-2 py-0.5 text-[10px] font-medium shadow-card">
-                          {p.province}
-                        </div>
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
+                  {!isLoading && filteredProvinceRates.length === 0 && (
+                    <EmptyText>Không có tỉnh nào khớp với điều kiện lọc.</EmptyText>
+                  )}
                 </div>
-                <div className="mt-4 flex gap-3 text-xs">
-                  <Legend color="bg-destructive" label="< 50%" />
-                  <Legend color="bg-accent" label="50-70%" />
-                  <Legend color="bg-primary" label="> 70%" />
-                </div>
-              </ChartCard> */}
+              </ChartCard>
 
               <div className="space-y-6">
                 <ChartCard title="Tỷ lệ giải cứu theo nông sản">
-                  <div className="mt-3 space-y-2">
+                  <div className="mt-3 max-h-[170px] space-y-2 overflow-y-auto pr-2">
                     {cropRates.map((p) => (
                       <RateRow key={p.name} name={p.name} rate={p.rate} />
                     ))}
@@ -194,8 +198,8 @@ function AnalyticsPage() {
                     )}
                   </div>
                 </ChartCard>
-                <ChartCard title="Ty le giai cuu theo diem giai cuu">
-                  <div className="mt-3 space-y-2">
+                <ChartCard title="Tỷ lệ giải cứu theo điểm giải cứu">
+                  <div className="mt-3 max-h-[170px] space-y-2 overflow-y-auto pr-2">
                     {pointRates.map((p) => (
                       <RateRow key={p.name} name={p.name} rate={p.rate} />
                     ))}
@@ -211,7 +215,7 @@ function AnalyticsPage() {
               <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
                 <MapPin className="h-3.5 w-3.5" /> Khuyến nghị điều phối
               </div>
-              <ul className="mt-3 space-y-2 text-sm">
+              <ul className="mt-3 max-h-40 space-y-2 overflow-y-auto text-sm pr-2">
                 {provinceStats
                   .map((p) => ({
                     p,
@@ -240,20 +244,44 @@ function SupplyCapacityPanel() {
   const [start, setStart] = useState(toDateInput(new Date()));
   const [end, setEnd] = useState(toDateInput(addDays(new Date(), 7)));
   const [query, setQuery] = useState("");
+  const [cropId, setCropId] = useState("");
   const [provinces, setProvinces] = useState<VietnamProvince[]>([]);
   const [provinceError, setProvinceError] = useState("");
   const [loadingProvinces, setLoadingProvinces] = useState(false);
+  
+  // --- STATE PHÂN TRANG CHO BẢNG CUNG ỨNG ---
+  const [page, setPage] = useState(1);
+  const pageSize = 5; // Hiển thị 5 dòng/trang để bảng gọn gàng
+
+  const cropsQuery = useCrops();
+  const crops = cropsQuery.data ?? [];
   const params = useMemo(
-    () => ({ startDate: start, endDate: end, province: query.trim() || undefined }),
-    [end, query, start],
+    () => ({
+      startDate: start,
+      endDate: end,
+      province: query.trim() || undefined,
+      cropId: cropId ? Number(cropId) : undefined,
+    }),
+    [cropId, end, query, start],
   );
   const supplyQuery = useSupplyCapacity(params);
   const rows = supplyQuery.data ?? [];
+  
   const days = rows[0]?.days ?? daysBetween(start, end);
   const totalImmediate = rows.reduce((s, r) => s + r.immediateKg, 0);
   const totalIncoming = rows.reduce((s, r) => s + r.incomingHarvestKg, 0);
   const totalNet = rows.reduce((s, r) => s + r.netAvailableKg, 0);
   const maxNet = Math.max(1, ...rows.map((r) => r.netAvailableKg));
+
+  // Reset trang về 1 khi đổi bộ lọc
+  useEffect(() => {
+    setPage(1);
+  }, [start, end, query, cropId]);
+
+  const paginatedRows = useMemo(() => {
+    const startIndex = (page - 1) * pageSize;
+    return rows.slice(startIndex, startIndex + pageSize);
+  }, [rows, page]);
 
   useEffect(() => {
     let alive = true;
@@ -264,7 +292,7 @@ function SupplyCapacityPanel() {
         if (alive) setProvinces(items);
       })
       .catch(() => {
-        if (alive) setProvinceError("Khong tai duoc danh sach tinh/thanh.");
+        if (alive) setProvinceError("Không tải được danh sách tỉnh/thành.");
       })
       .finally(() => {
         if (alive) setLoadingProvinces(false);
@@ -291,9 +319,27 @@ function SupplyCapacityPanel() {
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_1fr_1.2fr_auto] sm:items-end">
+      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_1fr_1fr_1.2fr_auto] sm:items-end">
         <DateField icon={CalendarRange} label="Từ ngày" value={start} onChange={setStart} />
         <DateField icon={CalendarRange} label="Đến ngày" value={end} onChange={setEnd} />
+        <label className="text-sm">
+          <span className="mb-1 block text-xs font-medium text-muted-foreground">
+            Loại nông sản
+          </span>
+          <select
+            value={cropId}
+            disabled={cropsQuery.isLoading}
+            onChange={(event) => setCropId(event.target.value)}
+            className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none"
+          >
+            <option value="">{cropsQuery.isLoading ? "Đang tải..." : "Tất cả"}</option>
+            {crops.map((crop) => (
+              <option key={crop.id} value={crop.id}>
+                {crop.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="text-sm">
           <span className="mb-1 block text-xs font-medium text-muted-foreground">
             Chọn tỉnh/thành
@@ -333,6 +379,7 @@ function SupplyCapacityPanel() {
       </div>
 
       {provinceError && <StateBox tone="error">{provinceError}</StateBox>}
+      {cropsQuery.isError && <StateBox tone="error">Không tải được danh sách nông sản</StateBox>}
       {supplyQuery.isError && <StateBox tone="error">Không tải được khả năng cung ứng</StateBox>}
 
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
@@ -345,9 +392,10 @@ function SupplyCapacityPanel() {
         <MiniStat label="Cung khả dụng (net)" value={`${formatKg(totalNet)} kg`} tone="primary" />
       </div>
 
-      <div className="mt-5 overflow-hidden rounded-xl border border-border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
+      {/* BẢNG CÓ CUỘN NỘI BỘ VÀ TIÊU ĐỀ CỐ ĐỊNH */}
+      <div className="mt-5 max-h-[360px] overflow-y-auto rounded-xl border border-border">
+        <table className="w-full text-sm relative">
+          <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur text-xs uppercase tracking-wider text-muted-foreground shadow-sm">
             <tr>
               <th className="px-3 py-2 text-left">Vùng trồng</th>
               <th className="px-3 py-2 text-right">Tốc độ thu hoạch</th>
@@ -358,8 +406,8 @@ function SupplyCapacityPanel() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.province} className="border-t border-border">
+            {paginatedRows.map((r) => (
+              <tr key={r.province} className="border-t border-border hover:bg-muted/30">
                 <td className="px-3 py-2 font-medium">{r.province}</td>
                 <td className="px-3 py-2 text-right text-muted-foreground">
                   {formatKg(r.dailyHarvestKg)} kg/ngày
@@ -373,7 +421,7 @@ function SupplyCapacityPanel() {
                   <div className="flex items-center gap-3">
                     <div className="relative h-5 w-40 overflow-hidden rounded-md bg-muted">
                       <div
-                        className="h-full bg-primary"
+                        className="h-full bg-primary transition-all duration-500"
                         style={{ width: `${(r.netAvailableKg / maxNet) * 100}%` }}
                       />
                     </div>
@@ -392,6 +440,18 @@ function SupplyCapacityPanel() {
           </tbody>
         </table>
       </div>
+
+      {/* HIỂN THỊ PHÂN TRANG NẾU DỮ LIỆU LỚN */}
+      {!supplyQuery.isLoading && rows.length > pageSize && (
+        <div className="mt-4 border-t border-border pt-4">
+          <PaginationControls
+            totalItems={rows.length}
+            page={page}
+            pageSize={pageSize}
+            onPageChange={setPage}
+          />
+        </div>
+      )}
     </section>
   );
 }
@@ -483,15 +543,22 @@ function ChartCard({
   title,
   subtitle,
   children,
+  headerAction,
 }: {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
+  headerAction?: React.ReactNode;
 }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-      <h3 className="text-base font-semibold">{title}</h3>
-      {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="text-base font-semibold">{title}</h3>
+          {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+        </div>
+        {headerAction}
+      </div>
       {children}
     </div>
   );
@@ -502,7 +569,7 @@ function RateRow({ name, rate }: { name: string; rate: number }) {
     <div className="flex items-center gap-3">
       <div className="w-40 shrink-0 truncate text-xs">{name}</div>
       <div className="relative h-5 flex-1 overflow-hidden rounded-md bg-muted">
-        <div className={`h-full ${rateTone(rate)}`} style={{ width: `${rate}%` }} />
+        <div className={`h-full ${rateTone(rate)} transition-all duration-500`} style={{ width: `${rate}%` }} />
         <span className="absolute inset-y-0 right-1.5 grid items-center text-[10px] font-bold">
           {formatPercent(rate)}%
         </span>
@@ -584,18 +651,6 @@ function Legend({ color, label }: { color: string; label: string }) {
 
 function rateTone(rate: number) {
   return rate >= 70 ? "bg-primary" : rate >= 50 ? "bg-accent" : "bg-destructive";
-}
-
-function provincePosition(index: number) {
-  const positions = [
-    { x: 60, y: 82 },
-    { x: 68, y: 79 },
-    { x: 74, y: 70 },
-    { x: 56, y: 84 },
-    { x: 60, y: 58 },
-    { x: 66, y: 64 },
-  ];
-  return positions[index] ?? { x: 50, y: 50 };
 }
 
 function shortProvince(value: string) {
