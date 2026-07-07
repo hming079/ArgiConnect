@@ -180,6 +180,7 @@ npm run lint
 | Analytics | `/api/analytics` |
 
 Use Swagger UI for request and response details.
+http://localhost:8080/swagger-ui/index.html#/
 
 ## Notes for Development
 
