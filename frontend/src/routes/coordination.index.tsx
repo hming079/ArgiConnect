@@ -69,7 +69,7 @@ function CoordinationPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRisk, setFilterRisk] = useState<string>("ALL");
   const [page, setPage] = useState(1);
-  const pageSize = 6; // Hiển thị 6 card (grid 2 cột x 3 hàng) mỗi trang cho gọn
+  const [pageSize, setPageSize] = useState(6); // Hiển thị 6 card (grid 2 cột x 3 hàng) mỗi trang cho gọn
 
   // Danh sách tỉnh được lọc (áp dụng chung cho bảng và card)
   const filteredProvinces = useMemo(() => {
@@ -89,7 +89,7 @@ function CoordinationPage() {
   const paginatedProvinces = useMemo(() => {
     const start = (page - 1) * pageSize;
     return filteredProvinces.slice(start, start + pageSize);
-  }, [filteredProvinces, page]);
+  }, [filteredProvinces, page, pageSize]);
 
   return (
     <PageShell>
@@ -287,6 +287,11 @@ function CoordinationPage() {
                 page={page}
                 pageSize={pageSize}
                 onPageChange={setPage}
+                pageSizeOptions={[6, 12, 24, 48]}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setPage(1);
+                }}
               />
             </div>
           )}

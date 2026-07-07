@@ -251,7 +251,7 @@ function SupplyCapacityPanel() {
   
   // --- STATE PHÂN TRANG CHO BẢNG CUNG ỨNG ---
   const [page, setPage] = useState(1);
-  const pageSize = 5; // Hiển thị 5 dòng/trang để bảng gọn gàng
+  const [pageSize, setPageSize] = useState(5); // Hiển thị 5 dòng/trang để bảng gọn gàng
 
   const cropsQuery = useCrops();
   const crops = cropsQuery.data ?? [];
@@ -281,7 +281,7 @@ function SupplyCapacityPanel() {
   const paginatedRows = useMemo(() => {
     const startIndex = (page - 1) * pageSize;
     return rows.slice(startIndex, startIndex + pageSize);
-  }, [rows, page]);
+  }, [rows, page, pageSize]);
 
   useEffect(() => {
     let alive = true;
@@ -449,6 +449,11 @@ function SupplyCapacityPanel() {
             page={page}
             pageSize={pageSize}
             onPageChange={setPage}
+            pageSizeOptions={[5, 10, 20, 50]}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
           />
         </div>
       )}

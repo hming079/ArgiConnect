@@ -22,6 +22,9 @@ export function PaginationControls({
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const canPrev = page > 1;
   const canNext = page < totalPages;
+  const normalizedPageSizeOptions = Array.from(new Set([...pageSizeOptions, pageSize])).sort(
+    (a, b) => a - b,
+  );
 
   return (
     <div className={`flex flex-wrap items-center justify-between gap-3 ${className ?? ""}`.trim()}>
@@ -32,7 +35,7 @@ export function PaginationControls({
           value={pageSize}
           onChange={(event) => onPageSizeChange(Number(event.target.value))}
         >
-          {pageSizeOptions.map((option) => (
+          {normalizedPageSizeOptions.map((option) => (
             <option key={option} value={option}>
               {option}
             </option>
