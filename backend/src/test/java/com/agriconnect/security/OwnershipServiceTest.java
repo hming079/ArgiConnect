@@ -23,7 +23,9 @@ import com.agriconnect.shipment.ShipmentRepository;
 import com.agriconnect.shipment.ShipmentService;
 import com.agriconnect.shipment.ShipmentStatus;
 import com.agriconnect.user.Role;
+import com.agriconnect.user.User;
 import com.agriconnect.user.UserRepository;
+import com.agriconnect.user.UserStatus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -159,8 +161,7 @@ class OwnershipServiceTest {
 
         request.setStatus(OrderStatus.DELIVERED);
 
-        OrderService service = new OrderService(
-                orderRepository, currentUser, orderItemService, orderItemRepository, cropBatchRepository, cropLockService);
+        OrderService service = orderService();
         Order saved = service.create(request);
 
         assertEquals(6L, saved.getBuyerId());
@@ -176,8 +177,7 @@ class OwnershipServiceTest {
         when(currentUser.getId()).thenReturn(6L);
         when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
 
-        OrderService service = new OrderService(
-                orderRepository, currentUser, orderItemService, orderItemRepository, cropBatchRepository, cropLockService);
+        OrderService service = orderService();
 
         assertThrows(AccessDeniedException.class, () -> service.getAccessibleById(1L));
     }
@@ -204,8 +204,7 @@ class OwnershipServiceTest {
         when(cropBatchRepository.findById(10L)).thenReturn(Optional.of(batch));
         when(orderRepository.save(order)).thenReturn(order);
 
-        OrderService service = new OrderService(
-                orderRepository, currentUser, orderItemService, orderItemRepository, cropBatchRepository, cropLockService);
+        OrderService service = orderService();
         Order saved = service.updateStatus(1L, OrderStatus.CANCELLED);
 
         assertEquals(OrderStatus.CANCELLED, saved.getStatus());
@@ -223,8 +222,7 @@ class OwnershipServiceTest {
         when(currentUser.getRole()).thenReturn(Role.LOGISTICS);
         when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
 
-        OrderService service = new OrderService(
-                orderRepository, currentUser, orderItemService, orderItemRepository, cropBatchRepository, cropLockService);
+        OrderService service = orderService();
 
         assertThrows(BadRequestException.class, () -> service.updateStatus(1L, OrderStatus.SHIPPING));
     }
@@ -234,6 +232,7 @@ class OwnershipServiceTest {
         CheckoutRequest request = new CheckoutRequest();
         request.setTotalAmount(new BigDecimal("250000"));
         request.setCropLockIds(List.of(99L));
+        request.setDeliveryAddress("123 Nguyen Trai, Ho Chi Minh City");
         CheckoutRequest.Item requestItem = new CheckoutRequest.Item();
         requestItem.setBatchId(10L);
         requestItem.setQuantity(new BigDecimal("25"));
@@ -243,20 +242,32 @@ class OwnershipServiceTest {
         lock.setId(99L);
         lock.setBatchId(10L);
         lock.setQuantity(new BigDecimal("25"));
+        CropBatch batch = new CropBatch();
+        batch.setId(10L);
+        batch.setAddressDetail("Farm 1");
+        batch.setWard("Ward 1");
+        batch.setDistrict("District 1");
+        batch.setProvince("Province 1");
+        User logistics = new User();
+        logistics.setId(8L);
+        logistics.setRole(Role.LOGISTICS);
+        logistics.setStatus(UserStatus.ACTIVE);
 
         Order savedOrder = new Order();
         savedOrder.setId(1L);
         when(currentUser.getId()).thenReturn(6L);
         when(orderRepository.save(any(Order.class))).thenReturn(savedOrder);
         when(cropLockService.convertOwnedActiveLocks(List.of(99L))).thenReturn(List.of(lock));
+        when(cropBatchRepository.findById(10L)).thenReturn(Optional.of(batch));
+        when(userRepository.findAll()).thenReturn(List.of(logistics));
 
-        OrderService service = new OrderService(
-                orderRepository, currentUser, orderItemService, orderItemRepository, cropBatchRepository, cropLockService);
+        OrderService service = orderService();
 
         service.checkout(request);
 
         verify(cropLockService).convertOwnedActiveLocks(List.of(99L));
         verify(orderItemService).create(any(OrderItem.class));
+        verify(shipmentRepository).save(any(Shipment.class));
     }
 
     @Test
@@ -412,5 +423,17 @@ class OwnershipServiceTest {
 
         service.updateStatus(1L, ShipmentStatus.SHIPPING);
         assertEquals(ShipmentStatus.SHIPPING, shipment.getStatus());
+    }
+
+    private OrderService orderService() {
+        return new OrderService(
+                orderRepository,
+                currentUser,
+                orderItemService,
+                orderItemRepository,
+                cropBatchRepository,
+                cropLockService,
+                shipmentRepository,
+                userRepository);
     }
 }
