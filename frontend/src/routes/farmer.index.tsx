@@ -19,11 +19,24 @@ import { useOrderItems } from "@/hooks/use-order-items";
 import { useOrders } from "@/hooks/use-orders";
 import { useMyRescueRegistrations } from "@/hooks/use-rescue-registrations";
 import { useMyProfile } from "@/hooks/use-user-profile";
+import { getCropImage } from "@/lib/crop-images";
 
 export const Route = createFileRoute("/farmer/")({
   head: () => ({ meta: [{ title: "Tổng quan người bán - AgriConnect" }] }),
   component: FarmerDashboard,
 });
+
+const fallbackFruitNames = [
+  "Dưa hấu",
+  "Thanh long",
+  "Xoài",
+  "Mít",
+  "Sầu riêng",
+  "Bưởi",
+  "Nho",
+  "Ổi",
+  "Chôm chôm",
+];
 
 function FarmerDashboard() {
   const profileQuery = useMyProfile();
@@ -190,11 +203,20 @@ function FarmerDashboard() {
           <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
             <h2 className="text-lg font-semibold">Hoạt động gần đây</h2>
             <ul className="mt-4 space-y-4">
-              {buildActivities(orders, batches, rescueRequests.length).map((activity, index) => (
+              {buildActivities(orders, batches, crops, farmerItems, rescueRequests.length).map((activity, index) => (
                 <li key={`${activity.t}-${index}`} className="flex gap-3">
-                  <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
-                    <activity.i className="h-4 w-4" />
-                  </div>
+                  {activity.image ? (
+                    <img
+                      src={activity.image}
+                      alt=""
+                      loading="lazy"
+                      className="h-11 w-11 shrink-0 rounded-xl border border-border object-cover"
+                    />
+                  ) : (
+                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
+                      <activity.i className="h-4 w-4" />
+                    </div>
+                  )}
                   <div className="flex-1">
                     <div className="text-sm font-medium">{activity.t}</div>
                     <div className="text-xs text-muted-foreground">{activity.d}</div>
@@ -227,6 +249,7 @@ function FarmerDashboard() {
               <tbody>
                 {batches.map((batch) => {
                   const cropName = cropNameFor(batch, crops);
+                  const cropImage = getDisplayCropImage(cropName, batch.id);
                   const sold = Math.max(
                     0,
                     Number(batch.initialQuantity ?? 0) - Number(batch.currentQuantity ?? 0),
@@ -242,15 +265,27 @@ function FarmerDashboard() {
                         #{batch.id}
                       </td>
                       <td className="px-5 py-4">
-                        <div className="flex items-center gap-2 font-medium">
-                          {cropName}
-                          {rescueRequests.some((request) => request.batchId === batch.id) && (
-                            <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">
-                              Giải cứu
-                            </span>
+                        <div className="flex items-center gap-3">
+                          {cropImage && (
+                            <img
+                              src={cropImage}
+                              alt=""
+                              loading="lazy"
+                              className="h-12 w-12 rounded-lg border border-border object-cover"
+                            />
                           )}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 font-medium">
+                              <span className="truncate">{cropName}</span>
+                              {rescueRequests.some((request) => request.batchId === batch.id) && (
+                                <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">
+                                  Giải cứu
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-muted-foreground">{batch.province}</div>
+                          </div>
                         </div>
-                        <div className="text-xs text-muted-foreground">{batch.province}</div>
                       </td>
                       <td className="px-5 py-4">
                         <div className="text-xs text-muted-foreground">
@@ -317,27 +352,45 @@ function buildChart(orders: Order[], items: OrderItem[]) {
   });
 }
 
-function buildActivities(orders: Order[], batches: CropBatch[], rescueCount: number) {
+function buildActivities(
+  orders: Order[],
+  batches: CropBatch[],
+  crops: Crop[],
+  items: OrderItem[],
+  rescueCount: number,
+) {
+  const batchesById = new Map(batches.map((batch) => [batch.id, batch]));
   const activities = [
     ...orders
       .slice(-2)
       .reverse()
-      .map((order) => ({
-        t: `Đơn hàng #${order.id} đang ở trạng thái ${order.status}`,
-        d: formatDate(order.orderDate ?? order.createdAt),
-        i: ShoppingBag,
-      })),
-    ...batches.slice(-1).map((batch) => ({
-      t: `Lô nông sản #${batch.id} còn ${batch.currentQuantity} ${batch.unit}`,
-      d: batch.updatedAt ? formatDate(batch.updatedAt) : "Mới cập nhật",
-      i: TrendingUp,
-    })),
+      .map((order) => {
+        const orderItem = items.find((item) => item.orderId === order.id);
+        const batch = orderItem ? batchesById.get(orderItem.batchId) : undefined;
+        const cropName = batch ? cropNameFor(batch, crops) : "";
+        return {
+          t: `Đơn hàng #${order.id} đang ở trạng thái ${order.status}`,
+          d: formatDate(order.orderDate ?? order.createdAt),
+          i: ShoppingBag,
+          image: getDisplayCropImage(cropName, order.id),
+        };
+      }),
+    ...batches.slice(-1).map((batch) => {
+      const cropName = cropNameFor(batch, crops);
+      return {
+        t: `Lô nông sản #${batch.id} còn ${batch.currentQuantity} ${batch.unit}`,
+        d: batch.updatedAt ? formatDate(batch.updatedAt) : "Mới cập nhật",
+        i: TrendingUp,
+        image: getDisplayCropImage(cropName, batch.id),
+      };
+    }),
   ];
   if (rescueCount > 0)
     activities.push({
       t: `${rescueCount} yêu cầu giải cứu đã gửi`,
       d: "Theo dõi trạng thái duyệt",
       i: Sprout,
+      image: getDisplayCropImage("", rescueCount),
     });
   return activities.length > 0
     ? activities
@@ -346,12 +399,20 @@ function buildActivities(orders: Order[], batches: CropBatch[], rescueCount: num
           t: "Chưa có hoạt động mới",
           d: "Dữ liệu sẽ hiển thị sau khi có lô và đơn hàng",
           i: Sprout,
+          image: getDisplayCropImage("", 0),
         },
       ];
 }
 
 function cropNameFor(batch: CropBatch, crops: Crop[]) {
   return crops.find((crop) => crop.id === batch.cropId)?.name ?? `Nông sản #${batch.cropId}`;
+}
+
+function getDisplayCropImage(name: string, seed: number) {
+  const exactImage = getCropImage(name);
+  if (exactImage) return exactImage;
+  const fallbackName = fallbackFruitNames[Math.abs(seed) % fallbackFruitNames.length];
+  return getCropImage(fallbackName);
 }
 
 function orderCountForBatch(batchId: number, items: OrderItem[]) {

@@ -25,6 +25,18 @@ export const Route = createFileRoute("/buyer/")({
   component: BuyerDashboard,
 });
 
+const fallbackFruitNames = [
+  "Dưa hấu",
+  "Thanh long",
+  "Xoài",
+  "Mít",
+  "Sầu riêng",
+  "Bưởi",
+  "Nho",
+  "Ổi",
+  "Chôm chôm",
+];
+
 function BuyerDashboard() {
   const profileQuery = useMyProfile();
   const ordersQuery = useMyOrders();
@@ -151,9 +163,18 @@ function BuyerDashboard() {
                 const summary = getOrderSummary(order.id, orderItems, batches, crops);
                 return (
                   <div key={order.id} className="flex flex-wrap items-center gap-3 p-5">
-                    <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary-soft text-primary">
-                      <ShoppingBag className="h-5 w-5" />
-                    </div>
+                    {summary.image ? (
+                      <img
+                        src={summary.image}
+                        alt=""
+                        loading="lazy"
+                        className="h-14 w-14 rounded-xl border border-border object-cover"
+                      />
+                    ) : (
+                      <div className="grid h-14 w-14 place-items-center rounded-xl bg-primary-soft text-primary">
+                        <ShoppingBag className="h-5 w-5" />
+                      </div>
+                    )}
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold">{summary.name}</span>
@@ -243,8 +264,17 @@ function BuyerDashboard() {
                 ? (crops.find((crop) => crop.id === batch.cropId)?.name ??
                   `Nông sản #${batch.cropId}`)
                 : `Lô nông sản #${item.batchId}`;
+              const cropImage = getDisplayCropImage(cropName, item.id);
               return (
                 <div key={item.id} className="rounded-xl border border-border bg-muted/30 p-4">
+                  {cropImage && (
+                    <img
+                      src={cropImage}
+                      alt=""
+                      loading="lazy"
+                      className="mb-3 h-24 w-full rounded-lg object-cover"
+                    />
+                  )}
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-[11px] text-muted-foreground">
                       Đơn #{item.orderId}
@@ -281,12 +311,23 @@ function getOrderSummary(orderId: number, items: OrderItem[], batches: CropBatch
       ? (crops.find((crop) => crop.id === batch.cropId)?.name ?? `Nông sản #${batch.cropId}`)
       : `Lô #${item.batchId}`;
   });
+  const image =
+    names.map((name) => getCropImage(name)).find(Boolean) ??
+    (orderItems.length > 0 ? getDisplayCropImage("", orderId) : undefined);
   return {
     name: names.length > 0 ? names.join(", ") : "Đơn hàng",
+    image,
     quantity: orderItems
       .reduce((sum, item) => sum + Number(item.quantity ?? 0), 0)
       .toLocaleString("vi-VN"),
   };
+}
+
+function getDisplayCropImage(name: string, seed: number) {
+  const exactImage = getCropImage(name);
+  if (exactImage) return exactImage;
+  const fallbackName = fallbackFruitNames[Math.abs(seed) % fallbackFruitNames.length];
+  return getCropImage(fallbackName);
 }
 
 function sortByOrderDateDesc(a: Order, b: Order) {
