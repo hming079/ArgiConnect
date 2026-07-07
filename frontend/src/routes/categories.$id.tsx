@@ -180,7 +180,7 @@ function CropDetailPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[92rem] px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
           {cropImage ? (
             <div className="aspect-[4/3] overflow-hidden rounded-2xl border border-border bg-primary-soft shadow-card">
@@ -545,19 +545,19 @@ function BatchTable({
   return (
     <div className="mt-6 hidden overflow-hidden rounded-2xl border border-border bg-card shadow-card lg:block">
       <div className="overflow-x-auto">
-        <table className="min-w-[1180px] table-fixed text-sm">
+        <table className="min-w-[1380px] table-fixed text-sm">
           <colgroup>
             <col className="w-20" />
             <col className="w-36" />
             <col className="w-32" />
             <col className="w-28" />
-            <col className="w-80" />
-            <col className="w-40" />
+            <col className="w-64" />
+            <col className="w-32" />
             <col className="w-32" />
             <col className="w-28" />
             {buyer && <col className="w-28" />}
             {buyer && <col className="w-16" />}
-            {editable && <col className="w-56" />}
+            {editable && <col className="w-72" />}
           </colgroup>
           <thead className="bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
             <tr className="whitespace-nowrap">
@@ -565,8 +565,8 @@ function BatchTable({
               <th className="px-4 py-3 text-right">Sản lượng</th>
               <th className="px-4 py-3 text-left">Thu hoạch</th>
               <th className="px-4 py-3 text-left">Hết hạn</th>
-              <th className="px-4 py-3 text-left">Địa điểm</th>
-              <th className="px-4 py-3 text-left">Nông dân</th>
+              <th className="px-3 py-3 text-left">Địa điểm</th>
+              <th className="px-3 py-3 text-left">Nông dân</th>
               <th className="px-4 py-3 text-right">Đơn giá</th>
               <th className="px-4 py-3 text-left">Trạng thái</th>
               {buyer && <th className="px-4 py-3 text-right">Số lượng</th>}
@@ -588,13 +588,13 @@ function BatchTable({
                   </span>
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-xs">{batch.expiryDate}</td>
-                <td className="overflow-hidden px-4 py-3">
+                <td className="overflow-hidden px-3 py-3">
                   <span className="flex min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap text-xs">
                     <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     {formatBatchAddress(batch) || "—"}
                   </span>
                 </td>
-                <td className="truncate px-4 py-3 text-xs" title={batch.farmerName}>
+                <td className="truncate px-3 py-3 text-xs" title={batch.farmerName}>
                   {batch.farmerName}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-primary">

@@ -35,7 +35,7 @@ function LoginPage() {
   }
 
   return (
-    <PageShell>
+    <PageShell hideHeader>
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-hero-gradient" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(255,255,255,0.25),_transparent_35%),radial-gradient(circle_at_bottom_left,_rgba(255,255,255,0.12),_transparent_32%)]" />

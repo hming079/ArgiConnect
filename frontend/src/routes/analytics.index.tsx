@@ -110,13 +110,13 @@ function AnalyticsPage() {
           <KPI
             icon={Activity}
             label="Tổng sản lượng"
-            value={`${formatTons(overview?.totalProductionQuantity ?? 0)} tan`}
+            value={`${formatTons(overview?.totalProductionQuantity ?? 0)} tấn`}
             tone="destructive"
           />
           <KPI
             icon={TrendingUp}
             label="Tổng đã tiêu thụ"
-            value={`${formatTons(overview?.soldQuantity ?? 0)} tan`}
+            value={`${formatTons(overview?.soldQuantity ?? 0)} tấn`}
             tone="primary"
           />
           <KPI
