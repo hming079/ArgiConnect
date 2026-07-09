@@ -1,0 +1,9 @@
+{
+  "best_model_name": "GradientBoostingRegressor",
+  "mae": 1688.33,
+  "rmse": 5413.64,
+  "r2_score": 0.8459,
+  "train_rows": 3848,
+  "test_rows": 962,
+  "selected_at": "2026-07-09T12:20:43.930688+00:00"
+}

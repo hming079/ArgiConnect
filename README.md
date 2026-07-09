@@ -163,6 +163,93 @@ npm run build
 npm run lint
 ```
 
+## Local AI Forecast MVP
+
+AgriConnect includes a lightweight local machine learning workflow in `ai/` for forecasting agricultural supply quantity by province, crop, year, and month. It uses scikit-learn locally and does not call external AI APIs.
+
+### 1. Create Python environment
+
+```powershell
+cd ai
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+### 2. Prepare data
+
+```powershell
+python etl.py
+```
+
+This uses `backend/scripts/output/daily_province_crop_stats.csv` when available, aggregates daily rows into monthly province/crop training rows, and writes:
+
+```text
+data/cleaned_agri_forecast_dataset.csv
+```
+
+### 3. Train model
+
+```powershell
+python train.py
+```
+
+Outputs:
+
+```text
+models/agri_forecast_model.pkl
+models/metrics.json
+```
+
+### 4. Generate forecast
+
+```powershell
+python predict.py
+```
+
+Or provide one prediction manually:
+
+```powershell
+python predict.py --province "An Giang" --crop-name "Nho" --year 2026 --month 6 --sold-quantity 18000 --average-price 25000
+```
+
+Batch prediction is also supported:
+
+```powershell
+python predict.py --input-csv data/cleaned_agri_forecast_dataset.csv
+```
+
+Forecast output is saved to:
+
+```text
+ai/data/forecast_result.csv
+```
+
+### 5. Import forecast into backend
+
+Start PostgreSQL and the Spring Boot backend. First import the cleaned AI training dataset into PostgreSQL:
+
+```text
+POST /api/forecast-dataset/import-csv
+```
+
+Then train from the backend-owned dataset if desired:
+
+```powershell
+cd ai
+python train.py --dataset-url "http://localhost:8080/api/forecast-dataset" --token "<ADMIN_JWT>"
+```
+
+To import the latest prediction output, call:
+
+```text
+POST /api/forecasts/import-csv
+```
+
+The backend keeps training data in `forecast_dataset_records` and prediction output in `forecast_results`.
+
+The Admin Dashboard displays imported forecast rows and supports simple filters for province, crop, year, and month.
+
 ## Main API Areas
 
 | Area | Base Path |
@@ -178,9 +265,9 @@ npm run lint
 | Rescue points | `/api/rescue-points` |
 | Rescue registrations | `/api/rescue-registrations` |
 | Analytics | `/api/analytics` |
+| Forecasts | `/api/forecasts` |
 
 Use Swagger UI for request and response details.
-http://localhost:8080/swagger-ui/index.html#/
 
 ## Notes for Development
 

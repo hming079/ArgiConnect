@@ -11,7 +11,6 @@ start "AgriConnect Frontend" cmd /k "cd /d "%ROOT%frontend" && npm run dev"
 echo.
 echo Backend:  http://localhost:8080
 echo Frontend: http://localhost:5173
-echo Swagger AI documentation: http://localhost:8080/swagger-ui/index.html#/
 echo.
 echo Close the opened windows to stop the apps.
 

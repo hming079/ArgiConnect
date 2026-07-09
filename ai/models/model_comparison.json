@@ -1,0 +1,26 @@
+[
+  {
+    "model_name": "GradientBoostingRegressor",
+    "mae": 1688.33,
+    "rmse": 5413.64,
+    "r2_score": 0.8459
+  },
+  {
+    "model_name": "RandomForestRegressor",
+    "mae": 1645.61,
+    "rmse": 5556.25,
+    "r2_score": 0.8377
+  },
+  {
+    "model_name": "LinearRegression",
+    "mae": 2632.65,
+    "rmse": 6503.42,
+    "r2_score": 0.7776
+  },
+  {
+    "model_name": "DecisionTreeRegressor",
+    "mae": 2060.21,
+    "rmse": 6724.54,
+    "r2_score": 0.7623
+  }
+]
