@@ -13,6 +13,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByEmail(String email);
 
+    boolean existsByEmailIgnoreCase(String email);
+
     @Query(value = """
             SELECT DISTINCT u.*
             FROM users u

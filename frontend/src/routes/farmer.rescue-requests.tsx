@@ -51,7 +51,7 @@ function FarmerRescueRequests() {
     if (!batchId || !rescuePointId) return;
     try {
       setError(""); setMessage("");
-      await createRegistration.mutateAsync({ batchId, rescuePointId, status: "PENDING" });
+      await createRegistration.mutateAsync({ batchId, rescuePointId });
       setMessage("Đã gửi đăng ký giải cứu. Admin sẽ xem xét yêu cầu.");
     } catch { setError("Không thể gửi đăng ký. Hãy kiểm tra lô và thử lại."); }
   }

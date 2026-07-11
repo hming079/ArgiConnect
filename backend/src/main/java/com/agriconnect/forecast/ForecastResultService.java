@@ -1,6 +1,8 @@
 package com.agriconnect.forecast;
 
 import com.agriconnect.common.BadRequestException;
+import com.agriconnect.forecastDataset.ForecastDatasetRecord;
+import com.agriconnect.forecastDataset.ForecastDatasetRepository;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -18,9 +20,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ForecastResultService {
     private final ForecastResultRepository repository;
+    private final ForecastDatasetRepository datasetRepository;
+    private final AiForecastClient aiForecastClient;
 
-    public ForecastResultService(ForecastResultRepository repository) {
+    public ForecastResultService(
+            ForecastResultRepository repository,
+            ForecastDatasetRepository datasetRepository,
+            AiForecastClient aiForecastClient) {
         this.repository = repository;
+        this.datasetRepository = datasetRepository;
+        this.aiForecastClient = aiForecastClient;
     }
 
     public List<ForecastResult> getAll(String province, String cropName, Integer year, Integer month) {
@@ -76,6 +85,36 @@ public class ForecastResultService {
     }
 
     @Transactional
+    public GenerateResult generateWithAiService() {
+        List<ForecastDatasetRecord> datasetRows = datasetRepository.findAll();
+        if (datasetRows.isEmpty()) {
+            throw new BadRequestException("No backend AI dataset found. Import dataset before generating AI forecasts.");
+        }
+
+        List<AiForecastClient.ForecastRequestItem> requestItems = datasetRows.stream()
+                .map(row -> new AiForecastClient.ForecastRequestItem(
+                        row.getProvince(),
+                        row.getCropName(),
+                        row.getYear(),
+                        row.getMonth(),
+                        row.getSoldQuantity(),
+                        row.getAveragePrice()))
+                .toList();
+
+        AiForecastClient.BatchForecastResponse response = aiForecastClient.predictBatch(requestItems);
+        List<ForecastResult> results = response.predictions().stream()
+                .map(this::toForecastResult)
+                .toList();
+
+        String modelName = response.modelName() == null || response.modelName().isBlank()
+                ? "AIServiceModel"
+                : response.modelName();
+        repository.deleteByModelName(modelName);
+        repository.saveAll(results);
+        return new GenerateResult(results.size(), aiForecastClient.getServiceUrl(), modelName);
+    }
+
+    @Transactional
     public ImportResult importDataset() {
         Path csvPath = resolveDatasetCsv();
         if (!Files.exists(csvPath)) {
@@ -125,6 +164,17 @@ public class ForecastResultService {
         result.setMonth(Integer.valueOf(value(headers, values, "month")));
         result.setPredictedQuantity(new BigDecimal(value(headers, values, "harvest_quantity")));
         result.setModelName("HistoricalDataset");
+        return result;
+    }
+
+    private ForecastResult toForecastResult(AiForecastClient.ForecastPrediction prediction) {
+        ForecastResult result = new ForecastResult();
+        result.setProvince(prediction.province());
+        result.setCropName(prediction.cropName());
+        result.setYear(prediction.year());
+        result.setMonth(prediction.month());
+        result.setPredictedQuantity(prediction.predictedQuantity());
+        result.setModelName(prediction.modelName());
         return result;
     }
 
@@ -194,4 +244,5 @@ public class ForecastResultService {
 
     public record ImportResult(int importedRows, String sourcePath) {}
     public record ClearResult(long deletedRows) {}
+    public record GenerateResult(int importedRows, String sourcePath, String modelName) {}
 }

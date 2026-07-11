@@ -156,9 +156,9 @@ function LoginPage() {
                     <input type="checkbox" className="h-4 w-4 rounded border-border text-primary focus:ring-primary" />
                     Ghi nhớ đăng nhập
                   </label>
-                  <a href="mailto:hotro@agriconnect.vn" className="font-medium text-primary hover:underline">
+                  <Link to="/forgot-password" className="font-medium text-primary hover:underline">
                     Quên mật khẩu?
-                  </a>
+                  </Link>
                 </div>
 
                 <Button type="submit" className="h-11 w-full rounded-full text-sm font-semibold" disabled={isPending}>
@@ -174,7 +174,7 @@ function LoginPage() {
               </div>
 
               <p className="mt-6 text-center text-sm text-muted-foreground">
-                Chưa có tài khoản? <Link to="/farmer" className="font-semibold text-primary hover:underline">Đăng ký ngay</Link>
+                Chưa có tài khoản? <Link to="/register" className="font-semibold text-primary hover:underline">Đăng ký ngay</Link>
               </p>
             </div>
           </div>

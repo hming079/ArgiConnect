@@ -6,17 +6,19 @@ import {
   AlertTriangle,
   ArrowRight,
   BarChart3,
-  Filter,
   Package,
-  Radio,
   Search,
   TrendingUp,
   Truck,
 } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import type { RiskLevel } from "@/api/analyticsApi";
+import type { ForecastResult } from "@/api/forecastApi";
+import type { InventoryRiskResponse } from "@/api/inventoryRiskApi";
 import { PageShell } from "@/components/site-layout";
 import { PaginationControls } from "@/components/pagination-controls";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import {
   useAnalyticsOverview,
   useCongestionRisk,
@@ -24,7 +26,10 @@ import {
   useProvinceStats,
 } from "@/hooks/use-analytics";
 import { useAuth } from "@/hooks/use-auth";
+import { useForecasts } from "@/hooks/use-forecasts";
+import { useInventoryRiskForecast, useInventoryRiskSummary } from "@/hooks/use-inventory-risk";
 import { useShipments } from "@/hooks/use-shipments";
+import { getCropImage } from "@/lib/crop-images";
 
 export const Route = createFileRoute("/coordination/")({
   head: () => ({
@@ -45,24 +50,36 @@ function CoordinationPage() {
   const provinceQuery = useProvinceStats();
   const riskQuery = useCongestionRisk();
   const forecastQuery = useForecastInventory(30);
+  const aiForecastQuery = useForecasts();
+  const inventoryRiskQuery = useInventoryRiskForecast();
+  const inventoryRiskSummaryQuery = useInventoryRiskSummary();
   const shipmentsQuery = useShipments(undefined, true);
 
   const overview = overviewQuery.data;
   const provinceStats = provinceQuery.data ?? [];
   const riskRows = riskQuery.data ?? [];
   const forecast = forecastQuery.data;
+  const aiForecasts = aiForecastQuery.data ?? [];
+  const inventoryRiskRows = inventoryRiskQuery.data ?? [];
+  const inventoryRiskSummary = inventoryRiskSummaryQuery.data;
   const shipments = shipmentsQuery.data ?? [];
   const isLoading =
     overviewQuery.isLoading ||
     provinceQuery.isLoading ||
     riskQuery.isLoading ||
     forecastQuery.isLoading ||
+    aiForecastQuery.isLoading ||
+    inventoryRiskQuery.isLoading ||
+    inventoryRiskSummaryQuery.isLoading ||
     shipmentsQuery.isLoading;
   const isError =
     overviewQuery.isError ||
     provinceQuery.isError ||
     riskQuery.isError ||
     forecastQuery.isError ||
+    aiForecastQuery.isError ||
+    inventoryRiskQuery.isError ||
+    inventoryRiskSummaryQuery.isError ||
     shipmentsQuery.isError;
 
   // --- STATE TÌM KIẾM VÀ LỌC TỈNH THÀNH ---
@@ -70,6 +87,8 @@ function CoordinationPage() {
   const [filterRisk, setFilterRisk] = useState<string>("ALL");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(6); // Hiển thị 6 card (grid 2 cột x 3 hàng) mỗi trang cho gọn
+  const [forecastProvince, setForecastProvince] = useState("");
+  const [forecastCrop, setForecastCrop] = useState("");
 
   // Danh sách tỉnh được lọc (áp dụng chung cho bảng và card)
   const filteredProvinces = useMemo(() => {
@@ -90,6 +109,22 @@ function CoordinationPage() {
     const start = (page - 1) * pageSize;
     return filteredProvinces.slice(start, start + pageSize);
   }, [filteredProvinces, page, pageSize]);
+
+  const riskDistribution = useMemo(() => riskDistributionData(inventoryRiskRows), [inventoryRiskRows]);
+  const provinceRiskRanking = useMemo(() => provinceHighRiskRanking(inventoryRiskRows), [inventoryRiskRows]);
+  const cropTypeRiskCards = useMemo(() => cropTypeRiskSummary(inventoryRiskRows), [inventoryRiskRows]);
+  const filteredAiForecasts = useMemo(
+    () =>
+      aiForecasts.filter((forecast) => {
+        const matchProvince = !forecastProvince || forecast.province === forecastProvince;
+        const matchCrop = !forecastCrop || forecast.cropName === forecastCrop;
+        return matchProvince && matchCrop;
+      }),
+    [aiForecasts, forecastProvince, forecastCrop],
+  );
+  const forecastProvinceOptions = useMemo(() => uniqueSorted(aiForecasts.map((forecast) => forecast.province)), [aiForecasts]);
+  const forecastCropOptions = useMemo(() => uniqueSorted(aiForecasts.map((forecast) => forecast.cropName)), [aiForecasts]);
+  const monthlyForecastResults = useMemo(() => monthlyForecastTrend(filteredAiForecasts), [filteredAiForecasts]);
 
   return (
     <PageShell>
@@ -211,7 +246,78 @@ function CoordinationPage() {
           </div>
         </section>
 
-        {/* PHÂN TÍCH KHẢ NĂNG CUNG ỨNG (CÓ PHÂN TRANG VÀ LỌC) */}
+        <section>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <SectionTitle>AI-assisted Inventory Risk Forecast</SectionTitle>
+            <Link
+              to="/analytics"
+              className="inline-flex items-center gap-1 rounded-full border border-primary px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary-soft"
+            >
+              View analytics <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <RiskSummaryCard label="Active batches" value={inventoryRiskSummary?.totalBatches ?? 0} />
+            <RiskSummaryCard label="High risk" value={inventoryRiskSummary?.highRiskCount ?? 0} tone="high" />
+            <RiskSummaryCard label="Medium risk" value={inventoryRiskSummary?.mediumRiskCount ?? 0} tone="medium" />
+            <RiskSummaryCard label="Low risk" value={inventoryRiskSummary?.lowRiskCount ?? 0} tone="low" />
+            <RiskSummaryCard label="Average score" value={formatNumber(inventoryRiskSummary?.averageRiskScore ?? 0)} />
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
+            <RiskDistributionChart data={riskDistribution} />
+            <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+              <div className="border-b border-border p-4">
+                <h3 className="text-base font-semibold">Crop Types at Risk</h3>
+                <p className="text-xs text-muted-foreground">Which crop types have the most risky unsold inventory.</p>
+              </div>
+              <div className="grid gap-3 p-4 md:grid-cols-2">
+                {cropTypeRiskCards.slice(0, 6).map((row) => (
+                  <CropTypeRiskCard key={row.cropName} row={row} />
+                ))}
+                {!isLoading && cropTypeRiskCards.length === 0 && (
+                  <div className="col-span-full rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+                    No crop type has active inventory risk right now.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
+            <ForecastResultRepositoryChart
+              data={monthlyForecastResults}
+              rows={filteredAiForecasts}
+              province={forecastProvince}
+              crop={forecastCrop}
+              provinceOptions={forecastProvinceOptions}
+              cropOptions={forecastCropOptions}
+              onProvinceChange={setForecastProvince}
+              onCropChange={setForecastCrop}
+            />
+            <div className="grid gap-4">
+              <ProvinceRiskRanking data={provinceRiskRanking} />
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+                <div className="text-xs font-semibold uppercase tracking-wider text-primary">Forecast focus</div>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+                  <div>
+                    <div className="text-sm text-muted-foreground">Top risk province</div>
+                    <div className="text-xl font-bold">{inventoryRiskSummary?.topRiskProvince ?? "-"}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Top risk crop</div>
+                    <div className="text-xl font-bold">{inventoryRiskSummary?.topRiskCropName ?? "-"}</div>
+                  </div>
+                </div>
+                <div className="mt-4 rounded-xl border border-dashed border-border p-4 text-xs text-muted-foreground">
+                  This module is rule-based today. It is separated from the controller so ML demand or harvest forecasts can later replace the estimated daily sales input.
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <SectionTitle>Phân tích khả năng cung ứng</SectionTitle>
@@ -297,7 +403,7 @@ function CoordinationPage() {
           )}
         </section>
 
-        {/* DỰ BÁO CUNG CẦU */}
+        {/* DỰ BÁO CUNG CẦU
         <section>
           <SectionTitle>Dự báo cung cầu</SectionTitle>
           <div className="mt-4 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
@@ -373,7 +479,7 @@ function CoordinationPage() {
               />
             </div>
           </div>
-        </section>
+        </section> */}
       </div>
     </PageShell>
   );
@@ -409,6 +515,255 @@ function SumCard({
       </span>
       <div className="mt-3 text-2xl font-bold">{value}</div>
       <div className="text-xs text-muted-foreground">{label}</div>
+    </div>
+  );
+}
+
+function RiskSummaryCard({
+  label,
+  value,
+  tone = "muted",
+}: {
+  label: string;
+  value: number | string;
+  tone?: "high" | "medium" | "low" | "muted";
+}) {
+  const cls =
+    tone === "high"
+      ? "text-destructive"
+      : tone === "medium"
+        ? "text-amber-700"
+        : tone === "low"
+          ? "text-green-700"
+          : "text-foreground";
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
+      <div className={`text-2xl font-bold ${cls}`}>{value}</div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+    </div>
+  );
+}
+
+function RiskDistributionChart({
+  data,
+}: {
+  data: { level: RiskLevel; label: string; count: number; fill: string }[];
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+      <h3 className="text-base font-semibold">Risk Distribution</h3>
+      <p className="text-xs text-muted-foreground">High / Medium / Low active crop batches</p>
+      <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+        {data.map((item) => (
+          <div key={item.level} className="rounded-xl border border-border bg-background/70 p-2">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.fill }} />
+              <span className="font-semibold">{item.label}</span>
+            </div>
+            <div className="mt-1 text-lg font-bold">{item.count}</div>
+          </div>
+        ))}
+      </div>
+      <ChartContainer
+        config={{ count: { label: "Batches", color: "var(--primary)" } }}
+        className="mt-4 h-56 w-full"
+      >
+        <BarChart data={data} margin={{ left: 8, right: 12, top: 12, bottom: 8 }}>
+          <CartesianGrid vertical={false} />
+          <XAxis dataKey="label" tickLine={false} axisLine={false} />
+          <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={32} />
+          <ChartTooltip content={<ChartTooltipContent />} />
+          <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+            {data.map((item) => (
+              <Cell key={item.level} fill={item.fill} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ChartContainer>
+    </div>
+  );
+}
+
+function ForecastResultRepositoryChart({
+  data,
+  rows,
+  province,
+  crop,
+  provinceOptions,
+  cropOptions,
+  onProvinceChange,
+  onCropChange,
+}: {
+  data: { month: number; predictedQuantity: number }[];
+  rows: ForecastResult[];
+  province: string;
+  crop: string;
+  provinceOptions: string[];
+  cropOptions: string[];
+  onProvinceChange: (value: string) => void;
+  onCropChange: (value: string) => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold">Forecast Result Repository</h3>
+          <p className="text-xs text-muted-foreground">
+            Monthly predicted harvest quantity from imported AI forecast results.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => downloadForecastCsv(rows, { province, crop })}
+          disabled={rows.length === 0}
+          className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-soft disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Download CSV
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <label className="text-xs font-medium text-muted-foreground">
+          Province
+          <select
+            value={province}
+            onChange={(event) => onProvinceChange(event.target.value)}
+            className="mt-1 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none"
+          >
+            <option value="">All provinces</option>
+            {provinceOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-xs font-medium text-muted-foreground">
+          Crop type
+          <select
+            value={crop}
+            onChange={(event) => onCropChange(event.target.value)}
+            className="mt-1 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none"
+          >
+            <option value="">All crop types</option>
+            {cropOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <ChartContainer
+        config={{ predictedQuantity: { label: "Predicted harvest", color: "var(--primary)" } }}
+        className="mt-4 h-72 w-full"
+      >
+        <LineChart data={data} margin={{ left: 8, right: 12, top: 12, bottom: 8 }}>
+          <CartesianGrid vertical={false} />
+          <XAxis dataKey="month" tickLine={false} axisLine={false} tickFormatter={(value) => `T${value}`} />
+          <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => formatCompactKg(Number(value))} width={54} />
+          <ChartTooltip content={<ChartTooltipContent formatter={(value) => `${formatKg(Number(value))} kg`} />} />
+          <Line
+            type="monotone"
+            dataKey="predictedQuantity"
+            stroke="var(--color-predictedQuantity)"
+            strokeWidth={2.5}
+            dot={{ r: 3 }}
+            activeDot={{ r: 5 }}
+          />
+        </LineChart>
+      </ChartContainer>
+      {data.every((item) => item.predictedQuantity === 0) && (
+        <div className="mt-3 rounded-xl border border-dashed border-border p-5 text-center text-sm text-muted-foreground">
+          No forecast result data for the selected province and crop type.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProvinceRiskRanking({
+  data,
+}: {
+  data: { province: string; highRiskCount: number; totalRiskCount: number }[];
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+      <h3 className="text-base font-semibold">Province Risk Ranking</h3>
+      <p className="text-xs text-muted-foreground">Tinh nao co nhieu lo rui ro cao</p>
+      <ChartContainer
+        config={{ highRiskCount: { label: "High risk", color: "hsl(var(--destructive))" } }}
+        className="mt-4 h-72 w-full"
+      >
+        <BarChart data={data.slice(0, 8)} layout="vertical" margin={{ left: 8, right: 12, top: 12, bottom: 8 }}>
+          <CartesianGrid horizontal={false} />
+          <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
+          <YAxis dataKey="province" type="category" tickLine={false} axisLine={false} width={92} />
+          <ChartTooltip content={<ChartTooltipContent />} />
+          <Bar dataKey="highRiskCount" fill="var(--color-highRiskCount)" radius={[0, 6, 6, 0]} />
+        </BarChart>
+      </ChartContainer>
+      {data.length === 0 && (
+        <div className="mt-3 rounded-xl border border-dashed border-border p-5 text-center text-sm text-muted-foreground">
+          No high-risk province data yet.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CropTypeRiskCard({
+  row,
+}: {
+  row: {
+    cropName: string;
+    highestRiskLevel: RiskLevel;
+    maxRiskScore: number;
+    highRiskCount: number;
+    mediumRiskCount: number;
+    batchCount: number;
+    currentQuantity: number;
+    nearestExpiryDays: number | null;
+  };
+}) {
+  const cropImage = getCropImage(row.cropName);
+
+  return (
+    <div className={`rounded-xl border p-4 ${riskCardSurface(row.highestRiskLevel)}`}>
+      <div className="flex items-start gap-3">
+        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/70 bg-background shadow-sm">
+          {cropImage ? (
+            <img src={cropImage} alt={row.cropName} className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-primary-soft text-primary">
+              <Package className="h-5 w-5" />
+            </div>
+          )}
+        </div>
+        <div className="min-w-0">
+          <div className="font-semibold leading-tight">{row.cropName}</div>
+          <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${riskPill(row.highestRiskLevel)}`}>
+            {riskLabel(row.highestRiskLevel)}
+          </span>
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+        <Metric label="Max score" value={`${formatNumber(row.maxRiskScore)}/100`} />
+        <Metric label="Remaining" value={`${formatKg(row.currentQuantity)} kg`} />
+        <Metric label="Batches" value={`${row.batchCount}`} />
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2 text-xs">
+        <span className="rounded-full bg-destructive/10 px-2.5 py-1 font-semibold text-destructive">
+          {row.highRiskCount} high
+        </span>
+        <span className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-700">
+          {row.mediumRiskCount} medium
+        </span>
+        <span className="rounded-full bg-background/80 px-2.5 py-1 text-muted-foreground">
+          nearest expiry: {row.nearestExpiryDays ?? "?"} days
+        </span>
+      </div>
     </div>
   );
 }
@@ -474,16 +829,159 @@ function riskPill(level: RiskLevel) {
   return level === "HIGH"
     ? "bg-destructive/10 text-destructive"
     : level === "MEDIUM"
-      ? "bg-accent/30 text-accent-foreground"
-      : "bg-primary-soft text-primary";
+      ? "bg-amber-100 text-amber-700"
+      : "bg-green-100 text-green-700";
 }
 
 function riskBar(level: RiskLevel) {
-  return level === "HIGH" ? "bg-destructive" : level === "MEDIUM" ? "bg-accent" : "bg-primary";
+  return level === "HIGH" ? "bg-destructive" : level === "MEDIUM" ? "bg-amber-500" : "bg-green-600";
 }
 
-function riskColor(level: RiskLevel) {
-  return level === "HIGH" ? "bg-destructive" : level === "MEDIUM" ? "bg-accent" : "bg-primary";
+function riskDistributionData(rows: InventoryRiskResponse[]) {
+  return (["HIGH", "MEDIUM", "LOW"] as RiskLevel[]).map((level) => ({
+    level,
+    label: level === "HIGH" ? "High" : level === "MEDIUM" ? "Medium" : "Low",
+    count: rows.filter((row) => row.riskLevel === level).length,
+    fill: riskChartColor(level),
+  }));
+}
+
+function provinceHighRiskRanking(rows: InventoryRiskResponse[]) {
+  const groups = new Map<string, { highRiskCount: number; totalRiskCount: number }>();
+  rows.forEach((row) => {
+    const current = groups.get(row.province) ?? { highRiskCount: 0, totalRiskCount: 0 };
+    current.totalRiskCount += 1;
+    if (row.riskLevel === "HIGH") current.highRiskCount += 1;
+    groups.set(row.province, current);
+  });
+  return Array.from(groups.entries())
+    .map(([province, value]) => ({ province, ...value }))
+    .filter((row) => row.highRiskCount > 0)
+    .sort((a, b) => b.highRiskCount - a.highRiskCount || b.totalRiskCount - a.totalRiskCount);
+}
+
+function cropTypeRiskSummary(rows: InventoryRiskResponse[]) {
+  const groups = new Map<
+    string,
+    {
+      cropName: string;
+      highestRiskLevel: RiskLevel;
+      maxRiskScore: number;
+      highRiskCount: number;
+      mediumRiskCount: number;
+      batchCount: number;
+      currentQuantity: number;
+      nearestExpiryDays: number | null;
+    }
+  >();
+
+  rows.forEach((row) => {
+    const current =
+      groups.get(row.cropName) ??
+      {
+        cropName: row.cropName,
+        highestRiskLevel: "LOW" as RiskLevel,
+        maxRiskScore: 0,
+        highRiskCount: 0,
+        mediumRiskCount: 0,
+        batchCount: 0,
+        currentQuantity: 0,
+        nearestExpiryDays: null,
+      };
+    current.batchCount += 1;
+    current.currentQuantity += Number(row.currentQuantity ?? 0);
+    current.maxRiskScore = Math.max(current.maxRiskScore, Number(row.riskScore ?? 0));
+    current.highestRiskLevel = strongerRiskLevel(current.highestRiskLevel, row.riskLevel);
+    if (row.riskLevel === "HIGH") current.highRiskCount += 1;
+    if (row.riskLevel === "MEDIUM") current.mediumRiskCount += 1;
+    if (row.daysUntilExpiry != null) {
+      current.nearestExpiryDays =
+        current.nearestExpiryDays == null
+          ? row.daysUntilExpiry
+          : Math.min(current.nearestExpiryDays, row.daysUntilExpiry);
+    }
+    groups.set(row.cropName, current);
+  });
+
+  return Array.from(groups.values()).sort(
+    (a, b) =>
+      b.highRiskCount - a.highRiskCount ||
+      b.maxRiskScore - a.maxRiskScore ||
+      b.currentQuantity - a.currentQuantity,
+  );
+}
+
+function monthlyForecastTrend(forecasts: ForecastResult[]) {
+  const groups = new Map<number, number>();
+  for (let month = 1; month <= 12; month += 1) {
+    groups.set(month, 0);
+  }
+  forecasts.forEach((forecast) => {
+    groups.set(
+      forecast.month,
+      (groups.get(forecast.month) ?? 0) + Number(forecast.predictedQuantity ?? 0),
+    );
+  });
+  return Array.from(groups.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([month, predictedQuantity]) => ({ month, predictedQuantity }));
+}
+
+function uniqueSorted(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b));
+}
+
+function downloadForecastCsv(
+  forecasts: ForecastResult[],
+  filters: { province: string; crop: string },
+) {
+  const headers = ["province", "cropName", "year", "month", "predictedQuantity", "modelName", "createdAt"];
+  const rows = forecasts.map((forecast) => [
+    forecast.province,
+    forecast.cropName,
+    forecast.year,
+    forecast.month,
+    forecast.predictedQuantity,
+    forecast.modelName,
+    forecast.createdAt,
+  ]);
+  const csv = [headers, ...rows]
+    .map((row) => row.map((value) => csvEscape(String(value ?? ""))).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const filenameParts = ["coordination-forecast", filters.province, filters.crop]
+    .map((part) => part.trim().replace(/\s+/g, "-").toLowerCase())
+    .filter(Boolean);
+  link.href = url;
+  link.download = `${filenameParts.join("_") || "coordination-forecast"}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function csvEscape(value: string) {
+  if (!/[",\n]/.test(value)) return value;
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+function strongerRiskLevel(current: RiskLevel, next: RiskLevel) {
+  const rank: Record<RiskLevel, number> = { LOW: 1, MEDIUM: 2, HIGH: 3 };
+  return rank[next] > rank[current] ? next : current;
+}
+
+function riskChartColor(level: RiskLevel) {
+  if (level === "HIGH") return "#dc2626";
+  if (level === "MEDIUM") return "#f59e0b";
+  return "#16a34a";
+}
+
+function riskCardSurface(level: RiskLevel) {
+  if (level === "HIGH") return "border-destructive/30 bg-destructive/5";
+  if (level === "MEDIUM") return "border-amber-300 bg-amber-50/70";
+  return "border-primary/30 bg-primary-soft/30";
 }
 
 function formatTons(value: number) {
@@ -496,4 +994,10 @@ function formatKg(value: number) {
 
 function formatNumber(value: number) {
   return Number(value).toLocaleString("vi-VN", { maximumFractionDigits: 1 });
+}
+
+function formatCompactKg(value: number) {
+  if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })}M`;
+  if (Math.abs(value) >= 1_000) return `${(value / 1_000).toLocaleString("vi-VN", { maximumFractionDigits: 0 })}K`;
+  return Math.round(value).toLocaleString("vi-VN");
 }

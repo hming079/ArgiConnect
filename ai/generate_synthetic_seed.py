@@ -6,10 +6,10 @@ Tạo dữ liệu lặp lại được (repeatable synthetic seed data) cho Agri
   - File SQL chứa lệnh chèn dữ liệu mẫu (PostgreSQL seed SQL) cho các bảng hiện có trong ứng dụng.
   - File CSV thống kê số liệu hàng ngày theo tỉnh/thành và loại nông sản dùng cho công tác phân tích và dự báo.
 
-Công cụ này đọc file backend/scripts/data.csv để làm trọng số sản lượng theo tỉnh thành.
+Công cụ này đọc file ai/data.csv để làm trọng số sản lượng theo tỉnh thành.
 Chương trình không phụ thuộc vào bất kỳ thư viện bên thứ ba nào (chỉ dùng Python tiêu chuẩn).
 """
-# psql -h localhost -p 5433 -U postgres -d agriconnect -f backend\scripts\output\agriconnect_synthetic_seed.sql
+# psql -h localhost -p 5433 -U postgres -d agriconnect -f ai\output\agriconnect_synthetic_seed.sql
 from __future__ import annotations
 
 import argparse
@@ -687,7 +687,7 @@ def write_sql(
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="\n") as handle:
-        handle.write("-- Được tạo tự động bởi lệnh backend/scripts/generate_synthetic_seed.py\n")
+        handle.write("-- Được tạo tự động bởi lệnh ai/generate_synthetic_seed.py\n")
         handle.write("-- Mật khẩu cho các người dùng được tạo trùng khớp với chuỗi băm (hash) demo dùng trong V2__insert_users.sql.\n")
         handle.write("BEGIN;\n\n")
         if truncate:

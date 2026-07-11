@@ -21,6 +21,7 @@ export interface ForecastFilters {
 export interface ForecastImportResult {
   importedRows: number;
   sourcePath: string;
+  modelName?: string;
 }
 
 export interface ForecastClearResult {
@@ -33,6 +34,10 @@ export async function getForecasts(filters: ForecastFilters = {}) {
 
 export async function importForecastCsv() {
   return (await axiosClient.post<ForecastImportResult>("/forecasts/import-csv")).data;
+}
+
+export async function generateAiForecast() {
+  return (await axiosClient.post<ForecastImportResult>("/forecasts/generate-ai")).data;
 }
 
 export async function importForecastDataset() {

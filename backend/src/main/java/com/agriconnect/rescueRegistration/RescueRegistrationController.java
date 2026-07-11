@@ -1,5 +1,6 @@
 package com.agriconnect.rescueRegistration;
 
+import com.agriconnect.rescueRegistration.dto.CreateRescueRegistrationRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import java.util.List;
@@ -54,7 +55,12 @@ public class RescueRegistrationController {
     @PostMapping
     @PreAuthorize("hasRole('FARMER')")
     @Operation(summary = "Register a crop batch for rescue", description = "Required role: FARMER; batch ownership is enforced")
-    public ResponseEntity<RescueRegistration> create(@RequestBody RescueRegistration registration) {
+    public ResponseEntity<RescueRegistration> create(@RequestBody CreateRescueRegistrationRequest request) {
+        RescueRegistration registration = new RescueRegistration();
+        if (request != null) {
+            registration.setBatchId(request.getBatchId());
+            registration.setRescuePointId(request.getRescuePointId());
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(registration));
     }
 

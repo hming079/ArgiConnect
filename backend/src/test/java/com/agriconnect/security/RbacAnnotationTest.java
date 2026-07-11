@@ -4,12 +4,16 @@ import com.agriconnect.crop.CropController;
 import com.agriconnect.crop.Crop;
 import com.agriconnect.cropBatch.CropBatch;
 import com.agriconnect.cropBatch.CropBatchController;
+import com.agriconnect.cropBatch.dto.CreateCropBatchRequest;
 import com.agriconnect.cropLock.CropLockController;
+import com.agriconnect.cropLock.dto.CreateCropLockRequest;
 import com.agriconnect.order.OrderController;
 import com.agriconnect.order.dto.CheckoutRequest;
+import com.agriconnect.order.dto.CreateOrderRequest;
 import com.agriconnect.order.dto.OrderStatusUpdateRequest;
 import com.agriconnect.rescuePoint.RescuePointController;
 import com.agriconnect.rescueRegistration.RescueRegistrationController;
+import com.agriconnect.rescueRegistration.dto.CreateRescueRegistrationRequest;
 import com.agriconnect.shipment.ShipmentController;
 import com.agriconnect.shipment.ShipmentStatus;
 import com.agriconnect.user.UserController;
@@ -30,16 +34,18 @@ class RbacAnnotationTest {
     @Test
     void farmerEndpointsRequireFarmer() throws Exception {
         assertRule(CropBatchController.class, "getMyCropBatches", "hasRole('FARMER')");
-        assertRule(CropBatchController.class, "createCropBatch", "hasRole('FARMER')", CropBatch.class);
+        assertRule(CropBatchController.class, "createCropBatch", "hasRole('FARMER')", CreateCropBatchRequest.class);
         assertRule(RescueRegistrationController.class, "create", "hasRole('FARMER')",
-                com.agriconnect.rescueRegistration.RescueRegistration.class);
+                CreateRescueRegistrationRequest.class);
     }
 
     @Test
     void buyerEndpointsRequireBuyer() throws Exception {
         assertRule(OrderController.class, "getMyOrders", "hasRole('BUYER')");
+        assertRule(OrderController.class, "create", "hasRole('BUYER')", CreateOrderRequest.class);
         assertRule(OrderController.class, "checkout", "hasRole('BUYER')", CheckoutRequest.class);
         assertRule(OrderController.class, "updateStatus", "isAuthenticated()", Long.class, OrderStatusUpdateRequest.class);
+        assertRule(CropLockController.class, "create", "hasRole('BUYER')", CreateCropLockRequest.class);
         assertRule(CropLockController.class, "delete", "hasRole('BUYER')", Long.class);
     }
 

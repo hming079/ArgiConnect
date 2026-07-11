@@ -12,6 +12,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import com.agriconnect.common.BadRequestException;
 
 import com.agriconnect.auth.dto.RegisterRequest;
 import com.agriconnect.cropBatch.CropBatch;
@@ -48,9 +49,13 @@ public class UserService implements UserDetailsService {
     }
 
     public void register(RegisterRequest request) {
+        String email = request.getEmail().trim().toLowerCase();
+        if (userRepository.existsByEmailIgnoreCase(email)) {
+            throw new BadRequestException("Email is already registered");
+        }
         User user = new User();
-        user.setFullName(request.getFullName());
-        user.setEmail(request.getEmail());
+        user.setFullName(request.getFullName().trim());
+        user.setEmail(email);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole(request.getRole());
         user.setStatus(UserStatus.ACTIVE);

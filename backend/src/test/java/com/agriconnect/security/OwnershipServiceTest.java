@@ -416,7 +416,25 @@ class OwnershipServiceTest {
         Shipment shipment = new Shipment();
         shipment.setLogisticsUserId(9L);
         when(currentUser.getRole()).thenReturn(Role.LOGISTICS);
+        when(currentUser.getId()).thenReturn(8L);
         when(shipmentRepository.findById(1L)).thenReturn(Optional.of(shipment));
+
+        ShipmentService service = new ShipmentService(
+                shipmentRepository, orderRepository, null, null, currentUser);
+
+        assertThrows(AccessDeniedException.class, () -> service.updateStatus(1L, ShipmentStatus.SHIPPING));
+    }
+
+    @Test
+    void logisticsCanUpdateAssignedShipment() {
+        Shipment shipment = new Shipment();
+        shipment.setId(1L);
+        shipment.setOrderId(2L);
+        shipment.setLogisticsUserId(8L);
+        when(currentUser.getRole()).thenReturn(Role.LOGISTICS);
+        when(currentUser.getId()).thenReturn(8L);
+        when(shipmentRepository.findById(1L)).thenReturn(Optional.of(shipment));
+        when(shipmentRepository.save(shipment)).thenReturn(shipment);
 
         ShipmentService service = new ShipmentService(
                 shipmentRepository, orderRepository, null, null, currentUser);

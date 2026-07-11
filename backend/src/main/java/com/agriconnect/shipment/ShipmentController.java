@@ -38,7 +38,7 @@ public class ShipmentController {
 
     @GetMapping("/my")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "List visible shipments", description = "All roles see shipments related to their orders; admin/logistics see all")
+    @Operation(summary = "List visible shipments", description = "All roles see shipments related to their orders; admin sees all; logistics sees assigned shipments")
     public ResponseEntity<List<Shipment>> getMyShipments() {
         return ResponseEntity.ok(service.getMyShipments());
     }

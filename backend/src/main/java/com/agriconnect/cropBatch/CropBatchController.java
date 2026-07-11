@@ -1,5 +1,6 @@
 package com.agriconnect.cropBatch;
 
+import com.agriconnect.cropBatch.dto.CreateCropBatchRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import java.util.List;
@@ -65,7 +66,21 @@ public class CropBatchController {
     @PostMapping
     @PreAuthorize("hasRole('FARMER')")
     @Operation(summary = "Create my crop batch", description = "Required role: FARMER; farmerId comes from JWT identity")
-    public ResponseEntity<CropBatch> createCropBatch(@RequestBody CropBatch cropBatch) {
+    public ResponseEntity<CropBatch> createCropBatch(@RequestBody CreateCropBatchRequest request) {
+        CropBatch cropBatch = new CropBatch();
+        if (request != null) {
+            cropBatch.setCropId(request.getCropId());
+            cropBatch.setInitialQuantity(request.getInitialQuantity());
+            cropBatch.setCurrentQuantity(request.getCurrentQuantity());
+            cropBatch.setUnitPrice(request.getUnitPrice());
+            cropBatch.setUnit(request.getUnit());
+            cropBatch.setHarvestDate(request.getHarvestDate());
+            cropBatch.setExpiryDate(request.getExpiryDate());
+            cropBatch.setProvince(request.getProvince());
+            cropBatch.setDistrict(request.getDistrict());
+            cropBatch.setWard(request.getWard());
+            cropBatch.setAddressDetail(request.getAddressDetail());
+        }
         CropBatch createdCropBatch = cropBatchService.createCropBatch(cropBatch);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdCropBatch);
     }

@@ -2,7 +2,7 @@ import axiosClient from "./axiosClient";
 
 export type RescueRegistrationStatus = "PENDING" | "APPROVED" | "REJECTED";
 export interface RescueRegistration { id: number; batchId: number; rescuePointId: number; approvedBy: number | null; status: RescueRegistrationStatus; submittedAt: string | null; approvedAt: string | null; }
-export type RescueRegistrationInput = Pick<RescueRegistration, "batchId" | "rescuePointId" | "status">;
+export type RescueRegistrationInput = Pick<RescueRegistration, "batchId" | "rescuePointId">;
 export interface RescueRegistrationFilters { batchId?: number; rescuePointId?: number; status?: RescueRegistrationStatus; }
 
 export async function getRescueRegistrations(filters?: RescueRegistrationFilters) { return (await axiosClient.get<RescueRegistration[]>("/rescue-registrations", { params: filters })).data; }

@@ -36,7 +36,8 @@ public class ShipmentService {
 
     public List<Shipment> getAll(Long logisticsUserId, ShipmentStatus status) {
         List<Shipment> shipments = switch (currentUser.getRole()) {
-            case ADMIN, LOGISTICS -> repository.findAll();
+            case ADMIN -> repository.findAll();
+            case LOGISTICS -> repository.findByLogisticsUserId(currentUser.getId());
             case BUYER -> repository.findVisibleForBuyer(currentUser.getId());
             case FARMER -> repository.findVisibleForFarmer(currentUser.getId());
         };
@@ -108,7 +109,8 @@ public class ShipmentService {
 
     private void assertVisible(Shipment shipment) {
         Role role = currentUser.getRole();
-        if (role == Role.ADMIN || role == Role.LOGISTICS) return;
+        if (role == Role.ADMIN) return;
+        if (role == Role.LOGISTICS && isCurrentLogisticsShipment(shipment)) return;
         if (role == Role.BUYER && isCurrentBuyerShipment(shipment)) return;
         if (role == Role.FARMER && isCurrentFarmerShipment(shipment)) return;
         throw new AccessDeniedException("You can only access shipments for your orders");
@@ -119,8 +121,9 @@ public class ShipmentService {
         boolean allowed = switch (status) {
             case PENDING -> false;
             case CONFIRMED -> role == Role.ADMIN || (role == Role.FARMER && isCurrentFarmerShipment(shipment));
-            case PACKING -> (role == Role.FARMER && isCurrentFarmerShipment(shipment)) || role == Role.LOGISTICS;
-            case SHIPPING, DELIVERED -> role == Role.LOGISTICS;
+            case PACKING -> (role == Role.FARMER && isCurrentFarmerShipment(shipment))
+                    || (role == Role.LOGISTICS && isCurrentLogisticsShipment(shipment));
+            case SHIPPING, DELIVERED -> role == Role.LOGISTICS && isCurrentLogisticsShipment(shipment);
             case CANCELLED -> role == Role.ADMIN || (role == Role.BUYER && isCurrentBuyerShipment(shipment));
         };
         if (!allowed) {
@@ -132,6 +135,10 @@ public class ShipmentService {
         return orderRepository.findById(shipment.getOrderId())
                 .map(order -> order.getBuyerId().equals(currentUser.getId()))
                 .orElse(false);
+    }
+
+    private boolean isCurrentLogisticsShipment(Shipment shipment) {
+        return shipment.getLogisticsUserId() != null && shipment.getLogisticsUserId().equals(currentUser.getId());
     }
 
     private boolean isCurrentFarmerShipment(Shipment shipment) {

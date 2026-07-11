@@ -11,14 +11,18 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ShipmentsIndexRouteImport } from './routes/shipments.index'
+import { Route as ResetPasswordIndexRouteImport } from './routes/reset-password.index'
 import { Route as RescueIndexRouteImport } from './routes/rescue.index'
 import { Route as RescuePointsIndexRouteImport } from './routes/rescue-points.index'
+import { Route as RegisterIndexRouteImport } from './routes/register.index'
 import { Route as ProductsIndexRouteImport } from './routes/products.index'
 import { Route as OrdersIndexRouteImport } from './routes/orders.index'
 import { Route as LoginIndexRouteImport } from './routes/login.index'
+import { Route as ForgotPasswordIndexRouteImport } from './routes/forgot-password.index'
 import { Route as FarmerIndexRouteImport } from './routes/farmer.index'
 import { Route as CoordinationIndexRouteImport } from './routes/coordination.index'
 import { Route as CheckoutIndexRouteImport } from './routes/checkout.index'
+import { Route as ChangePasswordIndexRouteImport } from './routes/change-password.index'
 import { Route as CategoriesIndexRouteImport } from './routes/categories.index'
 import { Route as CartIndexRouteImport } from './routes/cart.index'
 import { Route as BuyerIndexRouteImport } from './routes/buyer.index'
@@ -43,6 +47,11 @@ const ShipmentsIndexRoute = ShipmentsIndexRouteImport.update({
   path: '/shipments/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResetPasswordIndexRoute = ResetPasswordIndexRouteImport.update({
+  id: '/reset-password/',
+  path: '/reset-password/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RescueIndexRoute = RescueIndexRouteImport.update({
   id: '/rescue/',
   path: '/rescue/',
@@ -51,6 +60,11 @@ const RescueIndexRoute = RescueIndexRouteImport.update({
 const RescuePointsIndexRoute = RescuePointsIndexRouteImport.update({
   id: '/rescue-points/',
   path: '/rescue-points/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterIndexRoute = RegisterIndexRouteImport.update({
+  id: '/register/',
+  path: '/register/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProductsIndexRoute = ProductsIndexRouteImport.update({
@@ -68,6 +82,11 @@ const LoginIndexRoute = LoginIndexRouteImport.update({
   path: '/login/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ForgotPasswordIndexRoute = ForgotPasswordIndexRouteImport.update({
+  id: '/forgot-password/',
+  path: '/forgot-password/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FarmerIndexRoute = FarmerIndexRouteImport.update({
   id: '/farmer/',
   path: '/farmer/',
@@ -81,6 +100,11 @@ const CoordinationIndexRoute = CoordinationIndexRouteImport.update({
 const CheckoutIndexRoute = CheckoutIndexRouteImport.update({
   id: '/checkout/',
   path: '/checkout/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChangePasswordIndexRoute = ChangePasswordIndexRouteImport.update({
+  id: '/change-password/',
+  path: '/change-password/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CategoriesIndexRoute = CategoriesIndexRouteImport.update({
@@ -164,14 +188,18 @@ export interface FileRoutesByFullPath {
   '/buyer/': typeof BuyerIndexRoute
   '/cart/': typeof CartIndexRoute
   '/categories/': typeof CategoriesIndexRoute
+  '/change-password/': typeof ChangePasswordIndexRoute
   '/checkout/': typeof CheckoutIndexRoute
   '/coordination/': typeof CoordinationIndexRoute
   '/farmer/': typeof FarmerIndexRoute
+  '/forgot-password/': typeof ForgotPasswordIndexRoute
   '/login/': typeof LoginIndexRoute
   '/orders/': typeof OrdersIndexRoute
   '/products/': typeof ProductsIndexRoute
+  '/register/': typeof RegisterIndexRoute
   '/rescue-points/': typeof RescuePointsIndexRoute
   '/rescue/': typeof RescueIndexRoute
+  '/reset-password/': typeof ResetPasswordIndexRoute
   '/shipments/': typeof ShipmentsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -189,14 +217,18 @@ export interface FileRoutesByTo {
   '/buyer': typeof BuyerIndexRoute
   '/cart': typeof CartIndexRoute
   '/categories': typeof CategoriesIndexRoute
+  '/change-password': typeof ChangePasswordIndexRoute
   '/checkout': typeof CheckoutIndexRoute
   '/coordination': typeof CoordinationIndexRoute
   '/farmer': typeof FarmerIndexRoute
+  '/forgot-password': typeof ForgotPasswordIndexRoute
   '/login': typeof LoginIndexRoute
   '/orders': typeof OrdersIndexRoute
   '/products': typeof ProductsIndexRoute
+  '/register': typeof RegisterIndexRoute
   '/rescue-points': typeof RescuePointsIndexRoute
   '/rescue': typeof RescueIndexRoute
+  '/reset-password': typeof ResetPasswordIndexRoute
   '/shipments': typeof ShipmentsIndexRoute
 }
 export interface FileRoutesById {
@@ -215,14 +247,18 @@ export interface FileRoutesById {
   '/buyer/': typeof BuyerIndexRoute
   '/cart/': typeof CartIndexRoute
   '/categories/': typeof CategoriesIndexRoute
+  '/change-password/': typeof ChangePasswordIndexRoute
   '/checkout/': typeof CheckoutIndexRoute
   '/coordination/': typeof CoordinationIndexRoute
   '/farmer/': typeof FarmerIndexRoute
+  '/forgot-password/': typeof ForgotPasswordIndexRoute
   '/login/': typeof LoginIndexRoute
   '/orders/': typeof OrdersIndexRoute
   '/products/': typeof ProductsIndexRoute
+  '/register/': typeof RegisterIndexRoute
   '/rescue-points/': typeof RescuePointsIndexRoute
   '/rescue/': typeof RescueIndexRoute
+  '/reset-password/': typeof ResetPasswordIndexRoute
   '/shipments/': typeof ShipmentsIndexRoute
 }
 export interface FileRouteTypes {
@@ -242,14 +278,18 @@ export interface FileRouteTypes {
     | '/buyer/'
     | '/cart/'
     | '/categories/'
+    | '/change-password/'
     | '/checkout/'
     | '/coordination/'
     | '/farmer/'
+    | '/forgot-password/'
     | '/login/'
     | '/orders/'
     | '/products/'
+    | '/register/'
     | '/rescue-points/'
     | '/rescue/'
+    | '/reset-password/'
     | '/shipments/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -267,14 +307,18 @@ export interface FileRouteTypes {
     | '/buyer'
     | '/cart'
     | '/categories'
+    | '/change-password'
     | '/checkout'
     | '/coordination'
     | '/farmer'
+    | '/forgot-password'
     | '/login'
     | '/orders'
     | '/products'
+    | '/register'
     | '/rescue-points'
     | '/rescue'
+    | '/reset-password'
     | '/shipments'
   id:
     | '__root__'
@@ -292,14 +336,18 @@ export interface FileRouteTypes {
     | '/buyer/'
     | '/cart/'
     | '/categories/'
+    | '/change-password/'
     | '/checkout/'
     | '/coordination/'
     | '/farmer/'
+    | '/forgot-password/'
     | '/login/'
     | '/orders/'
     | '/products/'
+    | '/register/'
     | '/rescue-points/'
     | '/rescue/'
+    | '/reset-password/'
     | '/shipments/'
   fileRoutesById: FileRoutesById
 }
@@ -318,14 +366,18 @@ export interface RootRouteChildren {
   BuyerIndexRoute: typeof BuyerIndexRoute
   CartIndexRoute: typeof CartIndexRoute
   CategoriesIndexRoute: typeof CategoriesIndexRoute
+  ChangePasswordIndexRoute: typeof ChangePasswordIndexRoute
   CheckoutIndexRoute: typeof CheckoutIndexRoute
   CoordinationIndexRoute: typeof CoordinationIndexRoute
   FarmerIndexRoute: typeof FarmerIndexRoute
+  ForgotPasswordIndexRoute: typeof ForgotPasswordIndexRoute
   LoginIndexRoute: typeof LoginIndexRoute
   OrdersIndexRoute: typeof OrdersIndexRoute
   ProductsIndexRoute: typeof ProductsIndexRoute
+  RegisterIndexRoute: typeof RegisterIndexRoute
   RescuePointsIndexRoute: typeof RescuePointsIndexRoute
   RescueIndexRoute: typeof RescueIndexRoute
+  ResetPasswordIndexRoute: typeof ResetPasswordIndexRoute
   ShipmentsIndexRoute: typeof ShipmentsIndexRoute
 }
 
@@ -345,6 +397,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShipmentsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password/': {
+      id: '/reset-password/'
+      path: '/reset-password'
+      fullPath: '/reset-password/'
+      preLoaderRoute: typeof ResetPasswordIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/rescue/': {
       id: '/rescue/'
       path: '/rescue'
@@ -357,6 +416,13 @@ declare module '@tanstack/react-router' {
       path: '/rescue-points'
       fullPath: '/rescue-points/'
       preLoaderRoute: typeof RescuePointsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register/': {
+      id: '/register/'
+      path: '/register'
+      fullPath: '/register/'
+      preLoaderRoute: typeof RegisterIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/products/': {
@@ -380,6 +446,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/forgot-password/': {
+      id: '/forgot-password/'
+      path: '/forgot-password'
+      fullPath: '/forgot-password/'
+      preLoaderRoute: typeof ForgotPasswordIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/farmer/': {
       id: '/farmer/'
       path: '/farmer'
@@ -399,6 +472,13 @@ declare module '@tanstack/react-router' {
       path: '/checkout'
       fullPath: '/checkout/'
       preLoaderRoute: typeof CheckoutIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/change-password/': {
+      id: '/change-password/'
+      path: '/change-password'
+      fullPath: '/change-password/'
+      preLoaderRoute: typeof ChangePasswordIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/categories/': {
@@ -510,14 +590,18 @@ const rootRouteChildren: RootRouteChildren = {
   BuyerIndexRoute: BuyerIndexRoute,
   CartIndexRoute: CartIndexRoute,
   CategoriesIndexRoute: CategoriesIndexRoute,
+  ChangePasswordIndexRoute: ChangePasswordIndexRoute,
   CheckoutIndexRoute: CheckoutIndexRoute,
   CoordinationIndexRoute: CoordinationIndexRoute,
   FarmerIndexRoute: FarmerIndexRoute,
+  ForgotPasswordIndexRoute: ForgotPasswordIndexRoute,
   LoginIndexRoute: LoginIndexRoute,
   OrdersIndexRoute: OrdersIndexRoute,
   ProductsIndexRoute: ProductsIndexRoute,
+  RegisterIndexRoute: RegisterIndexRoute,
   RescuePointsIndexRoute: RescuePointsIndexRoute,
   RescueIndexRoute: RescueIndexRoute,
+  ResetPasswordIndexRoute: ResetPasswordIndexRoute,
   ShipmentsIndexRoute: ShipmentsIndexRoute,
 }
 export const routeTree = rootRouteImport

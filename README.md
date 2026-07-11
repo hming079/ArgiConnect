@@ -182,7 +182,7 @@ pip install -r requirements.txt
 python etl.py
 ```
 
-This uses `backend/scripts/output/daily_province_crop_stats.csv` when available, aggregates daily rows into monthly province/crop training rows, and writes:
+This uses `ai/output/daily_province_crop_stats.csv` when available, aggregates daily rows into monthly province/crop training rows, and writes:
 
 ```text
 data/cleaned_agri_forecast_dataset.csv

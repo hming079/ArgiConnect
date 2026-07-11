@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 import com.agriconnect.order.dto.CheckoutRequest;
+import com.agriconnect.order.dto.CreateOrderRequest;
 import com.agriconnect.order.dto.OrderStatusUpdateRequest;
 
 @RestController
@@ -43,7 +44,12 @@ public class OrderController {
     @PostMapping
     @PreAuthorize("hasRole('BUYER')")
     @Operation(summary = "Create order", description = "Required role: BUYER; buyerId comes from JWT identity")
-    public ResponseEntity<Order> create(@RequestBody Order order) {
+    public ResponseEntity<Order> create(@RequestBody CreateOrderRequest request) {
+        Order order = new Order();
+        if (request != null) {
+            order.setTotalAmount(request.getTotalAmount());
+            order.setOrderDate(request.getOrderDate());
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(order));
     }
 

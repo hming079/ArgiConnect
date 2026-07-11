@@ -38,6 +38,13 @@ public class ForecastResultController {
         return service.importCsv();
     }
 
+    @PostMapping("/generate-ai")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Generate forecasts with the local AI service", description = "Sends backend dataset rows to the FastAPI AI service and saves predictions")
+    public ForecastResultService.GenerateResult generateAiForecast() {
+        return service.generateWithAiService();
+    }
+
     @PostMapping("/import-dataset")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Import cleaned AI dataset", description = "Reads ai/data/cleaned_agri_forecast_dataset.csv as historical baseline rows")

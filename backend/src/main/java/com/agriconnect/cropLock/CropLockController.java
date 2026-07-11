@@ -1,5 +1,6 @@
 package com.agriconnect.cropLock;
 
+import com.agriconnect.cropLock.dto.CreateCropLockRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import java.util.List;
@@ -34,7 +35,13 @@ public class CropLockController {
     @PostMapping
     @PreAuthorize("hasRole('BUYER')")
     @Operation(summary = "Create crop lock", description = "Required role: BUYER; buyerId comes from JWT identity")
-    public ResponseEntity<CropLock> create(@RequestBody CropLock cropLock) {
+    public ResponseEntity<CropLock> create(@RequestBody CreateCropLockRequest request) {
+        CropLock cropLock = new CropLock();
+        if (request != null) {
+            cropLock.setBatchId(request.getBatchId());
+            cropLock.setQuantity(request.getQuantity());
+            cropLock.setExpiredAt(request.getExpiredAt());
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(cropLock));
     }
 

@@ -15,7 +15,7 @@ export interface Order {
   orderDate: string | null;
   createdAt: string | null;
 }
-export type OrderInput = Pick<Order, "totalAmount" | "status" | "orderDate"> & { buyerId?: number };
+export type OrderInput = Pick<Order, "totalAmount" | "orderDate">;
 export interface CheckoutInput {
   totalAmount: number;
   orderDate: string | null;

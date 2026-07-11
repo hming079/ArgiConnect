@@ -9,11 +9,10 @@ import pandas as pd
 
 
 BASE_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = BASE_DIR.parent
 DATA_DIR = BASE_DIR / "data"
 RAW_DATASET = DATA_DIR / "agri_forecast_dataset.csv"
 CLEANED_DATASET = DATA_DIR / "cleaned_agri_forecast_dataset.csv"
-BACKEND_DAILY_STATS = PROJECT_ROOT / "backend" / "scripts" / "output" / "daily_province_crop_stats.csv"
+GENERATED_DAILY_STATS = BASE_DIR / "output" / "daily_province_crop_stats.csv"
 
 PROVINCES = [
     "An Giang",
@@ -144,8 +143,8 @@ def build_dataset_from_backend_stats(source: Path, target: Path) -> None:
 
 
 def run_etl() -> None:
-    if BACKEND_DAILY_STATS.exists():
-        build_dataset_from_backend_stats(BACKEND_DAILY_STATS, RAW_DATASET)
+    if GENERATED_DAILY_STATS.exists():
+        build_dataset_from_backend_stats(GENERATED_DAILY_STATS, RAW_DATASET)
     elif not RAW_DATASET.exists():
         generate_sample_dataset(RAW_DATASET)
         print(f"Generated sample dataset: {RAW_DATASET}")

@@ -133,6 +133,7 @@ export function SiteHeader() {
               <span className="rounded-lg bg-primary-soft px-3 py-2 text-xs font-semibold text-primary">
                 {roleLabels[role]}
               </span>
+              <Link to="/change-password" className="rounded-lg px-3 py-2 text-sm font-semibold text-primary hover:bg-primary-soft">Đổi mật khẩu</Link>
               <button
                 type="button"
                 onClick={() => void logout()}
@@ -182,7 +183,7 @@ export function SiteHeader() {
               </Link>
             ))}
             {token ? (
-              <button
+              <><Link to="/change-password" onClick={() => setOpen(false)} className="rounded-lg px-3 py-2 text-sm font-medium text-primary">Đổi mật khẩu</Link><button
                 type="button"
                 onClick={() => {
                   setOpen(false);
@@ -191,7 +192,7 @@ export function SiteHeader() {
                 className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-destructive hover:bg-destructive/10"
               >
                 <LogOut className="h-4 w-4" /> Đăng xuất
-              </button>
+              </button></>
             ) : (
               <Link
                 to="/login"

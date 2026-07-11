@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+﻿import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -29,6 +29,7 @@ import type { CropBatch } from "@/api/cropApi";
 import {
   clearForecastDataset,
   clearForecasts,
+  generateAiForecast,
   importForecastCsv,
   importForecastDataset,
   type ForecastResult,
@@ -76,6 +77,12 @@ function AdminDashboard() {
   });
   const importDatasetMutation = useMutation({
     mutationFn: importForecastDataset,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: forecastKey });
+    },
+  });
+  const generateAiForecastMutation = useMutation({
+    mutationFn: generateAiForecast,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: forecastKey });
     },
@@ -132,6 +139,11 @@ function AdminDashboard() {
     const timer = window.setTimeout(() => importDatasetMutation.reset(), 15000);
     return () => window.clearTimeout(timer);
   }, [importDatasetMutation.isSuccess, importDatasetMutation]);
+  useEffect(() => {
+    if (!generateAiForecastMutation.isSuccess) return;
+    const timer = window.setTimeout(() => generateAiForecastMutation.reset(), 15000);
+    return () => window.clearTimeout(timer);
+  }, [generateAiForecastMutation.isSuccess, generateAiForecastMutation]);
   useEffect(() => {
     if (!clearForecastMutation.isSuccess) return;
     const timer = window.setTimeout(() => clearForecastMutation.reset(), 15000);
@@ -277,6 +289,15 @@ function AdminDashboard() {
               </button>
               <button
                 type="button"
+                onClick={() => generateAiForecastMutation.mutate()}
+                disabled={generateAiForecastMutation.isPending}
+                className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-soft disabled:opacity-60"
+              >
+                <TrendingUp className="h-4 w-4" />
+                {generateAiForecastMutation.isPending ? "Generating..." : "Generate AI Forecast"}
+              </button>
+              <button
+                type="button"
                 onClick={() => {
                   if (window.confirm("Xóa tất cả forecast results?")) clearForecastMutation.mutate();
                 }}
@@ -326,6 +347,12 @@ function AdminDashboard() {
               Đã import {importDatasetMutation.data.importedRows} dòng dataset lịch sử.
             </div>
           )}
+          {generateAiForecastMutation.isSuccess && (
+            <div className="mx-5 mt-4 rounded-xl border border-primary/30 bg-primary-soft/40 p-3 text-sm text-primary">
+              AI service generated {generateAiForecastMutation.data.importedRows} forecast rows
+              {generateAiForecastMutation.data.modelName ? ` with ${generateAiForecastMutation.data.modelName}` : ""}.
+            </div>
+          )}
           {clearForecastMutation.isSuccess && (
             <div className="mx-5 mt-4 rounded-xl border border-primary/30 bg-primary-soft/40 p-3 text-sm text-primary">
               Đã xóa {clearForecastMutation.data.deletedRows} dòng forecast results.
@@ -347,6 +374,11 @@ function AdminDashboard() {
             </div>
           )}
 
+          {generateAiForecastMutation.isError && (
+            <div className="mx-5 mt-4 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              Cannot call AI service. Start FastAPI on port 8001 and import the backend dataset first.
+            </div>
+          )}
           <div className="grid gap-3 border-b border-border p-5 sm:grid-cols-2 lg:grid-cols-4">
             <ForecastStat
               label="Tổng sản lượng dự báo"
@@ -394,7 +426,7 @@ function AdminDashboard() {
             {!forecastQuery.isLoading && forecasts.length > 0 && (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background/70 p-4">
                 <div>
-                  <div className="text-sm font-semibold">Dữ liệu dự báo sẵn sàng xuất sang file csv  </div>
+                  <div className="text-sm font-semibold">Dữ liệu dự báo sẵn sàng xuất sang file csv</div>
                   <div className="text-xs text-muted-foreground">
                     {forecasts.length.toLocaleString("vi-VN")} rows match the selected province, crop, and year.
                   </div>

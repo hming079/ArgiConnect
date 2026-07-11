@@ -15,7 +15,7 @@ import {
   Sprout,
   Trash2,
 } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import type { CropBatch, CropBatchInput, CropBatchStatus } from "@/api/cropApi";
 import type { RescuePoint } from "@/api/rescuePointApi";
@@ -59,6 +59,18 @@ const statusLabels: Record<CropBatchStatus, string> = {
   cancelled: "Đã hủy",
 };
 
+const statusOptions: CropBatchStatus[] = ["pending", "available", "sold_out", "expired", "cancelled"];
+
+const statusStyles: Record<CropBatchStatus, string> = {
+  pending: "border-amber-200 bg-amber-50 text-amber-700",
+  available: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  sold_out: "border-slate-200 bg-slate-100 text-slate-700",
+  expired: "border-rose-200 bg-rose-50 text-rose-700",
+  cancelled: "border-zinc-200 bg-zinc-100 text-zinc-600",
+};
+
+type StatusFilter = "visible" | "all" | CropBatchStatus;
+
 type BatchEditor = { mode: "create" } | { mode: "edit"; batch: CropBatch };
 
 function CropDetailPage() {
@@ -81,17 +93,31 @@ function CropDetailPage() {
   const [cartQuantities, setCartQuantities] = useState<Record<number, number>>({});
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("visible");
   const [mutationError, setMutationError] = useState("");
   const [notice, setNotice] = useState("");
   const batches = batchesQuery.data ?? [];
+  const filteredBatches = useMemo(
+    () =>
+      batches.filter((batch) => {
+        if (statusFilter === "all") return true;
+        if (statusFilter === "visible") return batch.status !== "expired";
+        return batch.status === statusFilter;
+      }),
+    [batches, statusFilter],
+  );
 
   useEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(batches.length / pageSize));
+    const totalPages = Math.max(1, Math.ceil(filteredBatches.length / pageSize));
     if (page > totalPages) setPage(totalPages);
-  }, [batches.length, page, pageSize]);
+  }, [filteredBatches.length, page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter]);
 
   const start = (page - 1) * pageSize;
-  const pagedBatches = batches.slice(start, start + pageSize);
+  const pagedBatches = filteredBatches.slice(start, start + pageSize);
 
   async function removeBatch(batch: CropBatch) {
     if (!isFarmer || !window.confirm(`Xóa lô #${batch.id}?`)) return;
@@ -253,6 +279,41 @@ function CropDetailPage() {
           />
         </div>
 
+        {batchesQuery.data && batchesQuery.data.length > 0 && (
+          <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-card sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <Label
+                htmlFor="batch-status-filter"
+                className="text-xs uppercase tracking-wider text-muted-foreground"
+              >
+                Lọc trạng thái
+              </Label>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Mặc định ẩn các lô đã hết hạn.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 sm:min-w-64">
+              <select
+                id="batch-status-filter"
+                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+              >
+                <option value="visible">Tất cả trừ Hết hạn</option>
+                <option value="all">Tất cả trạng thái</option>
+                {statusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {statusLabels[status]}
+                  </option>
+                ))}
+              </select>
+              <div className="text-xs text-muted-foreground">
+                Hiển thị {filteredBatches.length}/{batches.length} lô
+              </div>
+            </div>
+          </div>
+        )}
+
         {batchesQuery.isError && (
           <div className="mt-6 rounded-2xl border border-destructive/20 bg-destructive/10 p-6 text-center">
             <AlertCircle className="mx-auto h-8 w-8 text-destructive" />
@@ -280,7 +341,17 @@ function CropDetailPage() {
           </div>
         )}
 
-        {batchesQuery.data && batchesQuery.data.length > 0 && (
+        {batchesQuery.data && batchesQuery.data.length > 0 && filteredBatches.length === 0 && (
+          <div className="mt-6 rounded-2xl border border-dashed border-border bg-card p-10 text-center">
+            <Package className="mx-auto h-10 w-10 text-muted-foreground" />
+            <h3 className="mt-3 text-lg font-semibold">Không có lô phù hợp</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Thử chọn trạng thái khác để xem thêm lô nông sản.
+            </p>
+          </div>
+        )}
+
+        {batchesQuery.data && batchesQuery.data.length > 0 && filteredBatches.length > 0 && (
           <>
             <div className="mt-6 grid gap-3 lg:hidden">
               {pagedBatches.map((batch) => (
@@ -319,7 +390,7 @@ function CropDetailPage() {
             />
             <PaginationControls
               className="mt-4"
-              totalItems={batches.length}
+              totalItems={filteredBatches.length}
               page={page}
               pageSize={pageSize}
               onPageChange={setPage}
@@ -391,7 +462,6 @@ function CropDetailPage() {
                   await createRegistration.mutateAsync({
                     batchId: batchToRegister.id,
                     rescuePointId,
-                    status: "PENDING",
                   });
                   setNotice(`Đã gửi đăng ký giải cứu cho lô #${batchToRegister.id}.`);
                   setBatchToRegister(null);
@@ -896,7 +966,9 @@ function FormField({
 
 function StatusBadge({ status }: { status: CropBatchStatus }) {
   return (
-    <span className="inline-flex rounded-full bg-primary-soft px-2.5 py-1 text-xs font-medium text-primary">
+    <span
+      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusStyles[status]}`}
+    >
       {statusLabels[status] ?? status}
     </span>
   );
