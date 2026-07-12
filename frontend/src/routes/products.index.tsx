@@ -8,12 +8,16 @@ import {
   RefreshCw,
   Search,
   SlidersHorizontal,
+  ShoppingCart,
 } from "lucide-react";
 
 import type { Crop, CropBatch } from "@/api/cropApi";
 import { PaginationControls } from "@/components/pagination-controls";
 import { PageShell } from "@/components/site-layout";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/use-auth";
+import { useCart } from "@/hooks/use-cart";
 import { useCropBatches, useCrops } from "@/hooks/use-crops";
 import { getCropImage } from "@/lib/crop-images";
 
@@ -43,6 +47,9 @@ type ProductItem = {
 function ProductsList() {
   const cropsQuery = useCrops();
   const batchesQuery = useCropBatches();
+  const { role } = useAuth();
+  const isBuyer = role === "BUYER";
+  const { add } = useCart();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("Tất cả");
   const [reg, setReg] = useState("Tất cả khu vực");
@@ -50,6 +57,7 @@ function ProductsList() {
   const [maxPrice, setMaxPrice] = useState(100000);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
 
   const crops = useMemo(() => cropsQuery.data ?? [], [cropsQuery.data]);
   const batches = useMemo(() => batchesQuery.data ?? [], [batchesQuery.data]);
@@ -114,6 +122,28 @@ function ProductsList() {
 
   const start = (page - 1) * pageSize;
   const paged = filtered.slice(start, start + pageSize);
+
+  function getQuantity(item: ProductItem) {
+    return quantities[item.id] ?? 1;
+  }
+
+  function setQuantity(item: ProductItem, value: number) {
+    const max = Math.max(1, item.currentQuantity);
+    const next = Number.isFinite(value) ? Math.min(Math.max(1, value), max) : 1;
+    setQuantities((current) => ({ ...current, [item.id]: next }));
+  }
+
+  function addToCart(item: ProductItem) {
+    const qty = getQuantity(item);
+    add({
+      id: `batch-${item.batch.id}`,
+      name: `Lô #${item.batch.id} · ${item.name}`,
+      image: item.image ?? "",
+      pricePerKg: item.price,
+      location: item.location,
+      qty,
+    });
+  }
 
   return (
     <PageShell>
@@ -244,7 +274,14 @@ function ProductsList() {
             <>
               <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 {paged.map((item) => (
-                  <ProductBatchCard key={item.id} item={item} />
+                  <ProductBatchCard
+                    key={item.id}
+                    item={item}
+                    buyer={isBuyer}
+                    quantity={getQuantity(item)}
+                    onQuantityChange={(value) => setQuantity(item, value)}
+                    onAddToCart={() => addToCart(item)}
+                  />
                 ))}
               </div>
               <PaginationControls
@@ -266,10 +303,23 @@ function ProductsList() {
   );
 }
 
-function ProductBatchCard({ item }: { item: ProductItem }) {
+function ProductBatchCard({
+  item,
+  buyer,
+  quantity,
+  onQuantityChange,
+  onAddToCart,
+}: {
+  item: ProductItem;
+  buyer: boolean;
+  quantity: number;
+  onQuantityChange: (value: number) => void;
+  onAddToCart: () => void;
+}) {
   const sold = Math.max(item.initialQuantity - item.currentQuantity, 0);
   const pct =
     item.initialQuantity > 0 ? Math.min(100, Math.round((sold / item.initialQuantity) * 100)) : 0;
+  const canBuy = item.batch.status === "available" && item.currentQuantity > 0;
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-card transition hover:-translate-y-0.5 hover:shadow-soft">
       <Link
@@ -331,6 +381,34 @@ function ProductBatchCard({ item }: { item: ProductItem }) {
         <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
           <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
         </div>
+        {buyer && (
+          <div className="mt-3 grid grid-cols-[1fr_auto] items-end gap-2">
+            <label className="space-y-1">
+              <span className="text-xs font-semibold text-muted-foreground">
+                Số lượng ({item.batch.unit})
+              </span>
+              <Input
+                type="number"
+                min={1}
+                max={Math.max(1, item.currentQuantity)}
+                step={1}
+                value={Math.min(quantity, Math.max(1, item.currentQuantity))}
+                disabled={!canBuy}
+                onChange={(event) => onQuantityChange(Number(event.target.value))}
+                className="h-10"
+              />
+            </label>
+            <Button
+              type="button"
+              className="h-10 rounded-xl px-3"
+              disabled={!canBuy}
+              onClick={onAddToCart}
+              title="Thêm vào giỏ"
+            >
+              <ShoppingCart className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </div>
     </article>
   );

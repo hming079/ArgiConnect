@@ -94,17 +94,30 @@ function CropDetailPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("visible");
+  const [provinceFilter, setProvinceFilter] = useState("all");
   const [mutationError, setMutationError] = useState("");
   const [notice, setNotice] = useState("");
   const batches = batchesQuery.data ?? [];
+  const provinceOptions = useMemo(
+    () =>
+      Array.from(new Set(batches.map((batch) => batch.province).filter(Boolean))).sort((a, b) =>
+        a.localeCompare(b),
+      ),
+    [batches],
+  );
   const filteredBatches = useMemo(
     () =>
       batches.filter((batch) => {
-        if (statusFilter === "all") return true;
-        if (statusFilter === "visible") return batch.status !== "expired";
-        return batch.status === statusFilter;
+        const matchesStatus =
+          statusFilter === "all"
+            ? true
+            : statusFilter === "visible"
+              ? batch.status !== "expired"
+              : batch.status === statusFilter;
+        const matchesProvince = provinceFilter === "all" || batch.province === provinceFilter;
+        return matchesStatus && matchesProvince;
       }),
-    [batches, statusFilter],
+    [batches, provinceFilter, statusFilter],
   );
 
   useEffect(() => {
@@ -114,7 +127,7 @@ function CropDetailPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [statusFilter]);
+  }, [provinceFilter, statusFilter]);
 
   const start = (page - 1) * pageSize;
   const pagedBatches = filteredBatches.slice(start, start + pageSize);
@@ -280,34 +293,54 @@ function CropDetailPage() {
         </div>
 
         {batchesQuery.data && batchesQuery.data.length > 0 && (
-          <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-card sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-card lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <Label
-                htmlFor="batch-status-filter"
-                className="text-xs uppercase tracking-wider text-muted-foreground"
-              >
-                Lọc trạng thái
-              </Label>
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Bộ lọc lô
+              </div>
               <p className="mt-1 text-sm text-muted-foreground">
-                Mặc định ẩn các lô đã hết hạn.
+                Mặc định ẩn các lô đã hết hạn. Có thể lọc thêm theo tỉnh thành.
               </p>
             </div>
-            <div className="flex flex-col gap-2 sm:min-w-64">
-              <select
-                id="batch-status-filter"
-                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-              >
-                <option value="visible">Tất cả trừ Hết hạn</option>
-                <option value="all">Tất cả trạng thái</option>
-                {statusOptions.map((status) => (
-                  <option key={status} value={status}>
-                    {statusLabels[status]}
-                  </option>
-                ))}
-              </select>
-              <div className="text-xs text-muted-foreground">
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,16rem)_minmax(0,16rem)]">
+              <div className="space-y-1.5">
+                <Label htmlFor="batch-status-filter" className="text-xs text-muted-foreground">
+                  Trạng thái
+                </Label>
+                <select
+                  id="batch-status-filter"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+                >
+                  <option value="visible">Tất cả trừ Hết hạn</option>
+                  <option value="all">Tất cả trạng thái</option>
+                  {statusOptions.map((status) => (
+                    <option key={status} value={status}>
+                      {statusLabels[status]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="batch-province-filter" className="text-xs text-muted-foreground">
+                  Tỉnh thành
+                </Label>
+                <select
+                  id="batch-province-filter"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={provinceFilter}
+                  onChange={(event) => setProvinceFilter(event.target.value)}
+                >
+                  <option value="all">Tất cả tỉnh thành</option>
+                  {provinceOptions.map((province) => (
+                    <option key={province} value={province}>
+                      {province}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="text-xs text-muted-foreground sm:col-span-2">
                 Hiển thị {filteredBatches.length}/{batches.length} lô
               </div>
             </div>

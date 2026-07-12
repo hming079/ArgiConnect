@@ -280,21 +280,21 @@ function AdminDashboard() {
               </button>
               <button
                 type="button"
-                onClick={() => importMutation.mutate()}
-                disabled={importMutation.isPending}
-                className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-soft disabled:opacity-60"
-              >
-                <Upload className="h-4 w-4" />
-                {importMutation.isPending ? "Đang import..." : "Import Forecast"}
-              </button>
-              <button
-                type="button"
                 onClick={() => generateAiForecastMutation.mutate()}
                 disabled={generateAiForecastMutation.isPending}
                 className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-soft disabled:opacity-60"
               >
                 <TrendingUp className="h-4 w-4" />
                 {generateAiForecastMutation.isPending ? "Generating..." : "Generate AI Forecast"}
+              </button>
+              <button
+                type="button"
+                onClick={() => importMutation.mutate()}
+                disabled={importMutation.isPending}
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-soft disabled:opacity-60"
+              >
+                <Upload className="h-4 w-4" />
+                {importMutation.isPending ? "Đang import..." : "Import Forecast Local"}
               </button>
               <button
                 type="button"
@@ -376,7 +376,10 @@ function AdminDashboard() {
 
           {generateAiForecastMutation.isError && (
             <div className="mx-5 mt-4 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-              Cannot call AI service. Start FastAPI on port 8001 and import the backend dataset first.
+              {getMutationErrorMessage(
+                generateAiForecastMutation.error,
+                "Cannot call AI service. Start FastAPI on port 8001 and import the backend dataset first.",
+              )}
             </div>
           )}
           <div className="grid gap-3 border-b border-border p-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -855,6 +858,20 @@ function downloadForecastCsv(
 function csvEscape(value: string) {
   if (!/[",\n]/.test(value)) return value;
   return `"${value.replace(/"/g, '""')}"`;
+}
+
+function getMutationErrorMessage(error: unknown, fallback: string) {
+  if (typeof error === "object" && error !== null && "response" in error) {
+    const response = (error as { response?: { data?: unknown; status?: number } }).response;
+    const data = response?.data;
+    if (typeof data === "string" && data.trim()) return data;
+    if (typeof data === "object" && data !== null && "message" in data) {
+      const message = (data as { message?: unknown }).message;
+      if (typeof message === "string" && message.trim()) return message;
+    }
+    if (response?.status) return `${fallback} Backend status: ${response.status}.`;
+  }
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 function monthlyTrend(forecasts: ForecastResult[]) {

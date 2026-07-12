@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from pydantic import ValidationError
 
-from .forecast_service import predict_many
+from .forecast_service import load_default_inputs, predict_many
 from .model_loader import current_model_name, model_is_available
 from .schemas import BatchForecastRequest, BatchForecastResponse, ForecastInput, ForecastPrediction, HealthResponse
 
@@ -35,9 +36,34 @@ def predict_one(item: ForecastInput) -> ForecastPrediction:
 
 
 @app.post("/predict-batch", response_model=BatchForecastResponse)
-def predict_batch(request: BatchForecastRequest) -> BatchForecastResponse:
+async def predict_batch(request: Request) -> BatchForecastResponse:
     try:
-        predictions = predict_many(request.items)
+        try:
+            payload = await request.json()
+        except Exception:
+            payload = None
+
+        if payload:
+            batch_request = BatchForecastRequest.model_validate(payload)
+            items = batch_request.items
+        else:
+            items = load_default_inputs()
+
+        predictions = predict_many(items)
+        model_name = predictions[0].model_name if predictions else current_model_name()
+        return BatchForecastResponse(model_name=model_name, predictions=predictions)
+    except FileNotFoundError as exception:
+        raise HTTPException(status_code=400, detail=str(exception)) from exception
+    except ValidationError as exception:
+        raise HTTPException(status_code=422, detail=exception.errors()) from exception
+    except ValueError as exception:
+        raise HTTPException(status_code=422, detail=str(exception)) from exception
+
+
+@app.post("/predict-default-dataset", response_model=BatchForecastResponse)
+def predict_default_dataset() -> BatchForecastResponse:
+    try:
+        predictions = predict_many(load_default_inputs())
         model_name = predictions[0].model_name if predictions else current_model_name()
         return BatchForecastResponse(model_name=model_name, predictions=predictions)
     except FileNotFoundError as exception:

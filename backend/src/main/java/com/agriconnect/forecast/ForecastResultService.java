@@ -91,17 +91,7 @@ public class ForecastResultService {
             throw new BadRequestException("No backend AI dataset found. Import dataset before generating AI forecasts.");
         }
 
-        List<AiForecastClient.ForecastRequestItem> requestItems = datasetRows.stream()
-                .map(row -> new AiForecastClient.ForecastRequestItem(
-                        row.getProvince(),
-                        row.getCropName(),
-                        row.getYear(),
-                        row.getMonth(),
-                        row.getSoldQuantity(),
-                        row.getAveragePrice()))
-                .toList();
-
-        AiForecastClient.BatchForecastResponse response = aiForecastClient.predictBatch(requestItems);
+        AiForecastClient.BatchForecastResponse response = aiForecastClient.predictDefaultDataset();
         List<ForecastResult> results = response.predictions().stream()
                 .map(this::toForecastResult)
                 .toList();

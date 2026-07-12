@@ -116,7 +116,7 @@ function Home() {
           <div className="hidden lg:block">
             <div className="relative">
               <img src={heroImg} alt="Vườn nông sản Việt Nam" width={1536} height={1024} className="aspect-[4/3] w-full rounded-3xl object-cover shadow-soft" />
-              <div className="absolute -bottom-6 -left-6 w-64 rounded-2xl bg-card p-4 shadow-soft">
+              {/* <div className="absolute -bottom-6 -left-6 w-64 rounded-2xl bg-card p-4 shadow-soft">
                 <div className="flex items-center gap-3">
                   <div className="grid h-10 w-10 place-items-center rounded-full bg-destructive/10 text-destructive">
                     <HeartHandshake className="h-5 w-5" />
@@ -130,7 +130,7 @@ function Home() {
                   <div className="h-full rounded-full bg-destructive" style={{ width: "65%" }} />
                 </div>
                 <div className="mt-1 text-right text-xs text-muted-foreground">65% đã tiêu thụ</div>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>
