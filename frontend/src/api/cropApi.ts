@@ -1,4 +1,5 @@
 import axiosClient from "./axiosClient";
+import { normalizePage, type PageParams, type PageResponse } from "./pagination";
 
 export interface Crop {
   id: number;
@@ -66,13 +67,38 @@ export async function deleteCrop(id: number) {
   await axiosClient.delete(`/crops/${id}`);
 }
 
+export interface CropBatchFilters {
+  cropId?: number;
+  farmerId?: number;
+  status?: CropBatchStatus;
+  province?: string;
+  excludeExpired?: boolean;
+}
+
 export async function getCropBatches(cropId?: number, mine = false) {
-  const response = await axiosClient.get<CropBatch[]>(mine ? "/crop-batches/my" : "/crop-batches", {
-    params: !mine && cropId !== undefined ? { cropId } : undefined,
+  return getAllCropBatches(cropId !== undefined ? { cropId } : undefined, mine);
+}
+
+export async function getCropBatchesPage(filters?: CropBatchFilters, mine = false, pagination?: PageParams) {
+  const page = pagination?.page ?? 0;
+  const size = pagination?.size ?? 20;
+  const response = await axiosClient.get<CropBatch[] | PageResponse<CropBatch>>(mine ? "/crop-batches/my" : "/crop-batches", {
+    params: { ...filters, page, size },
   });
-  return mine && cropId !== undefined
-    ? response.data.filter((batch) => batch.cropId === cropId)
-    : response.data;
+  return normalizePage(response.data, page, size);
+}
+
+async function getAllCropBatches(filters?: CropBatchFilters, mine = false) {
+  const size = 100;
+  const firstPage = await getCropBatchesPage(filters, mine, { page: 0, size });
+  const batches = [...firstPage.content];
+
+  for (let page = 1; page < firstPage.totalPages; page += 1) {
+    const nextPage = await getCropBatchesPage(filters, mine, { page, size });
+    batches.push(...nextPage.content);
+  }
+
+  return batches;
 }
 
 export async function createCropBatch(data: CropBatchInput) {

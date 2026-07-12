@@ -2,7 +2,7 @@ package com.agriconnect.shipment;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import java.util.List;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,10 +18,12 @@ public class ShipmentController {
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<Shipment>> getAll(
+    public ResponseEntity<Page<Shipment>> getAll(
             @RequestParam(required = false) Long logisticsUserId,
-            @RequestParam(required = false) ShipmentStatus status) {
-        return ResponseEntity.ok(service.getAll(logisticsUserId, status));
+            @RequestParam(required = false) ShipmentStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(service.getAll(logisticsUserId, status, page, size));
     }
 
     @GetMapping("/{id}")
@@ -39,8 +41,15 @@ public class ShipmentController {
     @GetMapping("/my")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "List visible shipments", description = "All roles see shipments related to their orders; admin sees all; logistics sees assigned shipments")
-    public ResponseEntity<List<Shipment>> getMyShipments() {
-        return ResponseEntity.ok(service.getMyShipments());
+    public ResponseEntity<Page<Shipment>> getMyShipments(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(service.getMyShipments(page, size));
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Page<Shipment>> getMyShipments() {
+        return ResponseEntity.ok(service.getMyShipments(0, 20));
     }
 
     @PostMapping

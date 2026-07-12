@@ -7,11 +7,13 @@ import {
   deleteCropBatch,
   getCrop,
   getCropBatches,
+  getCropBatchesPage,
   getCrops,
   updateCrop,
   updateCropBatch,
 } from "@/api/cropApi";
-import type { CropBatchInput, CropInput } from "@/api/cropApi";
+import type { CropBatchFilters, CropBatchInput, CropInput } from "@/api/cropApi";
+import type { PageParams } from "@/api/pagination";
 
 export function useCrops() {
   return useQuery({
@@ -32,6 +34,15 @@ export function useCropBatches(cropId?: number, mine = false) {
   return useQuery({
     queryKey: ["crop-batches", { cropId, mine }],
     queryFn: () => getCropBatches(cropId, mine),
+    enabled: cropId === undefined || (Number.isInteger(cropId) && cropId > 0),
+  });
+}
+
+export function useCropBatchesPage(filters?: CropBatchFilters, mine = false, pagination?: PageParams) {
+  const cropId = filters?.cropId;
+  return useQuery({
+    queryKey: ["crop-batches", "page", { filters, mine, pagination }],
+    queryFn: () => getCropBatchesPage(filters, mine, pagination),
     enabled: cropId === undefined || (Number.isInteger(cropId) && cropId > 0),
   });
 }

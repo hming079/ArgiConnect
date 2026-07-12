@@ -16,7 +16,7 @@ import type { RescueRegistrationStatus } from "@/api/rescueRegistrationApi";
 import { PaginationControls } from "@/components/pagination-controls";
 import { PageShell } from "@/components/site-layout";
 import { Button } from "@/components/ui/button";
-import { useCropBatches, useCrops } from "@/hooks/use-crops";
+import { useCropBatchesPage, useCrops } from "@/hooks/use-crops";
 import { useMyRescueRegistrations } from "@/hooks/use-rescue-registrations";
 import { getCropImage } from "@/lib/crop-images";
 
@@ -26,18 +26,18 @@ export const Route = createFileRoute("/farmer/batches")({
 });
 
 function BatchesPage() {
-  const batchesQuery = useCropBatches(undefined, true);
-  const cropsQuery = useCrops();
-  const registrationsQuery = useMyRescueRegistrations();
-  const batches = batchesQuery.data ?? [];
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const batchesQuery = useCropBatchesPage(undefined, true, { page: page - 1, size: pageSize });
+  const cropsQuery = useCrops();
+  const registrationsQuery = useMyRescueRegistrations();
+  const batches = batchesQuery.data?.content ?? [];
+  const totalBatches = batchesQuery.data?.totalElements ?? batches.length;
   useEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(batches.length / pageSize));
+    const totalPages = Math.max(1, Math.ceil(totalBatches / pageSize));
     if (page > totalPages) setPage(totalPages);
-  }, [batches.length, page, pageSize]);
-  const start = (page - 1) * pageSize;
-  const pagedBatches = batches.slice(start, start + pageSize);
+  }, [page, pageSize, totalBatches]);
+  const pagedBatches = batches;
   const crops = cropsQuery.data ?? [];
   const registrations = registrationsQuery.data ?? [];
   const loading = batchesQuery.isPending || cropsQuery.isPending || registrationsQuery.isPending;
@@ -82,13 +82,13 @@ function BatchesPage() {
 
         {loading && <div className="mt-8 h-72 animate-pulse rounded-2xl bg-muted" />}
 
-        {!loading && !failed && batches.length === 0 && (
+        {!loading && !failed && totalBatches === 0 && (
           <div className="mt-8 rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
             Bạn chưa có lô nông sản nào.
           </div>
         )}
 
-        {!loading && !failed && batches.length > 0 && (
+        {!loading && !failed && totalBatches > 0 && (
           <>
             <div className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {pagedBatches.map((batch) => {
@@ -106,7 +106,7 @@ function BatchesPage() {
             </div>
             <div className="mt-6">
               <PaginationControls
-                totalItems={batches.length}
+                totalItems={totalBatches}
                 page={page}
                 pageSize={pageSize}
                 onPageChange={setPage}

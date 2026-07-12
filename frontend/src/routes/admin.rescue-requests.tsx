@@ -16,7 +16,7 @@ import { PageShell } from "@/components/site-layout";
 import { Button } from "@/components/ui/button";
 import { useCropBatches, useCrops } from "@/hooks/use-crops";
 import {
-  useRescueRegistrations,
+  useRescueRegistrationsPage,
   useReviewRescueRegistration,
 } from "@/hooks/use-rescue-registrations";
 import { useRescuePoints } from "@/hooks/use-rescue-points";
@@ -30,30 +30,37 @@ export const Route = createFileRoute("/admin/rescue-requests")({
 type Filter = "ALL" | RescueRegistrationStatus;
 
 function AdminRescueRequests() {
-  const registrationsQuery = useRescueRegistrations();
+  const [filter, setFilter] = useState<Filter>("PENDING");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const registrationsQuery = useRescueRegistrationsPage(
+    filter === "ALL" ? undefined : { status: filter },
+    { page: page - 1, size: pageSize },
+  );
   const batchesQuery = useCropBatches();
   const cropsQuery = useCrops();
   const pointsQuery = useRescuePoints();
   const review = useReviewRescueRegistration();
-  const [filter, setFilter] = useState<Filter>("PENDING");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
   const [error, setError] = useState("");
-  const registrations = registrationsQuery.data ?? [];
+  const registrations = registrationsQuery.data?.content ?? [];
+  const totalRegistrations = registrationsQuery.data?.totalElements ?? registrations.length;
   const batches = batchesQuery.data ?? [];
   const crops = cropsQuery.data ?? [];
   const points = pointsQuery.data ?? [];
-  const list = registrations.filter((item) => filter === "ALL" || item.status === filter);
+  const list = registrations;
   useEffect(() => {
     setPage(1);
   }, [filter]);
   useEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+    if (registrationsQuery.isFetching) return;
+    const totalPages = Math.max(1, Math.ceil(totalRegistrations / pageSize));
     if (page > totalPages) setPage(totalPages);
-  }, [list.length, page, pageSize]);
-  const start = (page - 1) * pageSize;
-  const pagedList = list.slice(start, start + pageSize);
-  const pendingCount = registrations.filter((item) => item.status === "PENDING").length;
+  }, [page, pageSize, registrationsQuery.isFetching, totalRegistrations]);
+  const pagedList = list;
+  const pendingCount =
+    filter === "PENDING"
+      ? totalRegistrations
+      : registrations.filter((item) => item.status === "PENDING").length;
   const loading =
     registrationsQuery.isPending ||
     batchesQuery.isPending ||
@@ -66,9 +73,15 @@ function AdminRescueRequests() {
     try {
       setError("");
       await review.mutateAsync({ id, decision });
+      setPage(1);
     } catch {
       setError("Không thể cập nhật yêu cầu. Vui lòng thử lại.");
     }
+  }
+
+  function changePage(nextPage: number) {
+    const totalPages = Math.max(1, Math.ceil(totalRegistrations / pageSize));
+    setPage(Math.min(Math.max(1, nextPage), totalPages));
   }
 
   return (
@@ -197,17 +210,17 @@ function AdminRescueRequests() {
                 </article>
               );
             })}
-            {list.length === 0 && (
+            {totalRegistrations === 0 && (
               <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-muted-foreground">
                 Không có đăng ký nào.
               </div>
             )}
-            {list.length > 0 && (
+            {totalRegistrations > 0 && (
               <PaginationControls
-                totalItems={list.length}
+                totalItems={totalRegistrations}
                 page={page}
                 pageSize={pageSize}
-                onPageChange={setPage}
+                onPageChange={changePage}
                 onPageSizeChange={(size) => {
                   setPageSize(size);
                   setPage(1);

@@ -53,6 +53,34 @@ Install these before running the project:
 
 ## Getting Started
 
+### Run the full stack with Docker Compose
+
+From the project root, start PostgreSQL, the backend, and the frontend:
+
+```bash
+docker compose up --build
+```
+
+Then open:
+
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:8080`
+- Swagger UI: `http://localhost:8080/swagger-ui.html`
+- PostgreSQL: `localhost:5433`
+
+Stop the stack with `docker compose down`. To also delete the database volume,
+run `docker compose down -v`.
+
+`VITE_API_URL` is embedded into the frontend at image build time and defaults to
+`http://localhost:8080/api`. To use another browser-accessible backend URL:
+
+```bash
+VITE_API_URL=https://example.com/api docker compose build frontend
+docker compose up
+```
+
+On PowerShell, set it with `$env:VITE_API_URL` before running the commands.
+
 ### 1. Start PostgreSQL
 
 From the backend folder:
@@ -163,11 +191,141 @@ npm run build
 npm run lint
 ```
 
+## Insert Synthetic Data
+
+The synthetic data generator creates a repeatable PostgreSQL seed containing
+users, crops, crop batches, orders, shipments, crop locks, rescue points, and
+rescue registrations. It also creates daily agricultural statistics for the AI
+workflow.
+
+> **Warning:** the generated SQL truncates and replaces existing application
+> data by default. The database schema and Flyway migration history are kept.
+
+Start the Docker stack and generate the files from the project root:
+
+```powershell
+docker compose up -d --build
+python ai\generate_synthetic_seed.py
+```
+
+Copy the generated SQL into PostgreSQL and execute it:
+
+```powershell
+docker compose cp ai/output/agriconnect_synthetic_seed.sql postgres:/tmp/agriconnect_synthetic_seed.sql
+docker compose exec postgres psql -U postgres -d agriconnect -f /tmp/agriconnect_synthetic_seed.sql
+```
+
+Verify the inserted users by role:
+
+```powershell
+docker compose exec postgres psql -U postgres -d agriconnect -c "SELECT role, COUNT(*) FROM users GROUP BY role ORDER BY role;"
+```
+
+Generated accounts use addresses such as:
+
+```text
+admin.0001@synthetic.agriconnect.vn
+farmer.0001@synthetic.agriconnect.vn
+buyer.0001@synthetic.agriconnect.vn
+logistics.0001@synthetic.agriconnect.vn
+```
+
+The shared password for synthetic accounts is `123456`.
+
 ## Local AI Forecast MVP
 
 AgriConnect includes a lightweight local machine learning workflow in `ai/` for forecasting agricultural supply quantity by province, crop, year, and month. It uses scikit-learn locally and does not call external AI APIs.
 
+### Complete Docker AI workflow
+
+Run the synthetic seed steps above first. They create
+`ai/output/daily_province_crop_stats.csv`, which is the input for ETL.
+
+Build the AI image, then run ETL and training in one-off containers:
+
+```powershell
+docker compose build ai
+docker compose run --rm ai python etl.py
+docker compose run --rm ai python train.py
+```
+
+The `ai/data`, `ai/models`, and `ai/output` directories are mounted into the
+container, so datasets and trained models remain on the host.
+
+Start the complete stack:
+
+```powershell
+docker compose up -d --build
+```
+
+The backend waits for the AI health check and connects to it through the Compose
+network at `http://ai:8001`. No separate Uvicorn terminal is required. Verify
+the service with:
+
+```powershell
+docker compose ps
+curl.exe http://localhost:8001/health
+```
+
+Compose mounts `ai/data` read-only at `/ai/data` inside the backend so it can
+import the cleaned CSV. If Compose configuration or a volume changes, recreate
+the affected containers without deleting the PostgreSQL volume:
+
+```powershell
+docker compose up -d --force-recreate ai backend
+```
+
+Authenticate with a synthetic admin account:
+
+```powershell
+$loginBody = @{
+  email = "admin.0001@synthetic.agriconnect.vn"
+  password = "123456"
+} | ConvertTo-Json
+
+$login = Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://localhost:8080/api/auth/login" `
+  -ContentType "application/json" `
+  -Body $loginBody
+
+$headers = @{ Authorization = "Bearer $($login.accessToken)" }
+```
+
+Import the cleaned training dataset into PostgreSQL:
+
+```powershell
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://localhost:8080/api/forecast-dataset/import-csv" `
+  -Headers $headers
+```
+
+Generate forecasts through the local AI service and save them in PostgreSQL:
+
+```powershell
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://localhost:8080/api/forecasts/generate-ai" `
+  -Headers $headers
+```
+
+Verify the saved forecasts:
+
+```powershell
+Invoke-RestMethod `
+  -Method Get `
+  -Uri "http://localhost:8080/api/forecasts" `
+  -Headers $headers
+```
+
+You can also perform the import and generation from the Admin Dashboard using
+`Import Dataset` followed by `Generate AI Forecast`.
+
 ### 1. Create Python environment
+
+The Docker workflow above is recommended. Use a local environment only for AI
+development:
 
 ```powershell
 cd ai

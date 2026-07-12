@@ -2,7 +2,7 @@ package com.agriconnect.order;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import java.util.List;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,10 +22,12 @@ public class OrderController {
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<Order>> getAll(
+    public ResponseEntity<Page<Order>> getAll(
             @RequestParam(required = false) Long buyerId,
-            @RequestParam(required = false) OrderStatus status) {
-        return ResponseEntity.ok(service.getAll(buyerId, status));
+            @RequestParam(required = false) OrderStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(service.getAll(buyerId, status, page, size));
     }
 
     @GetMapping("/{id}")
@@ -37,8 +39,15 @@ public class OrderController {
     @GetMapping("/my")
     @PreAuthorize("hasRole('BUYER')")
     @Operation(summary = "List my orders", description = "Required role: BUYER")
-    public ResponseEntity<List<Order>> getMyOrders() {
-        return ResponseEntity.ok(service.getMyOrders());
+    public ResponseEntity<Page<Order>> getMyOrders(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(service.getMyOrders(page, size));
+    }
+
+    @PreAuthorize("hasRole('BUYER')")
+    public ResponseEntity<Page<Order>> getMyOrders() {
+        return ResponseEntity.ok(service.getMyOrders(0, 20));
     }
 
     @PostMapping

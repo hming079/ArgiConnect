@@ -7,7 +7,7 @@ import { PaginationControls } from "@/components/pagination-controls";
 import { PageShell } from "@/components/site-layout";
 import { Button } from "@/components/ui/button";
 import { useCropBatches, useCrops } from "@/hooks/use-crops";
-import { useCreateRescueRegistration, useDeleteMyRescueRegistration, useMyRescueRegistrations, useUpdateMyRescueRegistration } from "@/hooks/use-rescue-registrations";
+import { useCreateRescueRegistration, useDeleteMyRescueRegistration, useMyRescueRegistrationsPage, useUpdateMyRescueRegistration } from "@/hooks/use-rescue-registrations";
 import { useRescuePoints } from "@/hooks/use-rescue-points";
 import { getCropImage } from "@/lib/crop-images";
 
@@ -20,31 +20,31 @@ function FarmerRescueRequests() {
   const batchesQuery = useCropBatches(undefined, true);
   const cropsQuery = useCrops();
   const pointsQuery = useRescuePoints();
-  const registrationsQuery = useMyRescueRegistrations();
   const createRegistration = useCreateRescueRegistration();
   const updateRegistration = useUpdateMyRescueRegistration();
   const deleteRegistration = useDeleteMyRescueRegistration();
-  const batches = batchesQuery.data ?? [];
-  const crops = cropsQuery.data ?? [];
-  const points = (pointsQuery.data ?? []).filter((point) => point.status === "ACTIVE");
-  const registrations = registrationsQuery.data ?? [];
   const [batchId, setBatchId] = useState(0);
   const [rescuePointId, setRescuePointId] = useState(0);
   const [pointEdits, setPointEdits] = useState<Record<number, number>>({});
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const registrationsQuery = useMyRescueRegistrationsPage({ page: page - 1, size: pageSize });
+  const batches = batchesQuery.data ?? [];
+  const crops = cropsQuery.data ?? [];
+  const points = (pointsQuery.data ?? []).filter((point) => point.status === "ACTIVE");
+  const registrations = registrationsQuery.data?.content ?? [];
+  const totalRegistrations = registrationsQuery.data?.totalElements ?? registrations.length;
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => { if (!batchId && batches[0]) setBatchId(batches[0].id); }, [batchId, batches]);
   useEffect(() => { if (!rescuePointId && points[0]) setRescuePointId(points[0].id); }, [points, rescuePointId]);
   useEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(registrations.length / pageSize));
+    const totalPages = Math.max(1, Math.ceil(totalRegistrations / pageSize));
     if (page > totalPages) setPage(totalPages);
-  }, [page, pageSize, registrations.length]);
+  }, [page, pageSize, totalRegistrations]);
 
-  const start = (page - 1) * pageSize;
-  const pagedRegistrations = registrations.slice(start, start + pageSize);
+  const pagedRegistrations = registrations;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -108,10 +108,10 @@ function FarmerRescueRequests() {
               <div className="mt-1 text-xs text-muted-foreground">Gửi lúc: {formatDate(registration.submittedAt)}</div>
               {registration.status === "PENDING" && <div className="mt-3 flex flex-wrap gap-2"><select value={pointEdits[registration.id] ?? registration.rescuePointId} onChange={(e) => setPointEdits((current) => ({ ...current, [registration.id]: Number(e.target.value) }))} className="min-w-48 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm">{points.map((point) => <option key={point.id} value={point.id}>{point.name}</option>)}</select><Button size="sm" variant="outline" onClick={() => void updatePoint(registration.id, registration.rescuePointId)}>Cập nhật</Button><Button size="sm" variant="destructive" onClick={() => void cancel(registration.id)}><Trash2 className="mr-1 h-3.5 w-3.5" /> Hủy</Button></div>}
             </article>)}
-            {!pending && registrations.length === 0 && <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">Chưa có đăng ký nào.</p>}
-            {registrations.length > 0 && (
+            {!pending && totalRegistrations === 0 && <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">Chưa có đăng ký nào.</p>}
+            {totalRegistrations > 0 && (
               <PaginationControls
-                totalItems={registrations.length}
+                totalItems={totalRegistrations}
                 page={page}
                 pageSize={pageSize}
                 onPageChange={setPage}

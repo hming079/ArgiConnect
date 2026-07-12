@@ -2,9 +2,11 @@ package com.agriconnect.shipment;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.security.access.AccessDeniedException;
 
+import com.agriconnect.common.PageUtils;
 import com.agriconnect.common.ResourceNotFoundException;
 import com.agriconnect.cropBatch.CropBatchRepository;
 import com.agriconnect.order.OrderRepository;
@@ -48,6 +50,10 @@ public class ShipmentService {
                 .toList();
     }
 
+    public Page<Shipment> getAll(Long logisticsUserId, ShipmentStatus status, int page, int size) {
+        return PageUtils.toPage(getAll(logisticsUserId, status), page, size);
+    }
+
     public Shipment getById(Long id) {
         return repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Shipment not found with id: " + id));
@@ -68,6 +74,10 @@ public class ShipmentService {
 
     public List<Shipment> getMyShipments() {
         return getAll(null, null);
+    }
+
+    public Page<Shipment> getMyShipments(int page, int size) {
+        return PageUtils.toPage(getMyShipments(), page, size);
     }
 
     public Shipment create(Shipment shipment) {

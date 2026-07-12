@@ -23,7 +23,7 @@ import { PageShell } from "@/components/site-layout";
 import { useAuth } from "@/hooks/use-auth";
 import { useCropBatches, useCrops } from "@/hooks/use-crops";
 import { useOrderItems } from "@/hooks/use-order-items";
-import { useMyOrders, useOrders, useUpdateOrderStatus } from "@/hooks/use-orders";
+import { useMyOrdersPage, useOrdersPage, useUpdateOrderStatus } from "@/hooks/use-orders";
 import { useMyShipments } from "@/hooks/use-shipments";
 import { useVisibleBuyers } from "@/hooks/use-user-profile";
 import type { UserRole } from "@/lib/auth";
@@ -85,11 +85,13 @@ function Page() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5); // Tối ưu: Đổi mặc định sang 5 cho gọn thẻ
   const { role, ready } = useAuth();
-  const ordersQuery = useOrders(
-    undefined,
+  const orderFilters = statusFilter === "ALL" ? undefined : { status: statusFilter };
+  const ordersQuery = useOrdersPage(
+    orderFilters,
+    { page: page - 1, size: pageSize },
     role === "ADMIN" || role === "FARMER" || role === "LOGISTICS",
   );
-  const myOrdersQuery = useMyOrders(role === "BUYER");
+  const myOrdersQuery = useMyOrdersPage({ page: page - 1, size: pageSize }, role === "BUYER");
   const shipmentsQuery = useMyShipments(!!role);
   const orderItemsQuery = useOrderItems(undefined, !!role);
   const batchesQuery = useCropBatches();
@@ -101,8 +103,8 @@ function Page() {
     () =>
       getRows(
         role,
-        ordersQuery.data,
-        myOrdersQuery.data,
+        ordersQuery.data?.content,
+        myOrdersQuery.data?.content,
         shipmentsQuery.data,
         orderItemsQuery.data,
         batchesQuery.data,
@@ -111,8 +113,8 @@ function Page() {
       ),
     [
       role,
-      ordersQuery.data,
-      myOrdersQuery.data,
+      ordersQuery.data?.content,
+      myOrdersQuery.data?.content,
       shipmentsQuery.data,
       orderItemsQuery.data,
       batchesQuery.data,
@@ -148,12 +150,21 @@ function Page() {
   }, [q, statusFilter]);
 
   useEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    const totalRows = q.trim()
+      ? filtered.length
+      : role === "BUYER"
+        ? (myOrdersQuery.data?.totalElements ?? filtered.length)
+        : (ordersQuery.data?.totalElements ?? filtered.length);
+    const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
     if (page > totalPages) setPage(totalPages);
-  }, [filtered.length, page, pageSize]);
+  }, [filtered.length, myOrdersQuery.data?.totalElements, ordersQuery.data?.totalElements, page, pageSize, q, role]);
 
-  const start = (page - 1) * pageSize;
-  const pagedRows = filtered.slice(start, start + pageSize);
+  const totalRows = q.trim()
+    ? filtered.length
+    : role === "BUYER"
+      ? (myOrdersQuery.data?.totalElements ?? filtered.length)
+      : (ordersQuery.data?.totalElements ?? filtered.length);
+  const pagedRows = filtered;
 
   const isLoading =
     !ready ||
@@ -262,7 +273,7 @@ function Page() {
               />
             ))}
             <PaginationControls
-              totalItems={filtered.length}
+              totalItems={totalRows}
               page={page}
               pageSize={pageSize}
               onPageChange={setPage}

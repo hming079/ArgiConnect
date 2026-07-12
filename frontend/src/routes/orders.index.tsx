@@ -1,15 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CheckCircle2, Clock, Loader2, PackageCheck, ShieldCheck, ShoppingBag, Truck, X } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import type { Order, OrderStatus } from "@/api/orderApi";
 import type { Crop, CropBatch } from "@/api/cropApi";
 import type { OrderItem } from "@/api/orderItemApi";
 import type { Shipment } from "@/api/shipmentApi";
+import { PaginationControls } from "@/components/pagination-controls";
 import { PageShell } from "@/components/site-layout";
 import { useAuth } from "@/hooks/use-auth";
 import { useCropBatches, useCrops } from "@/hooks/use-crops";
 import { useOrderItems } from "@/hooks/use-order-items";
-import { useMyOrders, useOrders, useUpdateOrderStatus } from "@/hooks/use-orders";
+import { useMyOrdersPage, useOrdersPage, useUpdateOrderStatus } from "@/hooks/use-orders";
 import { useMyShipments, useUpdateShipmentStatus } from "@/hooks/use-shipments";
 import type { UserRole } from "@/lib/auth";
 import { getCropImage } from "@/lib/crop-images";
@@ -54,8 +56,10 @@ interface OrderCropInfo {
 
 function OrdersPage() {
   const { role, ready } = useAuth();
-  const ordersQuery = useOrders(undefined, role === "ADMIN" || role === "FARMER" || role === "LOGISTICS");
-  const myOrdersQuery = useMyOrders(role === "BUYER");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const ordersQuery = useOrdersPage(undefined, { page: page - 1, size: pageSize }, role === "ADMIN" || role === "FARMER" || role === "LOGISTICS");
+  const myOrdersQuery = useMyOrdersPage({ page: page - 1, size: pageSize }, role === "BUYER");
   const shipmentsQuery = useMyShipments(role === "FARMER" || role === "LOGISTICS");
   const orderItemsQuery = useOrderItems(undefined, !!role);
   const batchesQuery = useCropBatches();
@@ -63,10 +67,20 @@ function OrdersPage() {
   const updateOrderStatus = useUpdateOrderStatus();
   const updateShipmentStatus = useUpdateShipmentStatus();
 
-  const rows = getRows(role, ordersQuery.data, myOrdersQuery.data, shipmentsQuery.data, orderItemsQuery.data, batchesQuery.data, cropsQuery.data);
+  const orders = ordersQuery.data?.content;
+  const myOrders = myOrdersQuery.data?.content;
+  const totalOrders = role === "BUYER"
+    ? (myOrdersQuery.data?.totalElements ?? myOrders?.length ?? 0)
+    : (ordersQuery.data?.totalElements ?? orders?.length ?? 0);
+  const rows = getRows(role, orders, myOrders, shipmentsQuery.data, orderItemsQuery.data, batchesQuery.data, cropsQuery.data);
   const isLoading = !ready || ordersQuery.isLoading || myOrdersQuery.isLoading || shipmentsQuery.isLoading || orderItemsQuery.isLoading || batchesQuery.isLoading || cropsQuery.isLoading;
   const isError = ordersQuery.isError || myOrdersQuery.isError || shipmentsQuery.isError || orderItemsQuery.isError || batchesQuery.isError || cropsQuery.isError;
   const busy = updateOrderStatus.isPending || updateShipmentStatus.isPending;
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(totalOrders / pageSize));
+    if (page > totalPages) setPage(totalPages);
+  }, [page, pageSize, totalOrders]);
 
   async function changeStatus(row: OrderRow, status: OrderStatus) {
     if (row.source === "shipment" && row.shipmentId) {
@@ -108,6 +122,16 @@ function OrdersPage() {
             {rows.map((row) => (
               <OrderCard key={`${row.source}-${row.id}`} row={row} role={role} busy={busy} onChangeStatus={changeStatus} />
             ))}
+            <PaginationControls
+              totalItems={totalOrders}
+              page={page}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPage(1);
+              }}
+            />
           </div>
         )}
       </div>

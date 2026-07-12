@@ -1,4 +1,5 @@
 import axiosClient from "./axiosClient";
+import { normalizePage, unwrapPage, type PageParams, type PageResponse } from "./pagination";
 
 export type OrderStatus =
   | "PENDING"
@@ -29,10 +30,20 @@ export interface OrderFilters {
 }
 
 export async function getOrders(filters?: OrderFilters) {
-  return (await axiosClient.get<Order[]>("/orders", { params: filters })).data;
+  return unwrapPage((await axiosClient.get<Order[] | PageResponse<Order>>("/orders", { params: { ...filters, size: 100 } })).data);
+}
+export async function getOrdersPage(filters?: OrderFilters, pagination?: PageParams) {
+  const page = pagination?.page ?? 0;
+  const size = pagination?.size ?? 20;
+  return normalizePage((await axiosClient.get<Order[] | PageResponse<Order>>("/orders", { params: { ...filters, page, size } })).data, page, size);
 }
 export async function getMyOrders() {
-  return (await axiosClient.get<Order[]>("/orders/my")).data;
+  return unwrapPage((await axiosClient.get<Order[] | PageResponse<Order>>("/orders/my", { params: { size: 100 } })).data);
+}
+export async function getMyOrdersPage(pagination?: PageParams) {
+  const page = pagination?.page ?? 0;
+  const size = pagination?.size ?? 20;
+  return normalizePage((await axiosClient.get<Order[] | PageResponse<Order>>("/orders/my", { params: { page, size } })).data, page, size);
 }
 export async function getOrder(id: number) {
   return (await axiosClient.get<Order>(`/orders/${id}`)).data;

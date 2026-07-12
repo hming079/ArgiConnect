@@ -3,8 +3,8 @@ package com.agriconnect.cropBatch;
 import com.agriconnect.cropBatch.dto.CreateCropBatchRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import java.util.List;
 
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,23 +31,15 @@ public class CropBatchController {
 
     @GetMapping
     @PreAuthorize("permitAll()")
-    public ResponseEntity<List<CropBatch>> getAllCropBatches(
+    public ResponseEntity<Page<CropBatch>> getAllCropBatches(
             @RequestParam(required = false) Long cropId,
             @RequestParam(required = false) Long farmerId,
-            @RequestParam(required = false) CropBatchStatus status) {
-        if (cropId != null) {
-            return ResponseEntity.ok(cropBatchService.getCropBatchesByCropId(cropId));
-        }
-
-        if (farmerId != null) {
-            return ResponseEntity.ok(cropBatchService.getCropBatchesByFarmerId(farmerId));
-        }
-
-        if (status != null) {
-            return ResponseEntity.ok(cropBatchService.getCropBatchesByStatus(status));
-        }
-
-        return ResponseEntity.ok(cropBatchService.getAllCropBatches());
+            @RequestParam(required = false) CropBatchStatus status,
+            @RequestParam(required = false) String province,
+            @RequestParam(defaultValue = "false") boolean excludeExpired,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(cropBatchService.getAllCropBatches(cropId, farmerId, status, province, excludeExpired, page, size));
     }
 
     @GetMapping("/{id}")
@@ -59,8 +51,19 @@ public class CropBatchController {
     @GetMapping("/my")
     @PreAuthorize("hasRole('FARMER')")
     @Operation(summary = "List my crop batches", description = "Required role: FARMER")
-    public ResponseEntity<List<CropBatch>> getMyCropBatches() {
-        return ResponseEntity.ok(cropBatchService.getMyCropBatches());
+    public ResponseEntity<Page<CropBatch>> getMyCropBatches(
+            @RequestParam(required = false) Long cropId,
+            @RequestParam(required = false) CropBatchStatus status,
+            @RequestParam(required = false) String province,
+            @RequestParam(defaultValue = "false") boolean excludeExpired,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(cropBatchService.getMyCropBatches(cropId, status, province, excludeExpired, page, size));
+    }
+
+    @PreAuthorize("hasRole('FARMER')")
+    public ResponseEntity<Page<CropBatch>> getMyCropBatches() {
+        return ResponseEntity.ok(cropBatchService.getMyCropBatches(null, null, null, false, 0, 20));
     }
 
     @PostMapping

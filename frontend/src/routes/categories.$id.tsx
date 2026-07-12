@@ -38,7 +38,7 @@ import { useCart } from "@/hooks/use-cart";
 import {
   useCreateCropBatch,
   useCrop,
-  useCropBatches,
+  useCropBatchesPage,
   useDeleteCropBatch,
   useUpdateCropBatch,
 } from "@/hooks/use-crops";
@@ -82,7 +82,6 @@ function CropDetailPage() {
   const isBuyer = role === "BUYER";
   const { add } = useCart();
   const cropQuery = useCrop(cropId);
-  const batchesQuery = useCropBatches(cropId, isFarmer);
   const createBatch = useCreateCropBatch();
   const updateBatch = useUpdateCropBatch();
   const deleteBatch = useDeleteCropBatch();
@@ -97,7 +96,19 @@ function CropDetailPage() {
   const [provinceFilter, setProvinceFilter] = useState("all");
   const [mutationError, setMutationError] = useState("");
   const [notice, setNotice] = useState("");
-  const batches = batchesQuery.data ?? [];
+  const batchStatus = statusFilter === "all" || statusFilter === "visible" ? undefined : statusFilter;
+  const batchesQuery = useCropBatchesPage(
+    {
+      cropId,
+      status: batchStatus,
+      province: provinceFilter === "all" ? undefined : provinceFilter,
+      excludeExpired: statusFilter === "visible",
+    },
+    isFarmer,
+    { page: page - 1, size: pageSize },
+  );
+  const batches = batchesQuery.data?.content ?? [];
+  const totalBatches = batchesQuery.data?.totalElements ?? batches.length;
   const provinceOptions = useMemo(
     () =>
       Array.from(new Set(batches.map((batch) => batch.province).filter(Boolean))).sort((a, b) =>
@@ -105,32 +116,18 @@ function CropDetailPage() {
       ),
     [batches],
   );
-  const filteredBatches = useMemo(
-    () =>
-      batches.filter((batch) => {
-        const matchesStatus =
-          statusFilter === "all"
-            ? true
-            : statusFilter === "visible"
-              ? batch.status !== "expired"
-              : batch.status === statusFilter;
-        const matchesProvince = provinceFilter === "all" || batch.province === provinceFilter;
-        return matchesStatus && matchesProvince;
-      }),
-    [batches, provinceFilter, statusFilter],
-  );
+  const filteredBatches = batches;
 
   useEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(filteredBatches.length / pageSize));
+    const totalPages = Math.max(1, Math.ceil(totalBatches / pageSize));
     if (page > totalPages) setPage(totalPages);
-  }, [filteredBatches.length, page, pageSize]);
+  }, [page, pageSize, totalBatches]);
 
   useEffect(() => {
     setPage(1);
   }, [provinceFilter, statusFilter]);
 
-  const start = (page - 1) * pageSize;
-  const pagedBatches = filteredBatches.slice(start, start + pageSize);
+  const pagedBatches = filteredBatches;
 
   async function removeBatch(batch: CropBatch) {
     if (!isFarmer || !window.confirm(`Xóa lô #${batch.id}?`)) return;
@@ -246,7 +243,7 @@ function CropDetailPage() {
               <InfoCard
                 icon={Package}
                 label="Số lô hiện có"
-                value={batchesQuery.isPending ? "…" : batches.length}
+                value={batchesQuery.isPending ? "…" : totalBatches}
               />
             </div>
           </div>
@@ -278,7 +275,7 @@ function CropDetailPage() {
         <div className="mt-5 grid gap-4 sm:grid-cols-3">
           <StatCard
             label="Tổng số lô"
-            value={batchesQuery.isPending ? "…" : String(batches.length)}
+            value={batchesQuery.isPending ? "…" : String(totalBatches)}
           />
           <StatCard
             label="Tổng sản lượng"
@@ -292,7 +289,7 @@ function CropDetailPage() {
           />
         </div>
 
-        {batchesQuery.data && batchesQuery.data.length > 0 && (
+        {batchesQuery.data && totalBatches > 0 && (
           <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-card lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -341,7 +338,7 @@ function CropDetailPage() {
                 </select>
               </div>
               <div className="text-xs text-muted-foreground sm:col-span-2">
-                Hiển thị {filteredBatches.length}/{batches.length} lô
+                Hiển thị {filteredBatches.length}/{totalBatches} lô
               </div>
             </div>
           </div>
@@ -364,7 +361,7 @@ function CropDetailPage() {
           />
         )}
 
-        {batchesQuery.data?.length === 0 && (
+        {batchesQuery.data && totalBatches === 0 && (
           <div className="mt-6 rounded-2xl border border-dashed border-border bg-card p-10 text-center">
             <Package className="mx-auto h-10 w-10 text-muted-foreground" />
             <h3 className="mt-3 text-lg font-semibold">Chưa có lô {crop.name.toLowerCase()}</h3>
@@ -374,7 +371,7 @@ function CropDetailPage() {
           </div>
         )}
 
-        {batchesQuery.data && batchesQuery.data.length > 0 && filteredBatches.length === 0 && (
+        {batchesQuery.data && totalBatches > 0 && filteredBatches.length === 0 && (
           <div className="mt-6 rounded-2xl border border-dashed border-border bg-card p-10 text-center">
             <Package className="mx-auto h-10 w-10 text-muted-foreground" />
             <h3 className="mt-3 text-lg font-semibold">Không có lô phù hợp</h3>
@@ -384,7 +381,7 @@ function CropDetailPage() {
           </div>
         )}
 
-        {batchesQuery.data && batchesQuery.data.length > 0 && filteredBatches.length > 0 && (
+        {batchesQuery.data && totalBatches > 0 && filteredBatches.length > 0 && (
           <>
             <div className="mt-6 grid gap-3 lg:hidden">
               {pagedBatches.map((batch) => (
@@ -423,7 +420,7 @@ function CropDetailPage() {
             />
             <PaginationControls
               className="mt-4"
-              totalItems={filteredBatches.length}
+              totalItems={totalBatches}
               page={page}
               pageSize={pageSize}
               onPageChange={setPage}

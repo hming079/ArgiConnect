@@ -282,16 +282,16 @@ function AdminDashboard() {
                 type="button"
                 onClick={() => generateAiForecastMutation.mutate()}
                 disabled={generateAiForecastMutation.isPending}
-                className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-soft disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-soft disabled:opacity-60"
               >
                 <TrendingUp className="h-4 w-4" />
-                {generateAiForecastMutation.isPending ? "Generating..." : "Generate AI Forecast"}
+                {generateAiForecastMutation.isPending ? "Generating..." : "Generate Forecast from AI service"}
               </button>
               <button
                 type="button"
                 onClick={() => importMutation.mutate()}
                 disabled={importMutation.isPending}
-                className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-soft disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-primary-foreground shadow-soft disabled:opacity-60"
               >
                 <Upload className="h-4 w-4" />
                 {importMutation.isPending ? "Đang import..." : "Import Forecast Local"}

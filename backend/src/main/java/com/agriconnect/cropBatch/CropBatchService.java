@@ -9,7 +9,9 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.data.domain.Page;
 
+import com.agriconnect.common.PageUtils;
 import com.agriconnect.common.ResourceNotFoundException;
 import com.agriconnect.security.CurrentUser;
 import com.agriconnect.user.Role;
@@ -34,6 +36,18 @@ public class CropBatchService {
         return addFarmerNames(isAdmin() ? batches : publicBatches(batches));
     }
 
+    public Page<CropBatch> getAllCropBatches(Long cropId, Long farmerId, CropBatchStatus status, String province, boolean excludeExpired, int page, int size) {
+        List<CropBatch> batches = getAllCropBatches().stream()
+                .filter(batch -> cropId == null || cropId.equals(batch.getCropId()))
+                .filter(batch -> farmerId == null || farmerId.equals(batch.getFarmerId()))
+                .filter(batch -> status == null || status == batch.getStatus())
+                .filter(batch -> !excludeExpired || batch.getStatus() != CropBatchStatus.expired)
+                .filter(batch -> province == null || province.isBlank()
+                        || (batch.getProvince() != null && batch.getProvince().equalsIgnoreCase(province)))
+                .toList();
+        return PageUtils.toPage(batches, page, size);
+    }
+
     public List<CropBatch> getCropBatchesByCropId(Long cropId) {
         List<CropBatch> batches = cropBatchRepository.findByCropId(cropId);
         return addFarmerNames(isAdmin() ? batches : publicBatches(batches));
@@ -46,6 +60,17 @@ public class CropBatchService {
 
     public List<CropBatch> getMyCropBatches() {
         return addFarmerNames(cropBatchRepository.findByFarmerId(currentUser.getId()));
+    }
+
+    public Page<CropBatch> getMyCropBatches(Long cropId, CropBatchStatus status, String province, boolean excludeExpired, int page, int size) {
+        List<CropBatch> batches = getMyCropBatches().stream()
+                .filter(batch -> cropId == null || cropId.equals(batch.getCropId()))
+                .filter(batch -> status == null || status == batch.getStatus())
+                .filter(batch -> !excludeExpired || batch.getStatus() != CropBatchStatus.expired)
+                .filter(batch -> province == null || province.isBlank()
+                        || (batch.getProvince() != null && batch.getProvince().equalsIgnoreCase(province)))
+                .toList();
+        return PageUtils.toPage(batches, page, size);
     }
 
     public List<CropBatch> getCropBatchesByStatus(CropBatchStatus status) {

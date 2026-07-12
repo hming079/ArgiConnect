@@ -131,7 +131,7 @@ function CoordinationPage() {
       <div className="border-b border-border bg-leaf-pattern">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
-            <Activity className="h-3.5 w-3.5" /> Supply Chain Control Tower
+            <Activity className="h-3.5 w-3.5" /> Tháp điều khiển chuỗi cung ứng
           </div>
           <h1 className="mt-2 text-3xl font-bold sm:text-4xl">Dashboard điều phối nông sản</h1>
           <p className="mt-2 max-w-3xl text-muted-foreground">
@@ -248,29 +248,29 @@ function CoordinationPage() {
 
         <section>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <SectionTitle>AI-assisted Inventory Risk Forecast</SectionTitle>
+            <SectionTitle>Dự báo rủi ro tồn kho (Hỗ trợ bởi AI)</SectionTitle>
             <Link
               to="/analytics"
               className="inline-flex items-center gap-1 rounded-full border border-primary px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary-soft"
             >
-              View analytics <ArrowRight className="h-3.5 w-3.5" />
+              Xem báo cáo phân tích <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
 
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <RiskSummaryCard label="Active batches" value={inventoryRiskSummary?.totalBatches ?? 0} />
-            <RiskSummaryCard label="High risk" value={inventoryRiskSummary?.highRiskCount ?? 0} tone="high" />
-            <RiskSummaryCard label="Medium risk" value={inventoryRiskSummary?.mediumRiskCount ?? 0} tone="medium" />
-            <RiskSummaryCard label="Low risk" value={inventoryRiskSummary?.lowRiskCount ?? 0} tone="low" />
-            <RiskSummaryCard label="Average score" value={formatNumber(inventoryRiskSummary?.averageRiskScore ?? 0)} />
+            <RiskSummaryCard label="Tổng số lô" value={inventoryRiskSummary?.totalBatches ?? 0} />
+            <RiskSummaryCard label="Rủi ro cao" value={inventoryRiskSummary?.highRiskCount ?? 0} tone="high" />
+            <RiskSummaryCard label="Rủi ro trung bình" value={inventoryRiskSummary?.mediumRiskCount ?? 0} tone="medium" />
+            <RiskSummaryCard label="Rủi ro thấp" value={inventoryRiskSummary?.lowRiskCount ?? 0} tone="low" />
+            <RiskSummaryCard label="Điểm trung bình" value={formatNumber(inventoryRiskSummary?.averageRiskScore ?? 0)} />
           </div>
 
           <div className="mt-4 grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
             <RiskDistributionChart data={riskDistribution} />
             <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
               <div className="border-b border-border p-4">
-                <h3 className="text-base font-semibold">Crop Types at Risk</h3>
-                <p className="text-xs text-muted-foreground">Which crop types have the most risky unsold inventory.</p>
+                <h3 className="text-base font-semibold">Nông sản có nguy cơ rủi ro</h3>
+                <p className="text-xs text-muted-foreground">Những loại nông sản nào đang có lượng tồn kho rủi ro cao nhất.</p>
               </div>
               <div className="grid gap-3 p-4 md:grid-cols-2">
                 {cropTypeRiskCards.slice(0, 6).map((row) => (
@@ -278,7 +278,7 @@ function CoordinationPage() {
                 ))}
                 {!isLoading && cropTypeRiskCards.length === 0 && (
                   <div className="col-span-full rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-                    No crop type has active inventory risk right now.
+                    Hiện không có loại nông sản nào có rủi ro tồn kho.
                   </div>
                 )}
               </div>
@@ -299,30 +299,29 @@ function CoordinationPage() {
             <div className="grid gap-4">
               <ProvinceRiskRanking data={provinceRiskRanking} />
               <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
-                <div className="text-xs font-semibold uppercase tracking-wider text-primary">Forecast focus</div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-primary">Trọng tâm dự báo</div>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
                   <div>
-                    <div className="text-sm text-muted-foreground">Top risk province</div>
+                    <div className="text-sm text-muted-foreground">Tỉnh có rủi ro cao nhất</div>
                     <div className="text-xl font-bold">{inventoryRiskSummary?.topRiskProvince ?? "-"}</div>
                   </div>
                   <div>
-                    <div className="text-sm text-muted-foreground">Top risk crop</div>
+                    <div className="text-sm text-muted-foreground">Nông sản rủi ro cao nhất</div>
                     <div className="text-xl font-bold">{inventoryRiskSummary?.topRiskCropName ?? "-"}</div>
                   </div>
                 </div>
                 <div className="mt-4 rounded-xl border border-dashed border-border p-4 text-xs text-muted-foreground">
-                  This module is rule-based today. It is separated from the controller so ML demand or harvest forecasts can later replace the estimated daily sales input.
+                  Mô-đun này hiện tại được tính toán dựa trên tập luật (rule-based). Nó được thiết kế độc lập để các mô hình Học máy (ML) dự báo thu hoạch và nhu cầu có thể thay thế lượng bán ra ước tính hàng ngày sau này.
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section>
+        {/* <section>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <SectionTitle>Phân tích khả năng cung ứng</SectionTitle>
             
-            {/* Bộ lọc tình trạng ùn ứ */}
             <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-card p-1 text-xs">
               {[
                 { id: "ALL", label: "Tất cả" },
@@ -385,7 +384,6 @@ function CoordinationPage() {
             )}
           </div>
 
-          {/* Phân trang cho các Card */}
           {!isLoading && filteredProvinces.length > pageSize && (
             <div className="mt-4 rounded-2xl border border-border bg-card p-3 shadow-card">
               <PaginationControls
@@ -401,84 +399,6 @@ function CoordinationPage() {
               />
             </div>
           )}
-        </section>
-
-        {/* DỰ BÁO CUNG CẦU
-        <section>
-          <SectionTitle>Dự báo cung cầu</SectionTitle>
-          <div className="mt-4 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-            <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-              <h3 className="text-base font-semibold">Dự báo tồn kho</h3>
-              <p className="text-xs text-muted-foreground">
-                Sản lượng tồn (tấn) - hiện tại và dự báo 7/14/30 ngày
-              </p>
-              <div className="mt-4 flex h-44 items-end gap-3">
-                {(forecast?.points ?? []).map((d) => {
-                  const max = Math.max(
-                    1,
-                    ...(forecast?.points ?? []).map((p) => p.forecastInventory / 1000),
-                  );
-                  const current = d.currentInventory / 1000;
-                  const projected = d.forecastInventory / 1000;
-                  return (
-                    <div key={d.days} className="flex flex-1 flex-col items-center gap-1">
-                      <div className="text-[10px] font-semibold">{formatNumber(projected)}t</div>
-                      <div className="flex w-full items-end gap-1">
-                        <div
-                          className="w-1/2 rounded-t-lg bg-primary transition-all duration-500"
-                          style={{ height: `${(current / max) * 100}%` }}
-                        />
-                        <div
-                          className="w-1/2 rounded-t-lg border border-dashed border-primary bg-primary/30 transition-all duration-500"
-                          style={{ height: `${(projected / max) * 100}%` }}
-                        />
-                      </div>
-                      <div className="text-xs text-muted-foreground">{d.days}d</div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="mt-3 flex gap-4 text-xs">
-                <Legend color="bg-primary" label="Hiện tại" />
-                <Legend color="border border-dashed border-primary bg-primary/30" label="Dự báo" />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5 shadow-card">
-                <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-destructive">
-                  <AlertCircle className="h-3.5 w-3.5" /> Vùng có nguy cơ dư thừa
-                </div>
-                <ul className="mt-3 space-y-2 text-sm">
-                  {riskRows
-                    .filter((row) => row.riskLevel !== "LOW")
-                    .slice(0, 6)
-                    .map((row) => (
-                      <li
-                        key={`${row.province}-${row.cropName}`}
-                        className="flex items-center justify-between gap-3"
-                      >
-                        <span>
-                          <b>{row.province}</b> - {row.cropName}
-                        </span>
-                        <span className="font-mono text-xs">
-                          {formatTons(row.currentInventory)}t
-                        </span>
-                      </li>
-                    ))}
-                </ul>
-              </div>
-              <MiniForecast
-                label="Dự báo nhu cầu"
-                value={`~ ${formatTons(forecast?.expectedConsumption ?? 0)} tấn`}
-              />
-              <MiniForecast
-                label="Dự báo thu hoạch"
-                value={`~ ${formatTons(forecast?.expectedHarvest ?? 0)} tấn`}
-                tone="destructive"
-              />
-            </div>
-          </div>
         </section> */}
       </div>
     </PageShell>
@@ -551,8 +471,8 @@ function RiskDistributionChart({
 }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
-      <h3 className="text-base font-semibold">Risk Distribution</h3>
-      <p className="text-xs text-muted-foreground">High / Medium / Low active crop batches</p>
+      <h3 className="text-base font-semibold">Phân bổ rủi ro</h3>
+      <p className="text-xs text-muted-foreground">Mức độ rủi ro (Cao / Trung bình / Thấp) của các lô hàng</p>
       <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
         {data.map((item) => (
           <div key={item.level} className="rounded-xl border border-border bg-background/70 p-2">
@@ -565,7 +485,7 @@ function RiskDistributionChart({
         ))}
       </div>
       <ChartContainer
-        config={{ count: { label: "Batches", color: "var(--primary)" } }}
+        config={{ count: { label: "Số lô", color: "var(--primary)" } }}
         className="mt-4 h-56 w-full"
       >
         <BarChart data={data} margin={{ left: 8, right: 12, top: 12, bottom: 8 }}>
@@ -607,9 +527,9 @@ function ForecastResultRepositoryChart({
     <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold">Forecast Result Repository</h3>
+          <h3 className="text-base font-semibold">Kho lưu trữ kết quả dự báo</h3>
           <p className="text-xs text-muted-foreground">
-            Monthly predicted harvest quantity from imported AI forecast results.
+            Sản lượng thu hoạch dự báo hàng tháng từ dữ liệu phân tích AI.
           </p>
         </div>
         <button
@@ -618,19 +538,19 @@ function ForecastResultRepositoryChart({
           disabled={rows.length === 0}
           className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-soft disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Download CSV
+          Tải CSV
         </button>
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="text-xs font-medium text-muted-foreground">
-          Province
+          Tỉnh/Thành
           <select
             value={province}
             onChange={(event) => onProvinceChange(event.target.value)}
             className="mt-1 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none"
           >
-            <option value="">All provinces</option>
+            <option value="">Tất cả tỉnh/thành</option>
             {provinceOptions.map((option) => (
               <option key={option} value={option}>
                 {option}
@@ -639,13 +559,13 @@ function ForecastResultRepositoryChart({
           </select>
         </label>
         <label className="text-xs font-medium text-muted-foreground">
-          Crop type
+          Loại nông sản
           <select
             value={crop}
             onChange={(event) => onCropChange(event.target.value)}
             className="mt-1 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none"
           >
-            <option value="">All crop types</option>
+            <option value="">Tất cả nông sản</option>
             {cropOptions.map((option) => (
               <option key={option} value={option}>
                 {option}
@@ -656,7 +576,7 @@ function ForecastResultRepositoryChart({
       </div>
 
       <ChartContainer
-        config={{ predictedQuantity: { label: "Predicted harvest", color: "var(--primary)" } }}
+        config={{ predictedQuantity: { label: "Thu hoạch dự báo", color: "var(--primary)" } }}
         className="mt-4 h-72 w-full"
       >
         <LineChart data={data} margin={{ left: 8, right: 12, top: 12, bottom: 8 }}>
@@ -676,7 +596,7 @@ function ForecastResultRepositoryChart({
       </ChartContainer>
       {data.every((item) => item.predictedQuantity === 0) && (
         <div className="mt-3 rounded-xl border border-dashed border-border p-5 text-center text-sm text-muted-foreground">
-          No forecast result data for the selected province and crop type.
+          Không có dữ liệu dự báo cho tỉnh và loại nông sản đã chọn.
         </div>
       )}
     </div>
@@ -690,10 +610,10 @@ function ProvinceRiskRanking({
 }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
-      <h3 className="text-base font-semibold">Province Risk Ranking</h3>
-      <p className="text-xs text-muted-foreground">Tinh nao co nhieu lo rui ro cao</p>
+      <h3 className="text-base font-semibold">Xếp hạng rủi ro theo tỉnh</h3>
+      <p className="text-xs text-muted-foreground">Các tỉnh có số lượng lô nông sản rủi ro cao nhiều nhất</p>
       <ChartContainer
-        config={{ highRiskCount: { label: "High risk", color: "hsl(var(--destructive))" } }}
+        config={{ highRiskCount: { label: "Rủi ro cao", color: "#dc2626" } }}
         className="mt-4 h-72 w-full"
       >
         <BarChart data={data.slice(0, 8)} layout="vertical" margin={{ left: 8, right: 12, top: 12, bottom: 8 }}>
@@ -701,12 +621,16 @@ function ProvinceRiskRanking({
           <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
           <YAxis dataKey="province" type="category" tickLine={false} axisLine={false} width={92} />
           <ChartTooltip content={<ChartTooltipContent />} />
-          <Bar dataKey="highRiskCount" fill="var(--color-highRiskCount)" radius={[0, 6, 6, 0]} />
+          <Bar dataKey="highRiskCount" fill="#dc2626" radius={[0, 6, 6, 0]}>
+            {data.slice(0, 8).map((row) => (
+              <Cell key={row.province} fill={row.highRiskCount > 0 ? "#dc2626" : "#f59e0b"} />
+            ))}
+          </Bar>
         </BarChart>
       </ChartContainer>
       {data.length === 0 && (
         <div className="mt-3 rounded-xl border border-dashed border-border p-5 text-center text-sm text-muted-foreground">
-          No high-risk province data yet.
+          Chưa có dữ liệu cho các tỉnh rủi ro cao.
         </div>
       )}
     </div>
@@ -749,19 +673,19 @@ function CropTypeRiskCard({
         </div>
       </div>
       <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-        <Metric label="Max score" value={`${formatNumber(row.maxRiskScore)}/100`} />
-        <Metric label="Remaining" value={`${formatKg(row.currentQuantity)} kg`} />
-        <Metric label="Batches" value={`${row.batchCount}`} />
+        <Metric label="Điểm tối đa" value={`${formatNumber(row.maxRiskScore)}/100`} />
+        <Metric label="Tồn kho" value={`${formatKg(row.currentQuantity)} kg`} />
+        <Metric label="Số lô" value={`${row.batchCount}`} />
       </div>
       <div className="mt-3 flex flex-wrap gap-2 text-xs">
         <span className="rounded-full bg-destructive/10 px-2.5 py-1 font-semibold text-destructive">
-          {row.highRiskCount} high
+          {row.highRiskCount} rủi ro cao
         </span>
         <span className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-700">
-          {row.mediumRiskCount} medium
+          {row.mediumRiskCount} rủi ro TB
         </span>
         <span className="rounded-full bg-background/80 px-2.5 py-1 text-muted-foreground">
-          nearest expiry: {row.nearestExpiryDays ?? "?"} days
+          hết hạn gần nhất: {row.nearestExpiryDays ?? "?"} ngày
         </span>
       </div>
     </div>
@@ -794,7 +718,7 @@ function MiniForecast({
         {label}
       </div>
       <div className="mt-2 text-2xl font-bold">{value}</div>
-      <div className="text-xs text-muted-foreground">Rule-based forecast từ backend</div>
+      <div className="text-xs text-muted-foreground">Dự báo theo luật (rule-based) từ backend</div>
     </div>
   );
 }
@@ -840,7 +764,7 @@ function riskBar(level: RiskLevel) {
 function riskDistributionData(rows: InventoryRiskResponse[]) {
   return (["HIGH", "MEDIUM", "LOW"] as RiskLevel[]).map((level) => ({
     level,
-    label: level === "HIGH" ? "High" : level === "MEDIUM" ? "Medium" : "Low",
+    label: level === "HIGH" ? "Cao" : level === "MEDIUM" ? "Trung bình" : "Thấp",
     count: rows.filter((row) => row.riskLevel === level).length,
     fill: riskChartColor(level),
   }));

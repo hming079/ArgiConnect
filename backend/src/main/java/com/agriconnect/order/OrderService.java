@@ -4,11 +4,13 @@ import java.util.List;
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.agriconnect.common.BadRequestException;
+import com.agriconnect.common.PageUtils;
 import com.agriconnect.common.ResourceNotFoundException;
 import com.agriconnect.cropBatch.CropBatch;
 import com.agriconnect.cropBatch.CropBatchRepository;
@@ -70,6 +72,10 @@ public class OrderService {
                 .toList();
     }
 
+    public Page<Order> getAll(Long buyerId, OrderStatus status, int page, int size) {
+        return PageUtils.toPage(getAll(buyerId, status), page, size);
+    }
+
     public Order getById(Long id) {
         return repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
@@ -77,6 +83,10 @@ public class OrderService {
 
     public List<Order> getMyOrders() {
         return repository.findByBuyerId(currentUser.getId());
+    }
+
+    public Page<Order> getMyOrders(int page, int size) {
+        return PageUtils.toPage(getMyOrders(), page, size);
     }
 
     public Order getAccessibleById(Long id) {

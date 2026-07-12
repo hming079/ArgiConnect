@@ -3,10 +3,12 @@ package com.agriconnect.rescueRegistration;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.agriconnect.common.PageUtils;
 import com.agriconnect.common.ResourceNotFoundException;
 import com.agriconnect.cropBatch.CropBatch;
 import com.agriconnect.cropBatch.CropBatchRepository;
@@ -52,6 +54,15 @@ public class RescueRegistrationService {
                 .toList();
     }
 
+    public Page<RescueRegistration> getVisibleRegistrations(
+            Long batchId,
+            Long rescuePointId,
+            RescueRegistrationStatus status,
+            int page,
+            int size) {
+        return PageUtils.toPage(getVisibleRegistrations(batchId, rescuePointId, status), page, size);
+    }
+
     public RescueRegistration getById(Long id) {
         return repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Rescue registration not found with id: " + id));
@@ -62,6 +73,10 @@ public class RescueRegistrationService {
                 .map(CropBatch::getId)
                 .toList();
         return batchIds.isEmpty() ? List.of() : repository.findByBatchIdIn(batchIds);
+    }
+
+    public Page<RescueRegistration> getMyRegistrations(int page, int size) {
+        return PageUtils.toPage(getMyRegistrations(), page, size);
     }
 
     public RescueRegistration create(RescueRegistration registration) {

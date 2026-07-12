@@ -3,8 +3,8 @@ package com.agriconnect.rescueRegistration;
 import com.agriconnect.rescueRegistration.dto.CreateRescueRegistrationRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import java.util.List;
 
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -32,11 +32,13 @@ public class RescueRegistrationController {
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<RescueRegistration>> getAll(
+    public ResponseEntity<Page<RescueRegistration>> getAll(
             @RequestParam(required = false) Long batchId,
             @RequestParam(required = false) Long rescuePointId,
-            @RequestParam(required = false) RescueRegistrationStatus status) {
-        return ResponseEntity.ok(service.getVisibleRegistrations(batchId, rescuePointId, status));
+            @RequestParam(required = false) RescueRegistrationStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(service.getVisibleRegistrations(batchId, rescuePointId, status, page, size));
     }
 
     @GetMapping("/{id}")
@@ -48,8 +50,10 @@ public class RescueRegistrationController {
     @GetMapping("/my")
     @PreAuthorize("hasRole('FARMER')")
     @Operation(summary = "List my rescue registrations", description = "Required role: FARMER")
-    public ResponseEntity<List<RescueRegistration>> getMyRegistrations() {
-        return ResponseEntity.ok(service.getMyRegistrations());
+    public ResponseEntity<Page<RescueRegistration>> getMyRegistrations(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(service.getMyRegistrations(page, size));
     }
 
     @PostMapping
