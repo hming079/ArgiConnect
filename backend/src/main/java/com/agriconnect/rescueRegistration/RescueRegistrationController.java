@@ -36,9 +36,13 @@ public class RescueRegistrationController {
             @RequestParam(required = false) Long batchId,
             @RequestParam(required = false) Long rescuePointId,
             @RequestParam(required = false) RescueRegistrationStatus status,
+            @RequestParam(required = false) Long cropId,
+            @RequestParam(required = false) String farmerName,
+            @RequestParam(defaultValue = "NONE") String quantitySort,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(service.getVisibleRegistrations(batchId, rescuePointId, status, page, size));
+        return ResponseEntity.ok(service.getVisibleRegistrations(
+                batchId, rescuePointId, status, cropId, farmerName, quantitySort, page, size));
     }
 
     @GetMapping("/{id}")

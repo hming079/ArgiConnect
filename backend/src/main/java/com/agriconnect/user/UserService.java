@@ -91,6 +91,19 @@ public class UserService implements UserDetailsService {
                 .toList();
     }
 
+    public UserProfileResponse updateStatus(Long id, UserStatus status) {
+        if (status == null) {
+            throw new BadRequestException("User status is required");
+        }
+        if (currentUser.getId().equals(id) && status == UserStatus.INACTIVE) {
+            throw new BadRequestException("You cannot deactivate your own account");
+        }
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new com.agriconnect.common.ResourceNotFoundException("User not found with id: " + id));
+        user.setStatus(status);
+        return toProfileResponse(userRepository.save(user));
+    }
+
     public List<UserProfileResponse> getVisibleBuyerProfiles() {
         User user = currentUser.get();
         return switch (user.getRole()) {

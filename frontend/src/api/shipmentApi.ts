@@ -12,7 +12,16 @@ export async function getShipmentsPage(filters?: ShipmentFilters, pagination?: P
   const size = pagination?.size ?? 20;
   return normalizePage((await axiosClient.get<Shipment[] | PageResponse<Shipment>>("/shipments", { params: { ...filters, page, size } })).data, page, size);
 }
-export async function getMyShipments() { return unwrapPage((await axiosClient.get<Shipment[] | PageResponse<Shipment>>("/shipments/my", { params: { size: 100 } })).data); }
+export async function getMyShipments() {
+  const size = 100;
+  const firstPage = await getMyShipmentsPage({ page: 0, size });
+  const shipments = [...firstPage.content];
+  for (let page = 1; page < firstPage.totalPages; page += 1) {
+    const nextPage = await getMyShipmentsPage({ page, size });
+    shipments.push(...nextPage.content);
+  }
+  return shipments;
+}
 export async function getMyShipmentsPage(pagination?: PageParams) {
   const page = pagination?.page ?? 0;
   const size = pagination?.size ?? 20;

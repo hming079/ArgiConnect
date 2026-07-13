@@ -248,7 +248,7 @@ function CoordinationPage() {
 
         <section>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <SectionTitle>Dự báo rủi ro tồn kho (Hỗ trợ bởi AI)</SectionTitle>
+            <SectionTitle>Dự báo rủi ro tồn kho</SectionTitle>
             <Link
               to="/analytics"
               className="inline-flex items-center gap-1 rounded-full border border-primary px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary-soft"

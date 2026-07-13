@@ -22,7 +22,7 @@ public class ForecastResultController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'LOGISTICS')")
     public List<ForecastResult> getAll(
             @RequestParam(required = false) String province,
             @RequestParam(required = false) String cropName,

@@ -28,6 +28,7 @@ export interface OrderFilters {
   buyerId?: number;
   status?: OrderStatus;
 }
+export type OrderStatusCounts = Record<OrderStatus, number>;
 
 export async function getOrders(filters?: OrderFilters) {
   return unwrapPage((await axiosClient.get<Order[] | PageResponse<Order>>("/orders", { params: { ...filters, size: 100 } })).data);
@@ -44,6 +45,9 @@ export async function getMyOrdersPage(pagination?: PageParams) {
   const page = pagination?.page ?? 0;
   const size = pagination?.size ?? 20;
   return normalizePage((await axiosClient.get<Order[] | PageResponse<Order>>("/orders/my", { params: { page, size } })).data, page, size);
+}
+export async function getOrderStatusCounts() {
+  return (await axiosClient.get<OrderStatusCounts>("/orders/status-counts")).data;
 }
 export async function getOrder(id: number) {
   return (await axiosClient.get<Order>(`/orders/${id}`)).data;

@@ -23,7 +23,7 @@ import { PageShell } from "@/components/site-layout";
 import { useAuth } from "@/hooks/use-auth";
 import { useCropBatches, useCrops } from "@/hooks/use-crops";
 import { useOrderItems } from "@/hooks/use-order-items";
-import { useMyOrdersPage, useOrdersPage, useUpdateOrderStatus } from "@/hooks/use-orders";
+import { useMyOrdersPage, useOrdersPage, useOrderStatusCounts, useUpdateOrderStatus } from "@/hooks/use-orders";
 import { useMyShipments } from "@/hooks/use-shipments";
 import { useVisibleBuyers } from "@/hooks/use-user-profile";
 import type { UserRole } from "@/lib/auth";
@@ -90,8 +90,10 @@ function Page() {
     orderFilters,
     { page: page - 1, size: pageSize },
     role === "ADMIN" || role === "FARMER" || role === "LOGISTICS",
+    5000,
   );
-  const myOrdersQuery = useMyOrdersPage({ page: page - 1, size: pageSize }, role === "BUYER");
+  const myOrdersQuery = useMyOrdersPage({ page: page - 1, size: pageSize }, role === "BUYER", 5000);
+  const statusCountsQuery = useOrderStatusCounts(!!role, 5000);
   const shipmentsQuery = useMyShipments(!!role);
   const orderItemsQuery = useOrderItems(undefined, !!role);
   const batchesQuery = useCropBatches();
@@ -230,7 +232,7 @@ function Page() {
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
           {statusOrder.map((status) => {
-            const count = rows.filter((row) => row.status === status).length;
+            const count = statusCountsQuery.data?.[status] ?? 0;
             return (
               <button
                 key={status}

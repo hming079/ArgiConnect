@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
@@ -7,6 +7,8 @@ import {
   CheckCircle2,
   MapPin,
   RefreshCw,
+  Search,
+  SlidersHorizontal,
   XCircle,
 } from "lucide-react";
 import type { Crop, CropBatch } from "@/api/cropApi";
@@ -14,6 +16,8 @@ import type { RescueRegistrationStatus } from "@/api/rescueRegistrationApi";
 import { PaginationControls } from "@/components/pagination-controls";
 import { PageShell } from "@/components/site-layout";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useCropBatches, useCrops } from "@/hooks/use-crops";
 import {
   useRescueRegistrationsPage,
@@ -21,6 +25,7 @@ import {
 } from "@/hooks/use-rescue-registrations";
 import { useRescuePoints } from "@/hooks/use-rescue-points";
 import { getCropImage } from "@/lib/crop-images";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/rescue-requests")({
   head: () => ({ meta: [{ title: "Duyệt yêu cầu giải cứu – AgriConnect" }] }),
@@ -28,13 +33,25 @@ export const Route = createFileRoute("/admin/rescue-requests")({
 });
 
 type Filter = "ALL" | RescueRegistrationStatus;
+type QuantitySort = "NONE" | "ASC" | "DESC";
 
 function AdminRescueRequests() {
   const [filter, setFilter] = useState<Filter>("PENDING");
+  const [cropId, setCropId] = useState("ALL");
+  const [rescuePointId, setRescuePointId] = useState("ALL");
+  const [farmerSearch, setFarmerSearch] = useState("");
+  const [quantitySort, setQuantitySort] = useState<QuantitySort>("NONE");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const deferredFarmerSearch = useDeferredValue(farmerSearch.trim());
   const registrationsQuery = useRescueRegistrationsPage(
-    filter === "ALL" ? undefined : { status: filter },
+    {
+      status: filter === "ALL" ? undefined : filter,
+      cropId: cropId === "ALL" ? undefined : Number(cropId),
+      rescuePointId: rescuePointId === "ALL" ? undefined : Number(rescuePointId),
+      farmerName: deferredFarmerSearch || undefined,
+      quantitySort: quantitySort === "NONE" ? undefined : quantitySort,
+    },
     { page: page - 1, size: pageSize },
   );
   const batchesQuery = useCropBatches();
@@ -43,24 +60,20 @@ function AdminRescueRequests() {
   const review = useReviewRescueRegistration();
   const [error, setError] = useState("");
   const registrations = registrationsQuery.data?.content ?? [];
-  const totalRegistrations = registrationsQuery.data?.totalElements ?? registrations.length;
   const batches = batchesQuery.data ?? [];
   const crops = cropsQuery.data ?? [];
   const points = pointsQuery.data ?? [];
-  const list = registrations;
+  const totalRegistrations = registrationsQuery.data?.totalElements ?? registrations.length;
   useEffect(() => {
     setPage(1);
-  }, [filter]);
+  }, [cropId, farmerSearch, filter, quantitySort, rescuePointId]);
   useEffect(() => {
     if (registrationsQuery.isFetching) return;
     const totalPages = Math.max(1, Math.ceil(totalRegistrations / pageSize));
     if (page > totalPages) setPage(totalPages);
   }, [page, pageSize, registrationsQuery.isFetching, totalRegistrations]);
-  const pagedList = list;
-  const pendingCount =
-    filter === "PENDING"
-      ? totalRegistrations
-      : registrations.filter((item) => item.status === "PENDING").length;
+  const pagedList = registrations;
+  const pendingCount = filter === "PENDING" ? totalRegistrations : registrations.filter((item) => item.status === "PENDING").length;
   const loading =
     registrationsQuery.isPending ||
     batchesQuery.isPending ||
@@ -73,6 +86,10 @@ function AdminRescueRequests() {
     try {
       setError("");
       await review.mutateAsync({ id, decision });
+      toast.success(decision === "approve" ? "Đã chấp nhận yêu cầu" : "Đã từ chối yêu cầu", {
+        description: `Đăng ký #${id} đã được cập nhật.`,
+        duration: 2500,
+      });
       setPage(1);
     } catch {
       setError("Không thể cập nhật yêu cầu. Vui lòng thử lại.");
@@ -132,6 +149,39 @@ function AdminRescueRequests() {
       </div>
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mb-6 rounded-2xl border border-border bg-card p-4 shadow-card">
+          <div className="mb-4 flex items-center gap-2 text-sm font-semibold">
+            <SlidersHorizontal className="h-4 w-4 text-primary" /> Bộ lọc yêu cầu
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-2">
+              <Label htmlFor="farmer-search">Tên nông dân</Label>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input id="farmer-search" value={farmerSearch} onChange={(event) => setFarmerSearch(event.target.value)} placeholder="Tìm theo tên..." className="pl-9" />
+              </div>
+            </div>
+            <FilterSelect id="crop-filter" label="Loại nông sản" value={cropId} onChange={setCropId}>
+              <option value="ALL">Tất cả loại</option>
+              {crops.map((crop) => <option key={crop.id} value={crop.id}>{crop.name}</option>)}
+            </FilterSelect>
+            <FilterSelect id="point-filter" label="Điểm giải cứu" value={rescuePointId} onChange={setRescuePointId}>
+              <option value="ALL">Tất cả điểm</option>
+              {points.map((point) => <option key={point.id} value={point.id}>{point.name}</option>)}
+            </FilterSelect>
+            <FilterSelect id="quantity-sort" label="Sắp xếp số lượng còn lại" value={quantitySort} onChange={(value) => setQuantitySort(value as QuantitySort)}>
+              <option value="NONE">Mặc định</option>
+              <option value="DESC">Nhiều đến ít</option>
+              <option value="ASC">Ít đến nhiều</option>
+            </FilterSelect>
+          </div>
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <span className="text-sm text-muted-foreground">Tìm thấy {totalRegistrations} yêu cầu</span>
+            {(cropId !== "ALL" || rescuePointId !== "ALL" || farmerSearch || quantitySort !== "NONE") && (
+              <Button variant="outline" size="sm" onClick={() => { setCropId("ALL"); setRescuePointId("ALL"); setFarmerSearch(""); setQuantitySort("NONE"); }}>Xóa bộ lọc</Button>
+            )}
+          </div>
+        </div>
         {failed && (
           <Button
             onClick={() => {
@@ -232,6 +282,10 @@ function AdminRescueRequests() {
       </div>
     </PageShell>
   );
+}
+
+function FilterSelect({ id, label, value, onChange, children }: { id: string; label: string; value: string; onChange: (value: string) => void; children: React.ReactNode }) {
+  return <div className="space-y-2"><Label htmlFor={id}>{label}</Label><select id={id} value={value} onChange={(event) => onChange(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring">{children}</select></div>;
 }
 
 function StatusChip({ status }: { status: RescueRegistrationStatus }) {

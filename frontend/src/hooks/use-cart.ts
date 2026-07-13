@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { getCropImage } from "@/lib/crop-images";
 
 export interface CartItem {
   id: string;
@@ -14,7 +15,11 @@ const KEY = "agriconnect-cart";
 function read(): CartItem[] {
   if (typeof window === "undefined") return [];
   try {
-    return JSON.parse(localStorage.getItem(KEY) || "[]");
+    const stored = JSON.parse(localStorage.getItem(KEY) || "[]") as CartItem[];
+    return stored.map((item) => ({
+      ...item,
+      image: getCropImage(item.name) ?? item.image,
+    }));
   } catch {
     return [];
   }

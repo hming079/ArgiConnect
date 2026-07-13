@@ -42,8 +42,9 @@ import { useCropBatches, useCrops } from "@/hooks/use-crops";
 import { forecastKey, useForecasts } from "@/hooks/use-forecasts";
 import { useOrders } from "@/hooks/use-orders";
 import { useRescueRegistrations } from "@/hooks/use-rescue-registrations";
-import { useUsers } from "@/hooks/use-user-profile";
+import { useUpdateUserStatus, useUsers } from "@/hooks/use-user-profile";
 import { getCropImage } from "@/lib/crop-images";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/")({
   head: () => ({ meta: [{ title: "Quản trị hệ thống - AgriConnect" }] }),
@@ -59,6 +60,7 @@ function AdminDashboard() {
   const [forecastYear, setForecastYear] = useState("");
   const queryClient = useQueryClient();
   const usersQuery = useUsers();
+  const updateUserStatus = useUpdateUserStatus();
   const batchesQuery = useCropBatches();
   const cropsQuery = useCrops();
   const ordersQuery = useOrders();
@@ -179,6 +181,18 @@ function AdminDashboard() {
     cropsQuery.isError ||
     ordersQuery.isError ||
     rescueQuery.isError;
+
+  async function changeUserStatus(user: UserProfile, status: UserProfile["status"]) {
+    try {
+      await updateUserStatus.mutateAsync({ id: user.id, status });
+      toast.success(status === "ACTIVE" ? "Đã kích hoạt tài khoản" : "Đã khóa tài khoản", {
+        description: user.fullName,
+        duration: 2500,
+      });
+    } catch (error) {
+      toast.error(getMutationErrorMessage(error, "Không thể cập nhật trạng thái người dùng."));
+    }
+  }
 
   return (
     <PageShell>
@@ -508,13 +522,19 @@ function AdminDashboard() {
                       <td className="px-5 py-4 whitespace-nowrap">
                         <div className="flex justify-end gap-1">
                           <button
-                            className="rounded-lg p-2 text-primary hover:bg-primary-soft"
-                            title="Duyệt"
+                            type="button"
+                            onClick={() => void changeUserStatus(user, "ACTIVE")}
+                            disabled={user.status === "ACTIVE" || updateUserStatus.isPending}
+                            className="rounded-lg p-2 text-primary hover:bg-primary-soft disabled:cursor-not-allowed disabled:opacity-30"
+                            title="Kích hoạt"
                           >
                             <CheckCircle2 className="h-4 w-4" />
                           </button>
                           <button
-                            className="rounded-lg p-2 text-destructive hover:bg-destructive/10"
+                            type="button"
+                            onClick={() => void changeUserStatus(user, "INACTIVE")}
+                            disabled={user.status === "INACTIVE" || updateUserStatus.isPending}
+                            className="rounded-lg p-2 text-destructive hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-30"
                             title="Khóa"
                           >
                             <XCircle className="h-4 w-4" />

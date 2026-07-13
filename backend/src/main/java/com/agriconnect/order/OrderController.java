@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import java.util.Map;
 
 import com.agriconnect.order.dto.CheckoutRequest;
 import com.agriconnect.order.dto.CreateOrderRequest;
@@ -43,6 +44,12 @@ public class OrderController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(service.getMyOrders(page, size));
+    }
+
+    @GetMapping("/status-counts")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<OrderStatus, Long>> getStatusCounts() {
+        return ResponseEntity.ok(service.getVisibleStatusCounts());
     }
 
     @PreAuthorize("hasRole('BUYER')")

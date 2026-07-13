@@ -3,6 +3,7 @@ package com.agriconnect.order;
 import java.util.List;
 import java.math.BigDecimal;
 import java.util.Map;
+import java.util.EnumMap;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
@@ -69,11 +70,21 @@ public class OrderService {
         return orders.stream()
                 .filter(order -> buyerId == null || buyerId.equals(order.getBuyerId()))
                 .filter(order -> status == null || status == order.getStatus())
+                .sorted((left, right) -> right.getId().compareTo(left.getId()))
                 .toList();
     }
 
     public Page<Order> getAll(Long buyerId, OrderStatus status, int page, int size) {
         return PageUtils.toPage(getAll(buyerId, status), page, size);
+    }
+
+    public Map<OrderStatus, Long> getVisibleStatusCounts() {
+        Map<OrderStatus, Long> counts = new EnumMap<>(OrderStatus.class);
+        for (OrderStatus status : OrderStatus.values()) counts.put(status, 0L);
+        for (Order order : getAll(null, null)) {
+            counts.put(order.getStatus(), counts.get(order.getStatus()) + 1L);
+        }
+        return counts;
     }
 
     public Order getById(Long id) {
@@ -82,7 +93,9 @@ public class OrderService {
     }
 
     public List<Order> getMyOrders() {
-        return repository.findByBuyerId(currentUser.getId());
+        return repository.findByBuyerId(currentUser.getId()).stream()
+                .sorted((left, right) -> right.getId().compareTo(left.getId()))
+                .toList();
     }
 
     public Page<Order> getMyOrders(int page, int size) {

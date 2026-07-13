@@ -45,6 +45,7 @@ import {
 import { useCreateRescueRegistration } from "@/hooks/use-rescue-registrations";
 import { useRescuePoints } from "@/hooks/use-rescue-points";
 import { getCropImage } from "@/lib/crop-images";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/categories/$id")({
   head: () => ({ meta: [{ title: "Chi tiết nông sản – AgriConnect" }] }),
@@ -494,9 +495,17 @@ function CropDetailPage() {
                     rescuePointId,
                   });
                   setNotice(`Đã gửi đăng ký giải cứu cho lô #${batchToRegister.id}.`);
+                  toast.success("Đã gửi yêu cầu giải cứu", {
+                    description: `Lô #${batchToRegister.id} đang chờ admin phê duyệt.`,
+                    duration: 2500,
+                  });
                   setBatchToRegister(null);
                 } catch {
                   setMutationError("Không thể gửi đăng ký giải cứu. Vui lòng thử lại.");
+                  toast.error("Không thể gửi yêu cầu giải cứu", {
+                    description: `Vui lòng kiểm tra lô #${batchToRegister.id} và thử lại.`,
+                    duration: 3000,
+                  });
                 }
               }}
             />
@@ -917,7 +926,7 @@ function BatchForm({
             onChange={(e) => field("initialQuantity", Number(e.target.value))}
           />
         </FormField>
-        <FormField label="Giá / đơn vị">
+        <FormField label="Giá / đơn vị (VND)">
           <Input
             type="number"
             min="0"

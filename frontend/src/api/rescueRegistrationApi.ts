@@ -4,7 +4,7 @@ import { normalizePage, unwrapPage, type PageParams, type PageResponse } from ".
 export type RescueRegistrationStatus = "PENDING" | "APPROVED" | "REJECTED";
 export interface RescueRegistration { id: number; batchId: number; rescuePointId: number; approvedBy: number | null; status: RescueRegistrationStatus; submittedAt: string | null; approvedAt: string | null; }
 export type RescueRegistrationInput = Pick<RescueRegistration, "batchId" | "rescuePointId">;
-export interface RescueRegistrationFilters { batchId?: number; rescuePointId?: number; status?: RescueRegistrationStatus; }
+export interface RescueRegistrationFilters { batchId?: number; rescuePointId?: number; status?: RescueRegistrationStatus; cropId?: number; farmerName?: string; quantitySort?: "ASC" | "DESC"; }
 
 export async function getRescueRegistrations(filters?: RescueRegistrationFilters) { return unwrapPage((await axiosClient.get<RescueRegistration[] | PageResponse<RescueRegistration>>("/rescue-registrations", { params: { ...filters, size: 100 } })).data); }
 export async function getRescueRegistrationsPage(filters?: RescueRegistrationFilters, pagination?: PageParams) {

@@ -57,6 +57,16 @@ Install these before running the project:
 
 From the project root, start PostgreSQL, the backend, and the frontend:
 
+First create a local secret file that is excluded from Git:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Edit `.env` and replace `POSTGRES_PASSWORD` and `JWT_SECRET`. Generate a JWT
+secret with `openssl rand -hex 32`, or another cryptographically secure random
+generator. Never commit `.env`.
+
 ```bash
 docker compose up --build
 ```
@@ -439,3 +449,109 @@ Use Swagger UI for request and response details.
 - Move local database credentials and JWT secrets to environment variables.
 - Add GitHub Actions CI for backend tests, frontend lint, and frontend build.
 - Add screenshots or a short demo flow to make the project easier to review.
+
+## Deploy to Railway
+
+Railway deploys this repository as four services in one project:
+
+```text
+Frontend (public) -> Backend (public) -> AI (private)
+                                      -> PostgreSQL (managed)
+```
+
+Railway does not run the Compose file as one container. Each application uses a
+Railway-specific Dockerfile under `.railway/`, while `docker-compose.yml`
+continues to support local development.
+
+### 1. Push the repository
+
+Push the repository to GitHub. Do not commit `.env`; production secrets are set
+in Railway's Variables tab.
+
+### 2. Create the project and database
+
+Create an empty Railway project, then add a managed PostgreSQL database. Keep
+the default service name `Postgres`, or update the reference-variable names
+below to match your chosen name.
+
+### 3. Add the AI service
+
+Create an empty service named `AI`, connect the GitHub repository, and use:
+
+```text
+Root Directory: /
+Config File Path: /.railway/ai.json
+```
+
+Set this service variable:
+
+```env
+PORT=8001
+```
+
+The AI service only needs Railway private networking; a public domain is
+optional.
+
+### 4. Add the backend service
+
+Create a service named `Backend`, connect the same repository, and use:
+
+```text
+Root Directory: /
+Config File Path: /.railway/backend.json
+```
+
+Add these variables in the Backend service. Use Railway reference variables
+exactly as shown rather than copying database credentials:
+
+```env
+DB_URL=jdbc:postgresql://${{Postgres.PGHOST}}:${{Postgres.PGPORT}}/${{Postgres.PGDATABASE}}
+DB_USERNAME=${{Postgres.PGUSER}}
+DB_PASSWORD=${{Postgres.PGPASSWORD}}
+AI_FORECAST_SERVICE_URL=http://${{AI.RAILWAY_PRIVATE_DOMAIN}}:${{AI.PORT}}
+JWT_SECRET=<generate-a-new-random-secret-of-at-least-32-bytes>
+JWT_EXPIRATION=3600000
+CORS_ALLOWED_ORIGINS=https://${{Frontend.RAILWAY_PUBLIC_DOMAIN}}
+```
+
+Generate a public Railway domain for Backend. Flyway runs automatically when
+the backend connects to PostgreSQL. The Railway backend image also contains
+`ai/data`, allowing the Admin Dashboard's dataset import action to work.
+
+### 5. Add the frontend service
+
+Create a service named `Frontend`, connect the repository, and use:
+
+```text
+Root Directory: /
+Config File Path: /.railway/frontend.json
+```
+
+Generate a public domain and set:
+
+```env
+VITE_API_URL=https://${{Backend.RAILWAY_PUBLIC_DOMAIN}}/api
+```
+
+`VITE_API_URL` is embedded during the frontend image build. Redeploy Frontend
+after changing the Backend domain or this variable.
+
+### 6. Deploy and verify
+
+Deploy in this order for the first release:
+
+1. PostgreSQL
+2. AI
+3. Backend
+4. Frontend
+
+Verify the public endpoints:
+
+```text
+https://<backend-domain>/v3/api-docs
+https://<frontend-domain>/
+```
+
+Check the AI `/health` endpoint from Railway deployment logs or temporarily
+generate an AI public domain. Backend-to-AI traffic stays on Railway's private
+network over HTTP.

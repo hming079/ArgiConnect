@@ -19,3 +19,6 @@ export async function getMyProfile() {
 export async function getVisibleBuyers() {
   return (await axiosClient.get<UserProfile[]>("/users/visible-buyers")).data;
 }
+export async function updateUserStatus(id: number, status: UserStatus) {
+  return (await axiosClient.patch<UserProfile>(`/users/${id}/status`, undefined, { params: { status } })).data;
+}

@@ -15,6 +15,8 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { useAuth } from "@/hooks/use-auth";
 import { requiredRoleForPath, ROLE_HOME, roleMatchesRequirement } from "@/lib/auth";
+import { Toaster } from "@/components/ui/sonner";
+import { InteractionSounds } from "@/components/interaction-sounds";
 
 function NotFoundComponent() {
   return (
@@ -128,6 +130,8 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthGuard />
+      <InteractionSounds />
+      <Toaster position="top-right" richColors closeButton />
     </QueryClientProvider>
   );
 }

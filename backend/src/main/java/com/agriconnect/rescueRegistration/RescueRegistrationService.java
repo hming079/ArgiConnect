@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +17,10 @@ import com.agriconnect.cropBatch.CropBatchRepository;
 import com.agriconnect.cropBatch.CropBatchStatus;
 import com.agriconnect.security.CurrentUser;
 import com.agriconnect.user.Role;
+import com.agriconnect.user.User;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import java.util.ArrayList;
 
 @Service
 public class RescueRegistrationService {
@@ -58,9 +64,43 @@ public class RescueRegistrationService {
             Long batchId,
             Long rescuePointId,
             RescueRegistrationStatus status,
+            Long cropId,
+            String farmerName,
+            String quantitySort,
             int page,
             int size) {
-        return PageUtils.toPage(getVisibleRegistrations(batchId, rescuePointId, status), page, size);
+        RescueRegistrationStatus visibleStatus = currentUser.getRole() == Role.ADMIN
+                ? status
+                : RescueRegistrationStatus.APPROVED;
+        String normalizedName = farmerName == null || farmerName.isBlank() ? null : farmerName.trim();
+        String normalizedSort = "ASC".equalsIgnoreCase(quantitySort) || "DESC".equalsIgnoreCase(quantitySort)
+                ? quantitySort.toUpperCase()
+                : "NONE";
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        Specification<RescueRegistration> specification = (root, query, builder) -> {
+            Root<CropBatch> batch = query.from(CropBatch.class);
+            Root<User> farmer = query.from(User.class);
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(builder.equal(root.get("batchId"), batch.get("id")));
+            predicates.add(builder.equal(batch.get("farmerId"), farmer.get("id")));
+            if (batchId != null) predicates.add(builder.equal(root.get("batchId"), batchId));
+            if (rescuePointId != null) predicates.add(builder.equal(root.get("rescuePointId"), rescuePointId));
+            if (visibleStatus != null) predicates.add(builder.equal(root.get("status"), visibleStatus));
+            if (cropId != null) predicates.add(builder.equal(batch.get("cropId"), cropId));
+            if (normalizedName != null) {
+                predicates.add(builder.like(
+                        builder.lower(farmer.get("fullName")),
+                        "%" + normalizedName.toLowerCase() + "%"));
+            }
+            if (!Long.class.equals(query.getResultType()) && !long.class.equals(query.getResultType())) {
+                if ("ASC".equals(normalizedSort)) query.orderBy(builder.asc(batch.get("currentQuantity")), builder.desc(root.get("submittedAt")), builder.desc(root.get("id")));
+                else if ("DESC".equals(normalizedSort)) query.orderBy(builder.desc(batch.get("currentQuantity")), builder.desc(root.get("submittedAt")), builder.desc(root.get("id")));
+                else query.orderBy(builder.desc(root.get("submittedAt")), builder.desc(root.get("id")));
+            }
+            return builder.and(predicates.toArray(Predicate[]::new));
+        };
+        return repository.findAll(specification, PageRequest.of(safePage, safeSize));
     }
 
     public RescueRegistration getById(Long id) {
