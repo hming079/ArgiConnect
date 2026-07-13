@@ -487,6 +487,7 @@ Set this service variable:
 
 ```env
 PORT=8001
+RAILWAY_DOCKERFILE_PATH=.railway/ai.Dockerfile
 ```
 
 The AI service only needs Railway private networking; a public domain is
@@ -505,6 +506,7 @@ Add these variables in the Backend service. Use Railway reference variables
 exactly as shown rather than copying database credentials:
 
 ```env
+RAILWAY_DOCKERFILE_PATH=.railway/backend.Dockerfile
 DB_URL=jdbc:postgresql://${{Postgres.PGHOST}}:${{Postgres.PGPORT}}/${{Postgres.PGDATABASE}}
 DB_USERNAME=${{Postgres.PGUSER}}
 DB_PASSWORD=${{Postgres.PGPASSWORD}}
@@ -530,6 +532,7 @@ Config File Path: /.railway/frontend.json
 Generate a public domain and set:
 
 ```env
+RAILWAY_DOCKERFILE_PATH=.railway/frontend.Dockerfile
 VITE_API_URL=https://${{Backend.RAILWAY_PUBLIC_DOMAIN}}/api
 ```
 
@@ -555,3 +558,25 @@ https://<frontend-domain>/
 Check the AI `/health` endpoint from Railway deployment logs or temporarily
 generate an AI public domain. Backend-to-AI traffic stays on Railway's private
 network over HTTP.
+
+### Railway reports `Railpack could not determine how to build the app`
+
+This means Railway did not load the service's `.railway/*.json` file and fell
+back to Railpack. It is not an application error, and this repository does not
+use a `start.sh` script.
+
+For each service, open **Settings → Build** and verify:
+
+1. Root Directory is `/`.
+2. Config File Path is the service-specific JSON path listed above.
+3. Builder is `Dockerfile`, not `Railpack`.
+4. Dockerfile Path matches the service:
+   - AI: `.railway/ai.Dockerfile`
+   - Backend: `.railway/backend.Dockerfile`
+   - Frontend: `.railway/frontend.Dockerfile`
+5. Remove any custom Build Command or Start Command, especially `start.sh`.
+
+The `RAILWAY_DOCKERFILE_PATH` variables above provide an additional explicit
+override if Config File Path is not applied during the first deployment. After
+saving the settings, choose **Redeploy** or **Deploy Latest Commit**. A correct
+build log starts with `Using detected Dockerfile` instead of Railpack analysis.
