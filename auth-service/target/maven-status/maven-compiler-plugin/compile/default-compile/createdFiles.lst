@@ -1,0 +1,12 @@
+com\agriconnect\auth\JwtTokens.class
+com\agriconnect\auth\SecurityConfiguration.class
+com\agriconnect\auth\AuthController.class
+com\agriconnect\auth\AuthController$UserResponse.class
+com\agriconnect\auth\AuthApplication.class
+com\agriconnect\auth\AuthController$RegisterRequest.class
+com\agriconnect\auth\AuthController$LoginRequest.class
+com\agriconnect\auth\JwtFilter.class
+com\agriconnect\auth\AuthController$LoginResponse.class
+com\agriconnect\auth\Errors.class
+com\agriconnect\auth\UserStore.class
+com\agriconnect\auth\UserRecord.class

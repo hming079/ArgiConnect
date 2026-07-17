@@ -580,3 +580,111 @@ The `RAILWAY_DOCKERFILE_PATH` variables above provide an additional explicit
 override if Config File Path is not applied during the first deployment. After
 saving the settings, choose **Redeploy** or **Deploy Latest Commit**. A correct
 build log starts with `Using detected Dockerfile` instead of Railpack analysis.
+
+
+$env:PGPASSWORD = "YIAwQmbZHAYVlcIvcaLqrjZXZEExQPII"
+
+psql `
+  -h "postgresql://postgres:YIAwQmbZHAYVlcIvcaLqrjZXZEExQPII@tokaido.proxy.rlwy.net:31749/railway" `
+  -p "5432" `
+  -U "postgres" `
+  -d "railway" `
+  -v ON_ERROR_STOP=1 `
+  -f "C:\Users\hohai\Desktop\Intern\ArgiConnect\ai\output\agriconnect_synthetic_seed.sql"
+
+Remove-Item Env:PGPASSWORD
+# Incremental microservice migration
+
+AgriConnect now uses a practical Strangler-pattern architecture. This is an incremental microservice migration, not a fully distributed architecture: proven transactional code remains in core-service, while routing and authentication are extracted and analytics is isolated behind a read-only service boundary.
+
+```mermaid
+flowchart LR
+    FE[React Frontend] --> GW[API Gateway]
+    GW --> AUTH[Auth Service]
+    GW --> CORE[Core Service]
+    GW --> ANALYTICS[Analytics Service]
+    AUTH --> DB[(PostgreSQL)]
+    CORE --> DB
+    ANALYTICS --> DB
+    ANALYTICS -->|Read-only internal REST| CORE
+```
+
+## Service responsibilities
+
+| Service | Port | Responsibility | PostgreSQL schema |
+|---|---:|---|---|
+| frontend | 5173 | Existing React UI; calls only the gateway | none |
+| api-gateway | 8080 | Routes, CORS, request logs, health, timeouts and 503 fallback | none |
+| auth-service | 8081 internal | Registration, login, users, BCrypt, JWT issuance | `auth_schema` |
+| core-service (`backend/`) | 8082 internal | Crops, batches, rescue, locks, orders, shipments and pricing | `core_schema` |
+| analytics-service | 8083 internal | Admin-only read APIs and Strangler proxy to proven analytics code | `analytics_schema` |
+| ai | 8001 internal | Existing Python model runtime used by forecasting | files/models |
+
+JWTs are signed with the same `JWT_SECRET`. Their subject is the numeric user ID and they also contain `userId`, `email`, `role`, and `roles`. Core and analytics validate tokens locally; neither calls auth-service during authentication.
+
+## Gateway routing
+
+| Public prefix | Destination |
+|---|---|
+| `/api/auth/**`, `/api/users/**` | auth-service |
+| `/api/crops/**`, `/api/crop-batches/**`, `/api/batches/**` | core-service |
+| `/api/rescue-registrations/**`, `/api/rescue-points/**` | core-service |
+| `/api/crop-locks/**`, `/api/orders/**`, `/api/order-items/**`, `/api/shipments/**` | core-service |
+| `/api/dashboard/**`, `/api/analytics/**`, `/api/ai/**` | analytics-service |
+| `/api/inventory-risk-forecast/**`, `/api/forecasts/**`, `/api/forecast-dataset/**` | analytics-service |
+
+Canonical analytics reads are `GET /api/dashboard`, `/api/analytics/inventory-risk`, `/api/analytics/rescue-priority`, `/api/analytics/production-forecast`, and `/api/analytics/demand-forecast`. Existing frontend analytics paths remain compatible.
+
+## Local startup
+
+Copy `.env.example` to `.env`, replace secrets, then run:
+
+```bash
+docker compose up --build
+```
+
+Open `http://localhost:5173`. Only ports 5173 and 8080 are published; service and database ports remain on the Compose network. Check `http://localhost:8080/actuator/health` for gateway health.
+
+Required variables are `POSTGRES_PASSWORD`, a Base64 `JWT_SECRET` of at least 256 bits, and `INTERNAL_API_KEY`. Optional variables are `POSTGRES_DB`, `POSTGRES_USER`, `JWT_EXPIRATION`, `CORS_ALLOWED_ORIGINS`, `VITE_API_URL` (must be the gateway origin, default `http://localhost:8080`), and `JAVA_TOOL_OPTIONS`.
+
+## Verification
+
+```bash
+cd backend && mvn test
+cd ../auth-service && mvn test
+cd ../analytics-service && mvn test
+cd ../api-gateway && mvn test
+cd ../frontend && npm run build
+cd .. && docker compose config --quiet
+docker compose up --build
+```
+
+Stopping analytics-service should only make analytics routes return gateway 503 responses; auth and core routes have independent gateway destinations.
+
+## Database migration and known limitations
+
+Each service uses Flyway and its own default schema. Repositories do not query another service schema. Fresh installations seed auth and core compatibility users with the same IDs so existing numeric ownership references remain stable.
+
+For an existing PostgreSQL volume, back up the database before rollout and perform a one-time ID-preserving copy from the legacy `public.users` table into `auth_schema.users`, then reset the auth sequence. This is intentionally not automatic because overwriting a live identity table is unsafe. During this Strangler phase, core retains a compatibility shadow `users` table for a small number of display/enrichment queries; authorization and ownership use JWT claims. New auth registrations are therefore not automatically copied into that shadow, and enrichment may omit a newly registered user's display data. Transactional order, crop-lock and inventory logic is unchanged.
+
+Analytics-service currently delegates read calculations to existing core analytics endpoints with a bearer token, internal key header, and bounded timeouts. Its database schema contains only service metadata. Forecast mutation endpoints from the legacy UI are not part of the new read-only canonical API. The next migration slice should add explicit `/internal/analytics/*` DTO endpoints protected by `INTERNAL_API_KEY`, move calculation classes and forecast result tables into analytics-service, and remove the core user shadow after replacing remaining enrichment with small auth batch-lookup APIs.
+
+No Eureka, Kubernetes, Kafka, Saga, CQRS, Event Sourcing, RabbitMQ, or additional PostgreSQL container was introduced.
+
+## Nạp synthetic data tự động bằng Docker
+
+File `ai/output/agriconnect_synthetic_seed.sql` chứa `TRUNCATE`, vì vậy mỗi lần chạy sẽ **xóa và thay thế toàn bộ** users, crops, batches, rescue data, orders, locks và shipments hiện có. Không dùng lệnh này trên production.
+
+Sau khi các service đã build, chạy one-shot seed service từ thư mục gốc:
+
+```bash
+docker compose --profile seed run --rm seed-data
+```
+
+Seed service tự chọn `core_schema`, chạy SQL với `ON_ERROR_STOP`, rồi đồng bộ users và ID sang `auth_schema`. Có thể chạy lại cùng lệnh khi cần reset dữ liệu demo. Sau khi seed hoàn tất, khởi động hoặc làm mới stack:
+
+```bash
+docker compose up -d
+```
+
+Mật khẩu của synthetic users dùng hash demo được ghi trong file sinh dữ liệu. Kiểm tra comment đầu file hoặc script generator để biết mật khẩu rõ tương ứng.

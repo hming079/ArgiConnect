@@ -27,8 +27,11 @@ public class JwtService {
     // ==========================================
     public String generateToken(User user) {
         return Jwts.builder()
-                .setSubject(user.getEmail())
+                .setSubject(String.valueOf(user.getId()))
+                .claim("userId", user.getId())
+                .claim("email", user.getEmail())
                 .claim("role", user.getRole().name())
+                .claim("roles", java.util.List.of(user.getRole().name()))
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
                 .signWith(getSignKey())
@@ -46,6 +49,18 @@ public class JwtService {
 
     public String extractRole(String token) {
         return extractClaim(token, claims -> claims.get("role", String.class));
+    }
+
+    public Long extractUserId(String token) {
+        return extractClaim(token, claims -> claims.get("userId", Long.class));
+    }
+
+    public String extractEmail(String token) {
+        return extractClaim(token, claims -> claims.get("email", String.class));
+    }
+
+    public boolean isTokenValid(String token) {
+        return !isTokenExpired(token) && extractUserId(token) != null && extractRole(token) != null;
     }
 
     // Kiểm tra xem Token này có phải của User đang truy cập không, và còn hạn không?

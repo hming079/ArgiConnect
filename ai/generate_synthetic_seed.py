@@ -687,6 +687,9 @@ def write_sql(
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="\n") as handle:
+        # psql on Windows often defaults to WIN1252. Force the client to treat
+        # the COPY payload as UTF-8 before it reads any Vietnamese text.
+        handle.write("\\encoding UTF8\n")
         handle.write("-- Được tạo tự động bởi lệnh ai/generate_synthetic_seed.py\n")
         handle.write("-- Mật khẩu cho các người dùng được tạo trùng khớp với chuỗi băm (hash) demo dùng trong V2__insert_users.sql.\n")
         handle.write("BEGIN;\n\n")

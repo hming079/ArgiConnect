@@ -29,14 +29,22 @@ public class CurrentUser {
     }
 
     public Long getId() {
-        return get().getId();
+        return principal().userId();
     }
 
     public String getEmail() {
-        return get().getEmail();
+        return principal().email();
     }
 
     public Role getRole() {
-        return get().getRole();
+        return Role.valueOf(principal().role());
+    }
+
+    private JwtPrincipal principal() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getDetails() instanceof JwtPrincipal principal)) {
+            throw new AuthenticationCredentialsNotFoundException("Authentication required");
+        }
+        return principal;
     }
 }

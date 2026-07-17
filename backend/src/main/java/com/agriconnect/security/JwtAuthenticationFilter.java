@@ -9,8 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -23,7 +21,6 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-    private final UserDetailsService userDetailsService;
 
     @Override
     protected void doFilterInternal(
@@ -39,11 +36,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String jwt = authHeader.substring(7);
         try {
-            String userEmail = jwtService.extractUsername(jwt);
+            Long userId = jwtService.extractUserId(jwt);
 
-            if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                UserDetails userDetails = userDetailsService.loadUserByUsername(userEmail);
-                if (jwtService.isTokenValid(jwt, userDetails)) {
+            if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                if (jwtService.isTokenValid(jwt)) {
                     String role = jwtService.extractRole(jwt);
                     if (role == null || role.isBlank()) {
                         response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "JWT role claim is missing");
@@ -52,11 +48,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(
-                                    userDetails,
+                                    String.valueOf(userId),
                                     null,
                                     List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                            );
-                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    );
+                    authToken.setDetails(new JwtPrincipal(userId, jwtService.extractEmail(jwt), role));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }

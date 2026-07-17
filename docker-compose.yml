@@ -5,72 +5,121 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-agriconnect}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+    volumes: [postgres_data:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: [CMD-SHELL, "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 15
     restart: unless-stopped
 
-  backend:
-    build:
-      context: ./backend
+  seed-data:
+    image: postgres:16-alpine
+    profiles: ["seed"]
     environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-agriconnect}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      SEED_FILE: /seed/agriconnect_synthetic_seed.sql
+    volumes:
+      - ./ai/output/agriconnect_synthetic_seed.sql:/seed/agriconnect_synthetic_seed.sql:ro
+      - ./docker/seed-data.sh:/seed/seed-data.sh:ro
+    entrypoint: ["sh", "/seed/seed-data.sh"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      auth-service: {condition: service_healthy}
+      core-service: {condition: service_healthy}
+    restart: "no"
+
+  auth-service:
+    build: ./auth-service
+    environment: &database
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-agriconnect}
       DB_USERNAME: ${POSTGRES_USER:-postgres}
       DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-3600000}
-      AI_API_KEY: ${AI_API_KEY:-}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xms128m -Xmx384m -XX:+UseContainerSupport}
+    depends_on: {postgres: {condition: service_healthy}}
+    healthcheck:
+      test: [CMD-SHELL, "wget -qO- http://localhost:8081/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+
+  core-service:
+    build: ./backend
+    environment:
+      <<: *database
+      PORT: 8082
       AI_FORECAST_SERVICE_URL: http://ai:8001
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./ai/data:/ai/data:ro
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-local-dev-internal-key-change-me}
+    volumes: [./ai/data:/ai/data:ro]
     depends_on:
-      postgres:
-        condition: service_healthy
-      ai:
-        condition: service_healthy
+      postgres: {condition: service_healthy}
+      ai: {condition: service_healthy}
+    healthcheck:
+      test: [CMD-SHELL, "wget -qO- http://localhost:8082/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+
+  analytics-service:
+    build: ./analytics-service
+    environment:
+      <<: *database
+      CORE_SERVICE_URL: http://core-service:8082
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-local-dev-internal-key-change-me}
+    depends_on:
+      postgres: {condition: service_healthy}
+      core-service: {condition: service_healthy}
+    healthcheck:
+      test: [CMD-SHELL, "wget -qO- http://localhost:8083/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+
+  api-gateway:
+    build: ./api-gateway
+    environment:
+      AUTH_SERVICE_URL: http://auth-service:8081
+      CORE_SERVICE_URL: http://core-service:8082
+      ANALYTICS_SERVICE_URL: http://analytics-service:8083
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xms128m -Xmx384m -XX:+UseContainerSupport}
+    ports: ["8080:8080"]
+    depends_on:
+      auth-service: {condition: service_healthy}
+      core-service: {condition: service_healthy}
+      analytics-service: {condition: service_healthy}
+    healthcheck:
+      test: [CMD-SHELL, "wget -qO- http://localhost:8080/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
     restart: unless-stopped
 
   ai:
-    build:
-      context: ./ai
-    ports:
-      - "8001:8001"
-    volumes:
-      - ./ai/data:/app/data
-      - ./ai/models:/app/models
-      - ./ai/output:/app/output
+    build: ./ai
+    volumes: [./ai/data:/app/data, ./ai/models:/app/models, ./ai/output:/app/output]
     healthcheck:
-      test:
-        - CMD
-        - python
-        - -c
-        - "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=3)"
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=3)"]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 10s
+      retries: 15
     restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
-      args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080/api}
-    environment:
-      HOST: 0.0.0.0
-      PORT: 5173
-    ports:
-      - "5173:5173"
-    depends_on:
-      - backend
+      args: {VITE_API_URL: "${VITE_API_URL:-http://localhost:8080}"}
+    environment: {HOST: 0.0.0.0, PORT: 5173}
+    ports: ["5173:5173"]
+    depends_on: {api-gateway: {condition: service_healthy}}
     restart: unless-stopped
 
 volumes:

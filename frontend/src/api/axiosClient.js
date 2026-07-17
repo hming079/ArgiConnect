@@ -1,7 +1,12 @@
 import axios from "axios";
 
+// Accept both the documented gateway origin and the legacy value ending in /api.
+const gatewayUrl = (import.meta.env.VITE_API_URL || "http://localhost:8080")
+  .replace(/\/$/, "")
+  .replace(/\/api$/, "");
+
 const axiosClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: `${gatewayUrl}/api`,
   headers: {
     "Content-Type": "application/json",
   },

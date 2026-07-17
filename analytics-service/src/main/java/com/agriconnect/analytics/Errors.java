@@ -1,0 +1,2 @@
+package com.agriconnect.analytics; import jakarta.servlet.http.*; import java.time.*; import java.util.*; import org.springframework.http.*; import org.springframework.web.bind.annotation.*;
+@RestControllerAdvice class Errors { @ExceptionHandler(AnalyticsProxyController.ServiceUnavailable.class) ResponseEntity<?> unavailable(Exception e,HttpServletRequest r){return ResponseEntity.status(503).body(Map.of("timestamp",Instant.now().toString(),"status",503,"error","Service Unavailable","message",e.getMessage(),"path",r.getRequestURI()));} }

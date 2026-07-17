@@ -1,0 +1,33 @@
+server:
+  port: ${PORT:8080}
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+            allowedMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+            allowedHeaders: [Authorization, Content-Type, Accept]
+      httpclient:
+        connect-timeout: 3000
+        response-timeout: 10s
+      default-filters:
+        - name: DedupeResponseHeader
+          args:
+            name: Access-Control-Allow-Origin Access-Control-Allow-Credentials
+            strategy: RETAIN_FIRST
+        - name: CircuitBreaker
+          args:
+            name: downstream
+            fallbackUri: forward:/fallback/downstream
+services:
+  auth-url: ${AUTH_SERVICE_URL:http://localhost:8081}
+  core-url: ${CORE_SERVICE_URL:http://localhost:8082}
+  analytics-url: ${ANALYTICS_SERVICE_URL:http://localhost:8083}
+management:
+  endpoints.web.exposure.include: health,info,gateway
+  endpoint.health.probes.enabled: true
