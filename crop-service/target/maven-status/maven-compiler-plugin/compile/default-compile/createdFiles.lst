@@ -1,0 +1,17 @@
+com\agriconnect\crop\EventConfig.class
+com\agriconnect\crop\InventoryController.class
+com\agriconnect\crop\ApiExceptionHandler.class
+com\agriconnect\crop\JwtFilter.class
+com\agriconnect\crop\Outbox.class
+com\agriconnect\crop\InventoryService.class
+com\agriconnect\crop\OperationalMetrics.class
+com\agriconnect\crop\InternalApiKeyFilter.class
+com\agriconnect\crop\CropController.class
+com\agriconnect\crop\CropBatchController.class
+com\agriconnect\crop\AnalyticsExportController.class
+com\agriconnect\crop\Trace.class
+com\agriconnect\crop\ReservationRequest.class
+com\agriconnect\crop\ObservabilityFilter.class
+com\agriconnect\crop\CropApplication.class
+com\agriconnect\crop\DomainException.class
+com\agriconnect\crop\SecurityConfig.class

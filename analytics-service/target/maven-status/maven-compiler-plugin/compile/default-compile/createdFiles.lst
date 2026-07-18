@@ -1,6 +1,6 @@
+com\agriconnect\analytics\Errors.class
+com\agriconnect\analytics\AnalyticsProxyController.class
 com\agriconnect\analytics\SecurityConfig.class
 com\agriconnect\analytics\AnalyticsApplication.class
 com\agriconnect\analytics\AnalyticsProxyController$ServiceUnavailable.class
-com\agriconnect\analytics\Errors.class
-com\agriconnect\analytics\AnalyticsProxyController.class
 com\agriconnect\analytics\JwtFilter.class

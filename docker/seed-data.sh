@@ -37,3 +37,13 @@ COMMIT;
 SQL
 
 echo "Synthetic seed completed successfully."
+
+echo "Copying crops and rescue data into extracted service schemas..."
+psql --host="$HOST" --username="$USER" --dbname="$DATABASE" \
+  --set=ON_ERROR_STOP=1 --file=/seed/migrate-phase2-3.sql
+
+echo "Copying locks, orders and shipments into extracted service schemas..."
+psql --host="$HOST" --username="$USER" --dbname="$DATABASE" \
+  --set=ON_ERROR_STOP=1 --file=/seed/migrate-phase4-5.sql
+
+echo "All extracted service schemas now contain the synthetic data."

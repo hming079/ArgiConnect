@@ -1,0 +1,16 @@
+com\agriconnect\order\DomainException.class
+com\agriconnect\order\OperationalMetrics.class
+com\agriconnect\order\ShipmentEventConsumer.class
+com\agriconnect\order\InternalApiKeyFilter.class
+com\agriconnect\order\CropLockController.class
+com\agriconnect\order\SecurityConfig.class
+com\agriconnect\order\OrderController.class
+com\agriconnect\order\Outbox.class
+com\agriconnect\order\CropInventoryClient.class
+com\agriconnect\order\Errors.class
+com\agriconnect\order\EventConfig.class
+com\agriconnect\order\AnalyticsExportController.class
+com\agriconnect\order\InternalRestConfig.class
+com\agriconnect\order\JwtFilter.class
+com\agriconnect\order\ObservabilityFilter.class
+com\agriconnect\order\OrderApplication.class

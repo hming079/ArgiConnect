@@ -1,3 +1,21 @@
+x-jvm-env: &jvm-env
+  DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-agriconnect}
+  DB_USERNAME: ${POSTGRES_USER:-postgres}
+  DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+  JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+  INTERNAL_API_KEY: ${INTERNAL_API_KEY:?Set INTERNAL_API_KEY in .env}
+  RABBITMQ_HOST: rabbitmq
+  RABBITMQ_PORT: 5672
+  RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-agriconnect}
+  RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
+  JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xms128m -Xmx384m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75}
+
+x-health: &spring-health
+  interval: 10s
+  timeout: 5s
+  retries: 20
+  start_period: 20s
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -10,12 +28,143 @@ services:
       test: [CMD-SHELL, "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
-      retries: 15
+      retries: 20
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-agriconnect}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
+    ports: ["15672:15672"]
+    volumes: [rabbitmq_data:/var/lib/rabbitmq]
+    healthcheck:
+      test: [CMD, rabbitmq-diagnostics, -q, ping]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  auth-service:
+    profiles: [demo, full]
+    build: ./auth-service
+    environment:
+      <<: *jvm-env
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-3600000}
+    depends_on: {postgres: {condition: service_healthy}}
+    healthcheck: {<<: *spring-health, test: [CMD-SHELL, "wget -qO- http://localhost:8081/actuator/health | grep -q UP"]}
+    restart: unless-stopped
+
+  crop-service:
+    profiles: [demo, full]
+    build: ./crop-service
+    environment: {<<: *jvm-env, PORT: 8084, AUTH_SERVICE_URL: http://auth-service:8081}
+    depends_on: {postgres: {condition: service_healthy}, rabbitmq: {condition: service_healthy}}
+    healthcheck: {<<: *spring-health, test: [CMD-SHELL, "wget -qO- http://localhost:8084/actuator/health | grep -q UP"]}
+    restart: unless-stopped
+
+  rescue-service:
+    profiles: [full]
+    build: ./rescue-service
+    environment: {<<: *jvm-env, PORT: 8085, CROP_SERVICE_URL: http://crop-service:8084}
+    depends_on: {postgres: {condition: service_healthy}, rabbitmq: {condition: service_healthy}, crop-service: {condition: service_healthy}}
+    healthcheck: {<<: *spring-health, test: [CMD-SHELL, "wget -qO- http://localhost:8085/actuator/health | grep -q UP"]}
+    restart: unless-stopped
+
+  order-service:
+    profiles: [demo, full]
+    build: ./order-service
+    environment: {<<: *jvm-env, PORT: 8086, CROP_SERVICE_URL: http://crop-service:8084}
+    depends_on: {postgres: {condition: service_healthy}, rabbitmq: {condition: service_healthy}, crop-service: {condition: service_healthy}}
+    healthcheck: {<<: *spring-health, test: [CMD-SHELL, "wget -qO- http://localhost:8086/actuator/health | grep -q UP"]}
+    restart: unless-stopped
+
+  logistics-service:
+    profiles: [full]
+    build: ./logistics-service
+    environment: {<<: *jvm-env, PORT: 8087}
+    depends_on: {postgres: {condition: service_healthy}, rabbitmq: {condition: service_healthy}}
+    healthcheck: {<<: *spring-health, test: [CMD-SHELL, "wget -qO- http://localhost:8087/actuator/health | grep -q UP"]}
+    restart: unless-stopped
+
+  analytics-service:
+    profiles: [demo, full]
+    build: ./analytics-service
+    environment:
+      <<: *jvm-env
+      PORT: 8083
+      CORE_SERVICE_URL: http://core-service:8082
+      CROP_SERVICE_URL: http://crop-service:8084
+      RESCUE_SERVICE_URL: http://rescue-service:8085
+      ORDER_SERVICE_URL: http://order-service:8086
+      LOGISTICS_SERVICE_URL: http://logistics-service:8087
+    depends_on: {postgres: {condition: service_healthy}, rabbitmq: {condition: service_healthy}}
+    healthcheck: {<<: *spring-health, test: [CMD-SHELL, "wget -qO- http://localhost:8083/actuator/health | grep -q UP"]}
+    restart: unless-stopped
+
+  notification-service:
+    profiles: [full]
+    build: ./notification-service
+    environment: {<<: *jvm-env, PORT: 8088}
+    depends_on: {postgres: {condition: service_healthy}, rabbitmq: {condition: service_healthy}}
+    healthcheck: {<<: *spring-health, test: [CMD-SHELL, "wget -qO- http://localhost:8088/actuator/health | grep -q UP"]}
+    restart: unless-stopped
+
+  ai:
+    profiles: [demo, full]
+    build: ./ai
+    volumes: [./ai/data:/app/data, ./ai/models:/app/models, ./ai/output:/app/output]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  core-service:
+    profiles: [demo, full]
+    build: ./backend
+    environment:
+      <<: *jvm-env
+      PORT: 8082
+      AI_FORECAST_SERVICE_URL: http://ai:8001
+    volumes: [./ai/data:/ai/data:ro]
+    depends_on: {postgres: {condition: service_healthy}, ai: {condition: service_healthy}}
+    healthcheck: {<<: *spring-health, test: [CMD-SHELL, "wget -qO- http://localhost:8082/actuator/health | grep -q UP"]}
+    restart: unless-stopped
+
+  api-gateway:
+    profiles: [demo, full]
+    build: ./api-gateway
+    environment:
+      AUTH_SERVICE_URL: http://auth-service:8081
+      CORE_SERVICE_URL: http://core-service:8082
+      ANALYTICS_SERVICE_URL: http://analytics-service:8083
+      CROP_SERVICE_URL: http://crop-service:8084
+      RESCUE_SERVICE_URL: http://rescue-service:8085
+      ORDER_SERVICE_URL: http://order-service:8086
+      LOGISTICS_SERVICE_URL: http://logistics-service:8087
+      NOTIFICATION_SERVICE_URL: http://notification-service:8088
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xms128m -Xmx384m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75}
+    ports: ["8080:8080"]
+    depends_on: {auth-service: {condition: service_healthy}, crop-service: {condition: service_healthy}, order-service: {condition: service_healthy}, analytics-service: {condition: service_healthy}}
+    healthcheck: {<<: *spring-health, test: [CMD-SHELL, "wget -qO- http://localhost:8080/actuator/health | grep -q UP"]}
+    restart: unless-stopped
+
+  frontend:
+    profiles: [demo, full]
+    build:
+      context: ./frontend
+      args: {VITE_API_URL: "${VITE_API_URL:-http://localhost:8080}"}
+    environment: {HOST: 0.0.0.0, PORT: 5173}
+    ports: ["5173:5173"]
+    depends_on: {api-gateway: {condition: service_healthy}}
     restart: unless-stopped
 
   seed-data:
     image: postgres:16-alpine
-    profiles: ["seed"]
+    profiles: [seed]
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_DB: ${POSTGRES_DB:-agriconnect}
@@ -25,102 +174,12 @@ services:
     volumes:
       - ./ai/output/agriconnect_synthetic_seed.sql:/seed/agriconnect_synthetic_seed.sql:ro
       - ./docker/seed-data.sh:/seed/seed-data.sh:ro
-    entrypoint: ["sh", "/seed/seed-data.sh"]
-    depends_on:
-      postgres: {condition: service_healthy}
-      auth-service: {condition: service_healthy}
-      core-service: {condition: service_healthy}
-    restart: "no"
-
-  auth-service:
-    build: ./auth-service
-    environment: &database
-      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-agriconnect}
-      DB_USERNAME: ${POSTGRES_USER:-postgres}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
-      JWT_EXPIRATION: ${JWT_EXPIRATION:-3600000}
-      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xms128m -Xmx384m -XX:+UseContainerSupport}
+      - ./docker/migrate-phase2-3.sql:/seed/migrate-phase2-3.sql:ro
+      - ./docker/migrate-phase4-5.sql:/seed/migrate-phase4-5.sql:ro
+    entrypoint: [sh, /seed/seed-data.sh]
     depends_on: {postgres: {condition: service_healthy}}
-    healthcheck:
-      test: [CMD-SHELL, "wget -qO- http://localhost:8081/actuator/health | grep -q UP"]
-      interval: 10s
-      timeout: 5s
-      retries: 15
-    restart: unless-stopped
-
-  core-service:
-    build: ./backend
-    environment:
-      <<: *database
-      PORT: 8082
-      AI_FORECAST_SERVICE_URL: http://ai:8001
-      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-local-dev-internal-key-change-me}
-    volumes: [./ai/data:/ai/data:ro]
-    depends_on:
-      postgres: {condition: service_healthy}
-      ai: {condition: service_healthy}
-    healthcheck:
-      test: [CMD-SHELL, "wget -qO- http://localhost:8082/actuator/health | grep -q UP"]
-      interval: 10s
-      timeout: 5s
-      retries: 15
-    restart: unless-stopped
-
-  analytics-service:
-    build: ./analytics-service
-    environment:
-      <<: *database
-      CORE_SERVICE_URL: http://core-service:8082
-      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-local-dev-internal-key-change-me}
-    depends_on:
-      postgres: {condition: service_healthy}
-      core-service: {condition: service_healthy}
-    healthcheck:
-      test: [CMD-SHELL, "wget -qO- http://localhost:8083/actuator/health | grep -q UP"]
-      interval: 10s
-      timeout: 5s
-      retries: 15
-    restart: unless-stopped
-
-  api-gateway:
-    build: ./api-gateway
-    environment:
-      AUTH_SERVICE_URL: http://auth-service:8081
-      CORE_SERVICE_URL: http://core-service:8082
-      ANALYTICS_SERVICE_URL: http://analytics-service:8083
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
-      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xms128m -Xmx384m -XX:+UseContainerSupport}
-    ports: ["8080:8080"]
-    depends_on:
-      auth-service: {condition: service_healthy}
-      core-service: {condition: service_healthy}
-      analytics-service: {condition: service_healthy}
-    healthcheck:
-      test: [CMD-SHELL, "wget -qO- http://localhost:8080/actuator/health | grep -q UP"]
-      interval: 10s
-      timeout: 5s
-      retries: 15
-    restart: unless-stopped
-
-  ai:
-    build: ./ai
-    volumes: [./ai/data:/app/data, ./ai/models:/app/models, ./ai/output:/app/output]
-    healthcheck:
-      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=3)"]
-      interval: 10s
-      timeout: 5s
-      retries: 15
-    restart: unless-stopped
-
-  frontend:
-    build:
-      context: ./frontend
-      args: {VITE_API_URL: "${VITE_API_URL:-http://localhost:8080}"}
-    environment: {HOST: 0.0.0.0, PORT: 5173}
-    ports: ["5173:5173"]
-    depends_on: {api-gateway: {condition: service_healthy}}
-    restart: unless-stopped
+    restart: "no"
 
 volumes:
   postgres_data:
+  rabbitmq_data:

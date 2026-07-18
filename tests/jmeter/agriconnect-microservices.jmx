@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="AgriConnect microservice verification">
+      <stringProp name="TestPlan.comments">Gateway-only concurrent reservation, duplicate checkout, and logistics-outage checks.</stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">true</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="GATEWAY_HOST" elementType="Argument"><stringProp name="Argument.name">GATEWAY_HOST</stringProp><stringProp name="Argument.value">${__P(GATEWAY_HOST,localhost)}</stringProp></elementProp>
+          <elementProp name="GATEWAY_PORT" elementType="Argument"><stringProp name="Argument.name">GATEWAY_PORT</stringProp><stringProp name="Argument.value">${__P(GATEWAY_PORT,8080)}</stringProp></elementProp>
+          <elementProp name="TOKEN" elementType="Argument"><stringProp name="Argument.name">TOKEN</stringProp><stringProp name="Argument.value">${__P(TOKEN,)}</stringProp></elementProp>
+          <elementProp name="BATCH_ID" elementType="Argument"><stringProp name="Argument.name">BATCH_ID</stringProp><stringProp name="Argument.value">${__P(BATCH_ID,1)}</stringProp></elementProp>
+          <elementProp name="LOCK_ID" elementType="Argument"><stringProp name="Argument.name">LOCK_ID</stringProp><stringProp name="Argument.value">${__P(LOCK_ID,1)}</stringProp></elementProp>
+          <elementProp name="DUP_KEY" elementType="Argument"><stringProp name="Argument.name">DUP_KEY</stringProp><stringProp name="Argument.value">${__P(DUP_KEY,jmeter-duplicate-order)}</stringProp></elementProp>
+        </collectionProp>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+      <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Gateway headers">
+        <collectionProp name="HeaderManager.headers">
+          <elementProp name="Authorization" elementType="Header"><stringProp name="Header.name">Authorization</stringProp><stringProp name="Header.value">Bearer ${TOKEN}</stringProp></elementProp>
+          <elementProp name="Content-Type" elementType="Header"><stringProp name="Header.name">Content-Type</stringProp><stringProp name="Header.value">application/json</stringProp></elementProp>
+        </collectionProp>
+      </HeaderManager>
+      <hashTree/>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Concurrent inventory reservation">
+        <intProp name="ThreadGroup.num_threads">100</intProp><intProp name="ThreadGroup.ramp_time">1</intProp><boolProp name="ThreadGroup.same_user_on_next_iteration">false</boolProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController"><intProp name="LoopController.loops">1</intProp><boolProp name="LoopController.continue_forever">false</boolProp></elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Reserve same crop batch">
+          <stringProp name="HTTPSampler.protocol">http</stringProp><stringProp name="HTTPSampler.domain">${GATEWAY_HOST}</stringProp><stringProp name="HTTPSampler.port">${GATEWAY_PORT}</stringProp><stringProp name="HTTPSampler.path">/api/crop-locks</stringProp><stringProp name="HTTPSampler.method">POST</stringProp><boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"><elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">{&quot;batchId&quot;:${BATCH_ID},&quot;quantity&quot;:1}</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp></collectionProp></elementProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <JSR223PreProcessor guiclass="TestBeanGUI" testclass="JSR223PreProcessor" testname="Unique reservation idempotency key"><stringProp name="scriptLanguage">groovy</stringProp><stringProp name="script">sampler.getHeaderManager().add(new org.apache.jmeter.protocol.http.control.Header('Idempotency-Key', 'reserve-' + ctx.getThreadNum() + '-' + System.nanoTime()))</stringProp></JSR223PreProcessor><hashTree/>
+          <JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Reserved or clean inventory conflict"><stringProp name="scriptLanguage">groovy</stringProp><stringProp name="script">if (!(prev.getResponseCode() in ['200','201','409'])) { AssertionResult.setFailure(true); AssertionResult.setFailureMessage('Expected 200/201/409, got ' + prev.getResponseCode()) }</stringProp></JSR223Assertion><hashTree/>
+        </hashTree>
+      </hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Duplicate checkout idempotency">
+        <intProp name="ThreadGroup.num_threads">1</intProp><intProp name="ThreadGroup.ramp_time">1</intProp><elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController"><intProp name="LoopController.loops">5</intProp></elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Repeat identical checkout">
+          <stringProp name="HTTPSampler.protocol">http</stringProp><stringProp name="HTTPSampler.domain">${GATEWAY_HOST}</stringProp><stringProp name="HTTPSampler.port">${GATEWAY_PORT}</stringProp><stringProp name="HTTPSampler.path">/api/orders/checkout</stringProp><stringProp name="HTTPSampler.method">POST</stringProp><boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"><collectionProp name="Arguments.arguments"><elementProp name="" elementType="HTTPArgument"><boolProp name="HTTPArgument.always_encode">false</boolProp><stringProp name="Argument.value">${__P(ORDER_BODY,{&quot;cropLockIds&quot;:[${LOCK_ID}],&quot;items&quot;:[{&quot;cropBatchId&quot;:${BATCH_ID},&quot;quantity&quot;:1,&quot;unitPrice&quot;:1}],&quot;deliveryAddress&quot;:&quot;JMeter verification&quot;})}</stringProp><stringProp name="Argument.metadata">=</stringProp></elementProp></collectionProp></elementProp>
+          <elementProp name="HTTPSampler.header_manager" elementType="HeaderManager"><collectionProp name="HeaderManager.headers"><elementProp name="Idempotency-Key" elementType="Header"><stringProp name="Header.name">Idempotency-Key</stringProp><stringProp name="Header.value">${DUP_KEY}</stringProp></elementProp></collectionProp></elementProp>
+        </HTTPSamplerProxy>
+        <hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Checkout succeeds"><collectionProp name="Asserion.test_strings"><stringProp name="1">20[01]</stringProp></collectionProp><stringProp name="Assertion.custom_message">Repeated checkout must return the original order.</stringProp><intProp name="Assertion.test_field">8</intProp><boolProp name="Assertion.assume_success">false</boolProp><intProp name="Assertion.test_type">2</intProp></ResponseAssertion><hashTree/></hashTree>
+      </hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Orders survive logistics outage">
+        <intProp name="ThreadGroup.num_threads">10</intProp><intProp name="ThreadGroup.ramp_time">1</intProp><elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController"><intProp name="LoopController.loops">2</intProp></elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Read orders through gateway while logistics is stopped"><stringProp name="HTTPSampler.protocol">http</stringProp><stringProp name="HTTPSampler.domain">${GATEWAY_HOST}</stringProp><stringProp name="HTTPSampler.port">${GATEWAY_PORT}</stringProp><stringProp name="HTTPSampler.path">/api/orders?page=0&amp;size=20</stringProp><stringProp name="HTTPSampler.method">GET</stringProp></HTTPSamplerProxy>
+        <hashTree><ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Order service remains available"><collectionProp name="Asserion.test_strings"><stringProp name="1">200</stringProp></collectionProp><intProp name="Assertion.test_field">8</intProp><intProp name="Assertion.test_type">8</intProp></ResponseAssertion><hashTree/></hashTree>
+      </hashTree>
+      <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary"><boolProp name="ResultCollector.error_logging">false</boolProp><objProp><name>saveConfig</name><value class="SampleSaveConfiguration"><time>true</time><latency>true</latency><timestamp>true</timestamp><success>true</success><label>true</label><code>true</code><message>true</message><threadName>true</threadName><dataType>true</dataType><assertions>true</assertions><bytes>true</bytes><sentBytes>true</sentBytes><url>true</url></value></objProp><stringProp name="filename">results/agriconnect-jmeter.jtl</stringProp></ResultCollector><hashTree/>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

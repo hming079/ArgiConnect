@@ -582,31 +582,37 @@ saving the settings, choose **Redeploy** or **Deploy Latest Commit**. A correct
 build log starts with `Using detected Dockerfile` instead of Railpack analysis.
 
 
-$env:PGPASSWORD = "YIAwQmbZHAYVlcIvcaLqrjZXZEExQPII"
-
-psql `
-  -h "postgresql://postgres:YIAwQmbZHAYVlcIvcaLqrjZXZEExQPII@tokaido.proxy.rlwy.net:31749/railway" `
-  -p "5432" `
-  -U "postgres" `
-  -d "railway" `
-  -v ON_ERROR_STOP=1 `
-  -f "C:\Users\hohai\Desktop\Intern\ArgiConnect\ai\output\agriconnect_synthetic_seed.sql"
-
-Remove-Item Env:PGPASSWORD
 # Incremental microservice migration
 
-AgriConnect now uses a practical Strangler-pattern architecture. This is an incremental microservice migration, not a fully distributed architecture: proven transactional code remains in core-service, while routing and authentication are extracted and analytics is isolated behind a read-only service boundary.
+AgriConnect uses a practical Strangler-pattern architecture. Public business traffic is routed to the extracted services; core-service remains only for order-item and forecast compatibility until those legacy contracts are migrated and production reconciliation is complete. This is an incremental migration, not a fully distributed architecture.
 
 ```mermaid
 flowchart LR
     FE[React Frontend] --> GW[API Gateway]
     GW --> AUTH[Auth Service]
-    GW --> CORE[Core Service]
+    GW --> CROP[Crop Service]
+    GW --> RESCUE[Rescue Service]
+    GW --> ORDER[Order Service]
+    GW --> LOGISTICS[Logistics Service]
     GW --> ANALYTICS[Analytics Service]
+    GW --> NOTIFICATION[Notification Service]
+    ORDER -->|Reserve / Commit / Release| CROP
+    RESCUE -->|Validate batch| CROP
+    CROP --> MQ[RabbitMQ]
+    RESCUE --> MQ
+    ORDER --> MQ
+    LOGISTICS --> MQ
+    MQ --> ANALYTICS
+    MQ --> LOGISTICS
+    MQ --> ORDER
+    MQ --> NOTIFICATION
     AUTH --> DB[(PostgreSQL)]
-    CORE --> DB
+    CROP --> DB
+    RESCUE --> DB
+    ORDER --> DB
+    LOGISTICS --> DB
     ANALYTICS --> DB
-    ANALYTICS -->|Read-only internal REST| CORE
+    NOTIFICATION --> DB
 ```
 
 ## Service responsibilities
@@ -616,8 +622,14 @@ flowchart LR
 | frontend | 5173 | Existing React UI; calls only the gateway | none |
 | api-gateway | 8080 | Routes, CORS, request logs, health, timeouts and 503 fallback | none |
 | auth-service | 8081 internal | Registration, login, users, BCrypt, JWT issuance | `auth_schema` |
-| core-service (`backend/`) | 8082 internal | Crops, batches, rescue, locks, orders, shipments and pricing | `core_schema` |
-| analytics-service | 8083 internal | Admin-only read APIs and Strangler proxy to proven analytics code | `analytics_schema` |
+| core-service (`backend/`) | 8082 internal | Temporary order-item and forecast compatibility adapters | `core_schema` |
+| analytics-service | 8083 internal | Event-based dashboards/read models and forecast compatibility | `analytics_schema` |
+| crop-service | 8084 internal | Crops, crop batches and inventory reservations | `crop_schema` |
+| rescue-service | 8085 internal | Rescue registration and point workflows | `rescue_schema` |
+| order-service | 8086 internal | Crop-lock compatibility, orders, idempotency and compensation | `order_schema` |
+| logistics-service | 8087 internal | Shipments and shipment status | `logistics_schema` |
+| notification-service | 8088 internal | Stored user notifications | `notification_schema` |
+| rabbitmq | internal; 15672 local | Domain-event transport, retries and DLQs | none |
 | ai | 8001 internal | Existing Python model runtime used by forecasting | files/models |
 
 JWTs are signed with the same `JWT_SECRET`. Their subject is the numeric user ID and they also contain `userId`, `email`, `role`, and `roles`. Core and analytics validate tokens locally; neither calls auth-service during authentication.
@@ -627,9 +639,12 @@ JWTs are signed with the same `JWT_SECRET`. Their subject is the numeric user ID
 | Public prefix | Destination |
 |---|---|
 | `/api/auth/**`, `/api/users/**` | auth-service |
-| `/api/crops/**`, `/api/crop-batches/**`, `/api/batches/**` | core-service |
-| `/api/rescue-registrations/**`, `/api/rescue-points/**` | core-service |
-| `/api/crop-locks/**`, `/api/orders/**`, `/api/order-items/**`, `/api/shipments/**` | core-service |
+| `/api/crops/**`, `/api/crop-batches/**`, `/api/batches/**` | crop-service (`batches` is rewritten for compatibility) |
+| `/api/rescue-registrations/**`, `/api/rescue-points/**` | rescue-service |
+| `/api/crop-locks/**`, `/api/orders/**` | order-service |
+| `/api/shipments/**` | logistics-service |
+| `/api/notifications/**` | notification-service |
+| `/api/order-items/**` | core-service compatibility adapter |
 | `/api/dashboard/**`, `/api/analytics/**`, `/api/ai/**` | analytics-service |
 | `/api/inventory-risk-forecast/**`, `/api/forecasts/**`, `/api/forecast-dataset/**` | analytics-service |
 
@@ -639,13 +654,20 @@ Canonical analytics reads are `GET /api/dashboard`, `/api/analytics/inventory-ri
 
 Copy `.env.example` to `.env`, replace secrets, then run:
 
-```bash
-docker compose up --build
+```powershell
+docker compose --profile demo up -d --build
+docker compose --profile full up -d --build
 ```
 
 Open `http://localhost:5173`. Only ports 5173 and 8080 are published; service and database ports remain on the Compose network. Check `http://localhost:8080/actuator/health` for gateway health.
 
-Required variables are `POSTGRES_PASSWORD`, a Base64 `JWT_SECRET` of at least 256 bits, and `INTERNAL_API_KEY`. Optional variables are `POSTGRES_DB`, `POSTGRES_USER`, `JWT_EXPIRATION`, `CORS_ALLOWED_ORIGINS`, `VITE_API_URL` (must be the gateway origin, default `http://localhost:8080`), and `JAVA_TOOL_OPTIONS`.
+Required variables are `POSTGRES_PASSWORD`, `RABBITMQ_PASSWORD`, a Base64 `JWT_SECRET` of at least 256 bits, and `INTERNAL_API_KEY`. Optional variables include `POSTGRES_DB`, `POSTGRES_USER`, `RABBITMQ_USER`, `JWT_EXPIRATION`, `CORS_ALLOWED_ORIGINS`, `VITE_API_URL` (gateway origin only, default `http://localhost:8080`), and `JAVA_TOOL_OPTIONS`. Never commit production values.
+
+Internal APIs are not routed by the Gateway. Order-service calls crop inventory reservation endpoints, rescue-service validates batches through crop-service, and analytics backfill reads paginated DTO exports. All require `X-Internal-Api-Key`.
+
+Domain events use the `agriconnect.events` topic exchange and a versioned envelope with `eventId`, `eventType`, `eventVersion`, aggregate identity, timestamp, trace ID, producer and minimal payload. Operational services save business state and outbox event in one transaction. Consumers record processed event IDs before acknowledgement. Important queues have bounded retries and DLQs.
+
+Checkout reserves inventory first. If order persistence fails, order-service releases the reservation and records compensation state. Successful checkout commits inventory and publishes order events; logistics creates one shipment idempotently from `OrderConfirmed`. Reusing an `Idempotency-Key` with an identical request returns the original result, while a different request returns `409`.
 
 ## Verification
 
@@ -654,12 +676,18 @@ cd backend && mvn test
 cd ../auth-service && mvn test
 cd ../analytics-service && mvn test
 cd ../api-gateway && mvn test
+cd ../crop-service && mvn test
+cd ../rescue-service && mvn test
+cd ../order-service && mvn test
+cd ../logistics-service && mvn test
+cd ../notification-service && mvn test
 cd ../frontend && npm run build
-cd .. && docker compose config --quiet
-docker compose up --build
+cd .. && docker compose --env-file .env --profile full config --quiet
+docker compose --profile full up -d --build
+jmeter -n -t tests/jmeter/agriconnect-microservices.jmx -JGATEWAY_HOST=localhost -JGATEWAY_PORT=8080 -JTOKEN=<buyer-token> -JBATCH_ID=<id> -JLOCK_ID=<id>
 ```
 
-Stopping analytics-service should only make analytics routes return gateway 503 responses; auth and core routes have independent gateway destinations.
+Stopping analytics-service or notification-service must not interrupt authentication or orders. Detailed JMeter prerequisites and outage verification are in `tests/jmeter/README.md`.
 
 ## Database migration and known limitations
 
@@ -667,9 +695,11 @@ Each service uses Flyway and its own default schema. Repositories do not query a
 
 For an existing PostgreSQL volume, back up the database before rollout and perform a one-time ID-preserving copy from the legacy `public.users` table into `auth_schema.users`, then reset the auth sequence. This is intentionally not automatic because overwriting a live identity table is unsafe. During this Strangler phase, core retains a compatibility shadow `users` table for a small number of display/enrichment queries; authorization and ownership use JWT claims. New auth registrations are therefore not automatically copied into that shadow, and enrichment may omit a newly registered user's display data. Transactional order, crop-lock and inventory logic is unchanged.
 
-Analytics-service currently delegates read calculations to existing core analytics endpoints with a bearer token, internal key header, and bounded timeouts. Its database schema contains only service metadata. Forecast mutation endpoints from the legacy UI are not part of the new read-only canonical API. The next migration slice should add explicit `/internal/analytics/*` DTO endpoints protected by `INTERNAL_API_KEY`, move calculation classes and forecast result tables into analytics-service, and remove the core user shadow after replacing remaining enrichment with small auth batch-lookup APIs.
+Analytics dashboard, inventory-risk, and rescue-priority endpoints use local event read models. Production/demand forecast and legacy AI endpoints still use the temporary core compatibility adapter. Core also temporarily serves `/api/order-items/**`. Remove core-service only after migrating these contracts, running the full E2E/JMeter suite against containers, reconciling row counts/external IDs, and completing the documented rollback window.
 
-No Eureka, Kubernetes, Kafka, Saga, CQRS, Event Sourcing, RabbitMQ, or additional PostgreSQL container was introduced.
+Migration scripts copy IDs without deleting legacy tables: `docker/migrate-phase2-3.sql` and `docker/migrate-phase4-5.sql`. Take a backup, run the scripts, verify their row-count output, then cut over writes. Rollback instructions are in `docs/DATABASE_ROLLBACK.md`; never route writes back to stale legacy tables without reconciliation.
+
+No Eureka, Kubernetes, Kafka, service mesh, event sourcing, full CQRS, distributed database transaction, or additional PostgreSQL container is used.
 
 ## Nạp synthetic data tự động bằng Docker
 
@@ -681,7 +711,7 @@ Sau khi các service đã build, chạy one-shot seed service từ thư mục g�
 docker compose --profile seed run --rm seed-data
 ```
 
-Seed service tự chọn `core_schema`, chạy SQL với `ON_ERROR_STOP`, rồi đồng bộ users và ID sang `auth_schema`. Có thể chạy lại cùng lệnh khi cần reset dữ liệu demo. Sau khi seed hoàn tất, khởi động hoặc làm mới stack:
+Seed service tự chọn `core_schema`, chạy SQL với `ON_ERROR_STOP`, đồng bộ users sang `auth_schema`, rồi chạy hai migration copy để nạp `crop_schema`, `rescue_schema`, `order_schema` và `logistics_schema`. Các service phải được khởi động ít nhất một lần để Flyway tạo schema trước khi chạy seed. Sau khi seed hoàn tất, khởi động hoặc làm mới stack:
 
 ```bash
 docker compose up -d
