@@ -1,11 +1,98 @@
 package com.agriconnect.crop;
-import java.math.*; import java.time.*; import java.util.*; import org.springframework.http.*; import org.springframework.jdbc.core.simple.JdbcClient; import org.springframework.scheduling.annotation.Scheduled; import org.springframework.stereotype.Service; import org.springframework.transaction.annotation.Transactional;
-record ReservationRequest(UUID requestId,String orderReference,Long cropBatchId,Long buyerId,BigDecimal quantity,Instant expiresAt){}
-@Service class InventoryService { private final JdbcClient db; InventoryService(JdbcClient d){db=d;}
- @Transactional Map<String,Object> reserve(ReservationRequest r){if(r.quantity()==null||r.quantity().signum()<=0)throw new DomainException(HttpStatus.BAD_REQUEST,"INVALID_QUANTITY","Quantity must be positive");var old=db.sql("select id,status,crop_batch_id,quantity,expires_at from inventory_reservations where request_id=:r").param("r",r.requestId()).query().listOfRows().stream().findFirst();if(old.isPresent())return view(old.get());int n=db.sql("update crop_batches set available_quantity=available_quantity-:q,reserved_quantity=reserved_quantity+:q,version=version+1,updated_at=now() where id=:id and status='available' and available_quantity>=:q").param("q",r.quantity()).param("id",r.cropBatchId()).update();if(n==0)throw new DomainException(HttpStatus.CONFLICT,"INSUFFICIENT_INVENTORY","The requested quantity is no longer available");UUID id=UUID.randomUUID();db.sql("insert into inventory_reservations(id,request_id,order_reference,crop_batch_id,buyer_id,quantity,status,expires_at) values(:id,:r,:o,:b,:u,:q,'RESERVED',:e)").param("id",id).param("r",r.requestId()).param("o",r.orderReference()).param("b",r.cropBatchId()).param("u",r.buyerId()).param("q",r.quantity()).param("e",r.expiresAt()).update();movement(id,r.cropBatchId(),"RESERVED",r.quantity());return get(id);}
- @Transactional Map<String,Object> transition(UUID id,String target){var x=db.sql("select * from inventory_reservations where id=:id for update").param("id",id).query().listOfRows().stream().findFirst().orElseThrow(()->new DomainException(HttpStatus.NOT_FOUND,"INVENTORY_RESERVATION_NOT_FOUND","Reservation not found"));String current=String.valueOf(x.get("status"));if(current.equals(target))return view(x);if(!current.equals("RESERVED"))throw new DomainException(HttpStatus.CONFLICT,"INVALID_INVENTORY_RESERVATION_STATE","Reservation is already finalized");BigDecimal q=(BigDecimal)x.get("quantity");long b=((Number)x.get("crop_batch_id")).longValue();String sql=target.equals("COMMITTED")?"update crop_batches set reserved_quantity=reserved_quantity-:q,sold_quantity=sold_quantity+:q,version=version+1 where id=:b and reserved_quantity>=:q":"update crop_batches set reserved_quantity=reserved_quantity-:q,available_quantity=available_quantity+:q,version=version+1 where id=:b and reserved_quantity>=:q";if(db.sql(sql).param("q",q).param("b",b).update()!=1)throw new DomainException(HttpStatus.CONFLICT,"INVENTORY_INVARIANT_VIOLATION","Inventory transition failed");db.sql("update inventory_reservations set status=:s,updated_at=now() where id=:id").param("s",target).param("id",id).update();movement(id,b,target,q);return get(id);}
- Map<String,Object> get(UUID id){return view(db.sql("select id,status,crop_batch_id,quantity,expires_at from inventory_reservations where id=:id").param("id",id).query().listOfRows().stream().findFirst().orElseThrow(()->new DomainException(HttpStatus.NOT_FOUND,"INVENTORY_RESERVATION_NOT_FOUND","Reservation not found")));}
- @Scheduled(fixedDelayString="${inventory.expiration-delay-ms:30000}") @Transactional void expire(){var ids=db.sql("select id from inventory_reservations where status='RESERVED' and expires_at<now() for update skip locked limit 100").query(UUID.class).list();ids.forEach(id->transition(id,"EXPIRED"));}
- private void movement(UUID r,long b,String t,BigDecimal q){db.sql("insert into inventory_movements(id,reservation_id,crop_batch_id,movement_type,quantity) values(:id,:r,:b,:t,:q)").param("id",UUID.randomUUID()).param("r",r).param("b",b).param("t",t).param("q",q).update();}
- private Map<String,Object> view(Map<String,Object>x){return Map.of("reservationId",x.get("id"),"status",x.get("status"),"cropBatchId",x.get("crop_batch_id"),"quantity",x.get("quantity"),"expiresAt",x.get("expires_at"));}
+
+import java.math.*;
+import java.time.*;
+import java.util.*;
+import org.springframework.http.*;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+record ReservationRequest(UUID requestId, String orderReference, Long cropBatchId, Long buyerId, BigDecimal quantity,
+        Instant expiresAt) {
+}
+
+@Service
+class InventoryService {
+    private final JdbcClient db;
+
+    InventoryService(JdbcClient d) {
+        db = d;
+    }
+
+    @Transactional
+    Map<String, Object> reserve(ReservationRequest r) {
+        if (r.quantity() == null || r.quantity().signum() <= 0)
+            throw new DomainException(HttpStatus.BAD_REQUEST, "INVALID_QUANTITY", "Quantity must be positive");
+        var old = db.sql(
+                "select id,status,crop_batch_id,quantity,expires_at from inventory_reservations where request_id=:r")
+                .param("r", r.requestId()).query().listOfRows().stream().findFirst();
+        if (old.isPresent())
+            return view(old.get());
+        int n = db.sql(
+                "update crop_batches set available_quantity=available_quantity-:q,reserved_quantity=reserved_quantity+:q,version=version+1,updated_at=now() where id=:id and status='available' and available_quantity>=:q")
+                .param("q", r.quantity()).param("id", r.cropBatchId()).update();
+        if (n == 0)
+            throw new DomainException(HttpStatus.CONFLICT, "INSUFFICIENT_INVENTORY",
+                    "The requested quantity is no longer available");
+        UUID id = UUID.randomUUID();
+        db.sql("insert into inventory_reservations(id,request_id,order_reference,crop_batch_id,buyer_id,quantity,status,expires_at) values(:id,:r,:o,:b,:u,:q,'RESERVED',:e)")
+                .param("id", id).param("r", r.requestId()).param("o", r.orderReference()).param("b", r.cropBatchId())
+                .param("u", r.buyerId()).param("q", r.quantity()).param("e", r.expiresAt()).update();
+        movement(id, r.cropBatchId(), "RESERVED", r.quantity());
+        return get(id);
+    }
+
+    @Transactional
+    Map<String, Object> transition(UUID id, String target) {
+        var x = db.sql("select * from inventory_reservations where id=:id for update").param("id", id).query()
+                .listOfRows().stream().findFirst().orElseThrow(() -> new DomainException(HttpStatus.NOT_FOUND,
+                        "INVENTORY_RESERVATION_NOT_FOUND", "Reservation not found"));
+        String current = String.valueOf(x.get("status"));
+        if (current.equals(target))
+            return view(x);
+        if (!current.equals("RESERVED"))
+            throw new DomainException(HttpStatus.CONFLICT, "INVALID_INVENTORY_RESERVATION_STATE",
+                    "Reservation is already finalized");
+        BigDecimal q = (BigDecimal) x.get("quantity");
+        long b = ((Number) x.get("crop_batch_id")).longValue();
+        String sql = target.equals("COMMITTED")
+                ? "update crop_batches set reserved_quantity=reserved_quantity-:q,sold_quantity=sold_quantity+:q,version=version+1 where id=:b and reserved_quantity>=:q"
+                : "update crop_batches set reserved_quantity=reserved_quantity-:q,available_quantity=available_quantity+:q,version=version+1 where id=:b and reserved_quantity>=:q";
+        if (db.sql(sql).param("q", q).param("b", b).update() != 1)
+            throw new DomainException(HttpStatus.CONFLICT, "INVENTORY_INVARIANT_VIOLATION",
+                    "Inventory transition failed");
+        db.sql("update inventory_reservations set status=:s,updated_at=now() where id=:id").param("s", target)
+                .param("id", id).update();
+        movement(id, b, target, q);
+        return get(id);
+    }
+
+    Map<String, Object> get(UUID id) {
+        return view(
+                db.sql("select id,status,crop_batch_id,quantity,expires_at from inventory_reservations where id=:id")
+                        .param("id", id).query().listOfRows().stream().findFirst()
+                        .orElseThrow(() -> new DomainException(HttpStatus.NOT_FOUND, "INVENTORY_RESERVATION_NOT_FOUND",
+                                "Reservation not found")));
+    }
+
+    @Scheduled(fixedDelayString = "${inventory.expiration-delay-ms:30000}")
+    @Transactional
+    void expire() {
+        var ids = db.sql(
+                "select id from inventory_reservations where status='RESERVED' and expires_at<now() for update skip locked limit 100")
+                .query(UUID.class).list();
+        ids.forEach(id -> transition(id, "EXPIRED"));
+    }
+
+    private void movement(UUID r, long b, String t, BigDecimal q) {
+        db.sql("insert into inventory_movements(id,reservation_id,crop_batch_id,movement_type,quantity) values(:id,:r,:b,:t,:q)")
+                .param("id", UUID.randomUUID()).param("r", r).param("b", b).param("t", t).param("q", q).update();
+    }
+
+    private Map<String, Object> view(Map<String, Object> x) {
+        return Map.of("reservationId", x.get("id"), "status", x.get("status"), "cropBatchId", x.get("crop_batch_id"),
+                "quantity", x.get("quantity"), "expiresAt", x.get("expires_at"));
+    }
 }

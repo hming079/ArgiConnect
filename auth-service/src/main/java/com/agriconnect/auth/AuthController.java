@@ -1,3 +1,88 @@
 package com.agriconnect.auth;
-import jakarta.validation.Valid; import jakarta.validation.constraints.*; import java.util.*; import org.springframework.http.*; import org.springframework.security.core.Authentication; import org.springframework.security.crypto.password.PasswordEncoder; import org.springframework.web.bind.annotation.*; import io.jsonwebtoken.Claims;
-@RestController public class AuthController { private final UserStore users; private final PasswordEncoder passwords; private final JwtTokens jwt; AuthController(UserStore u,PasswordEncoder p,JwtTokens j){users=u;passwords=p;jwt=j;} record LoginRequest(@Email String email,@NotBlank String password){} record RegisterRequest(@NotBlank String fullName,@Email String email,@Size(min=8) String password,String phone,@NotBlank String role){} record LoginResponse(String accessToken){} record UserResponse(Long id,String fullName,String email,String phone,String role,String status){} private UserResponse view(UserRecord u){return new UserResponse(u.id(),u.fullName(),u.email(),u.phone(),u.role(),u.status());} private Claims claims(Authentication a){return (Claims)a.getDetails();} @PostMapping("/api/auth/login") LoginResponse login(@Valid @RequestBody LoginRequest r){UserRecord u=users.byEmail(r.email()).filter(x->x.status().equals("ACTIVE")&&passwords.matches(r.password(),x.passwordHash())).orElseThrow(()->new org.springframework.security.authentication.BadCredentialsException("Invalid credentials"));return new LoginResponse(jwt.create(u));} @PostMapping("/api/auth/register") ResponseEntity<String> register(@Valid @RequestBody RegisterRequest r){if(users.byEmail(r.email()).isPresent())throw new IllegalArgumentException("Email already exists");if(!Set.of("FARMER","BUYER").contains(r.role()))throw new IllegalArgumentException("Registration role must be FARMER or BUYER");users.create(r.fullName(),r.email().trim().toLowerCase(),passwords.encode(r.password()),r.phone(),r.role());return ResponseEntity.ok("Registration successful for account: "+r.email());} @GetMapping("/api/users/me") UserResponse me(Authentication a){Claims c=claims(a);return view(users.byId(Long.parseLong(c.getSubject())).orElseThrow());} @GetMapping("/api/users/visible-buyers") List<UserResponse> visibleBuyers(Authentication a){Claims c=claims(a);if("BUYER".equals(c.get("role",String.class)))return users.byId(Long.parseLong(c.getSubject())).stream().map(this::view).toList();return users.all().stream().filter(u->"BUYER".equals(u.role())).map(this::view).toList();} @GetMapping("/api/users") List<UserResponse> all(){return users.all().stream().map(this::view).toList();} @PatchMapping("/api/users/{id}/status") UserResponse status(@PathVariable long id,@RequestParam String status){users.status(id,status);return view(users.byId(id).orElseThrow());} }
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.*;
+import java.util.*;
+import org.springframework.http.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.*;
+import io.jsonwebtoken.Claims;
+
+@RestController
+public class AuthController {
+    private final UserStore users;
+    private final PasswordEncoder passwords;
+    private final JwtTokens jwt;
+
+    AuthController(UserStore u, PasswordEncoder p, JwtTokens j) {
+        users = u;
+        passwords = p;
+        jwt = j;
+    }
+
+    record LoginRequest(@Email String email, @NotBlank String password) {
+    }
+
+    record RegisterRequest(@NotBlank String fullName, @Email String email, @Size(min = 8) String password, String phone,
+            @NotBlank String role) {
+    }
+
+    record LoginResponse(String accessToken) {
+    }
+
+    record UserResponse(Long id, String fullName, String email, String phone, String role, String status) {
+    }
+
+    private UserResponse view(UserRecord u) {
+        return new UserResponse(u.id(), u.fullName(), u.email(), u.phone(), u.role(), u.status());
+    }
+
+    private Claims claims(Authentication a) {
+        return (Claims) a.getDetails();
+    }
+
+    @PostMapping("/api/auth/login")
+    LoginResponse login(@Valid @RequestBody LoginRequest r) {
+        UserRecord u = users.byEmail(r.email())
+                .filter(x -> x.status().equals("ACTIVE") && passwords.matches(r.password(), x.passwordHash()))
+                .orElseThrow(() -> new org.springframework.security.authentication.BadCredentialsException(
+                        "Invalid credentials"));
+        return new LoginResponse(jwt.create(u));
+    }
+
+    @PostMapping("/api/auth/register")
+    ResponseEntity<String> register(@Valid @RequestBody RegisterRequest r) {
+        if (users.byEmail(r.email()).isPresent())
+            throw new IllegalArgumentException("Email already exists");
+        if (!Set.of("FARMER", "BUYER").contains(r.role()))
+            throw new IllegalArgumentException("Registration role must be FARMER or BUYER");
+        users.create(r.fullName(), r.email().trim().toLowerCase(), passwords.encode(r.password()), r.phone(), r.role());
+        return ResponseEntity.ok("Registration successful for account: " + r.email());
+    }
+
+    @GetMapping("/api/users/me")
+    UserResponse me(Authentication a) {
+        Claims c = claims(a);
+        return view(users.byId(Long.parseLong(c.getSubject())).orElseThrow());
+    }
+
+    @GetMapping("/api/users/visible-buyers")
+    List<UserResponse> visibleBuyers(Authentication a) {
+        Claims c = claims(a);
+        if ("BUYER".equals(c.get("role", String.class)))
+            return users.byId(Long.parseLong(c.getSubject())).stream().map(this::view).toList();
+        return users.all().stream().filter(u -> "BUYER".equals(u.role())).map(this::view).toList();
+    }
+
+    @GetMapping("/api/users")
+    List<UserResponse> all() {
+        return users.all().stream().map(this::view).toList();
+    }
+
+    @PatchMapping("/api/users/{id}/status")
+    UserResponse status(@PathVariable long id, @RequestParam String status) {
+        users.status(id, status);
+        return view(users.byId(id).orElseThrow());
+    }
+}

@@ -1,4 +1,69 @@
 package com.agriconnect.auth;
-import io.jsonwebtoken.JwtException; import jakarta.servlet.*; import jakarta.servlet.http.*; import java.io.IOException; import java.util.List; import org.springframework.context.annotation.*; import org.springframework.http.HttpMethod; import org.springframework.security.authentication.UsernamePasswordAuthenticationToken; import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity; import org.springframework.security.config.annotation.web.builders.HttpSecurity; import org.springframework.security.config.http.SessionCreationPolicy; import org.springframework.security.core.authority.SimpleGrantedAuthority; import org.springframework.security.core.context.SecurityContextHolder; import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder; import org.springframework.security.crypto.password.PasswordEncoder; import org.springframework.security.web.SecurityFilterChain; import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter; import org.springframework.stereotype.Component; import org.springframework.web.filter.OncePerRequestFilter;
-@Configuration @EnableMethodSecurity class SecurityConfiguration { @Bean PasswordEncoder encoder(){return new BCryptPasswordEncoder();} @Bean SecurityFilterChain chain(HttpSecurity h,JwtFilter f)throws Exception{return h.csrf(c->c.disable()).cors(c->c.disable()).sessionManagement(s->s.sessionCreationPolicy(SessionCreationPolicy.STATELESS)).authorizeHttpRequests(a->a.requestMatchers("/api/auth/login","/api/auth/register","/actuator/health","/error","/internal/**").permitAll().requestMatchers(HttpMethod.GET,"/api/users/me","/api/users/visible-buyers").authenticated().anyRequest().hasRole("ADMIN")).addFilterBefore(f,UsernamePasswordAuthenticationFilter.class).build();} }
-@Component class JwtFilter extends OncePerRequestFilter { private final JwtTokens jwt; JwtFilter(JwtTokens j){jwt=j;} protected void doFilterInternal(HttpServletRequest q,HttpServletResponse p,FilterChain c)throws ServletException,IOException{String h=q.getHeader("Authorization");if(h!=null&&h.startsWith("Bearer "))try{var claims=jwt.parse(h.substring(7));String role=claims.get("role",String.class);var a=new UsernamePasswordAuthenticationToken(claims.getSubject(),null,List.of(new SimpleGrantedAuthority("ROLE_"+role)));a.setDetails(claims);SecurityContextHolder.getContext().setAuthentication(a);}catch(JwtException|IllegalArgumentException e){p.sendError(401,"Invalid or expired JWT");return;}c.doFilter(q,p);} }
+
+import io.jsonwebtoken.JwtException;
+import jakarta.servlet.*;
+import jakarta.servlet.http.*;
+import java.io.IOException;
+import java.util.List;
+import org.springframework.context.annotation.*;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+@Configuration
+@EnableMethodSecurity
+class SecurityConfiguration {
+    @Bean
+    PasswordEncoder encoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    SecurityFilterChain chain(HttpSecurity h, JwtFilter f) throws Exception {
+        return h.csrf(c -> c.disable()).cors(c -> c.disable())
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(a -> a
+                        .requestMatchers("/api/auth/login", "/api/auth/register", "/actuator/health", "/error",
+                                "/internal/**")
+                        .permitAll().requestMatchers(HttpMethod.GET, "/api/users/me", "/api/users/visible-buyers")
+                        .authenticated().anyRequest().hasRole("ADMIN"))
+                .addFilterBefore(f, UsernamePasswordAuthenticationFilter.class).build();
+    }
+}
+
+@Component
+class JwtFilter extends OncePerRequestFilter {
+    private final JwtTokens jwt;
+
+    JwtFilter(JwtTokens j) {
+        jwt = j;
+    }
+
+    protected void doFilterInternal(HttpServletRequest q, HttpServletResponse p, FilterChain c)
+            throws ServletException, IOException {
+        String h = q.getHeader("Authorization");
+        if (h != null && h.startsWith("Bearer "))
+            try {
+                var claims = jwt.parse(h.substring(7));
+                String role = claims.get("role", String.class);
+                var a = new UsernamePasswordAuthenticationToken(claims.getSubject(), null,
+                        List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+                a.setDetails(claims);
+                SecurityContextHolder.getContext().setAuthentication(a);
+            } catch (JwtException | IllegalArgumentException e) {
+                p.sendError(401, "Invalid or expired JWT");
+                return;
+            }
+        c.doFilter(q, p);
+    }
+}

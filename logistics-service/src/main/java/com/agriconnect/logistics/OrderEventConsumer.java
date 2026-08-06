@@ -1,2 +1,33 @@
-package com.agriconnect.logistics;import java.util.*;import org.springframework.amqp.rabbit.annotation.RabbitListener;import org.springframework.jdbc.core.simple.JdbcClient;import org.springframework.stereotype.Component;import org.springframework.transaction.annotation.Transactional;
-@Component class OrderEventConsumer{private final JdbcClient db;OrderEventConsumer(JdbcClient d){db=d;}@RabbitListener(queues="logistics.order-events")@Transactional void consume(Map<String,Object>event){UUID eventId=UUID.fromString(String.valueOf(event.get("eventId")));if(db.sql("select count(*) from processed_events where event_id=:id").param("id",eventId).query(Long.class).single()>0)return;Map<?,?>p=(Map<?,?>)event.get("payload");long order=((Number)p.get("orderId")).longValue();if(db.sql("select count(*) from shipments where order_id=:o").param("o",order).query(Long.class).single()==0)db.sql("insert into shipments(order_id,buyer_id,farmer_ids,pickup_address,delivery_address,status)values(:o,:b,:f,'Pending pickup assignment',:d,'PENDING')").param("o",order).param("b",p.get("buyerId")).param("f",p.get("farmerIds")).param("d",p.get("deliveryAddress")).update();db.sql("insert into processed_events(event_id)values(:id)").param("id",eventId).update();}}
+package com.agriconnect.logistics;
+
+import java.util.*;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+@Component
+class OrderEventConsumer {
+    private final JdbcClient db;
+
+    OrderEventConsumer(JdbcClient d) {
+        db = d;
+    }
+
+    @RabbitListener(queues = "logistics.order-events")
+    @Transactional
+    void consume(Map<String, Object> event) {
+        UUID eventId = UUID.fromString(String.valueOf(event.get("eventId")));
+        if (db.sql("select count(*) from processed_events where event_id=:id").param("id", eventId).query(Long.class)
+                .single() > 0)
+            return;
+        Map<?, ?> p = (Map<?, ?>) event.get("payload");
+        long order = ((Number) p.get("orderId")).longValue();
+        if (db.sql("select count(*) from shipments where order_id=:o").param("o", order).query(Long.class)
+                .single() == 0)
+            db.sql("insert into shipments(order_id,buyer_id,farmer_ids,pickup_address,delivery_address,status)values(:o,:b,:f,'Pending pickup assignment',:d,'PENDING')")
+                    .param("o", order).param("b", p.get("buyerId")).param("f", p.get("farmerIds"))
+                    .param("d", p.get("deliveryAddress")).update();
+        db.sql("insert into processed_events(event_id)values(:id)").param("id", eventId).update();
+    }
+}

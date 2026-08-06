@@ -1,1 +1,11 @@
-package com.agriconnect.notification;import org.springframework.boot.*;import org.springframework.boot.autoconfigure.*;@SpringBootApplication public class NotificationApplication{public static void main(String[]a){SpringApplication.run(NotificationApplication.class,a);}}
+package com.agriconnect.notification;
+
+import org.springframework.boot.*;
+import org.springframework.boot.autoconfigure.*;
+
+@SpringBootApplication
+public class NotificationApplication {
+    public static void main(String[] a) {
+        SpringApplication.run(NotificationApplication.class, a);
+    }
+}

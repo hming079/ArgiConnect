@@ -1,1 +1,22 @@
-package com.agriconnect.crop;import java.util.*;import org.springframework.jdbc.core.simple.JdbcClient;import org.springframework.web.bind.annotation.*;@RestController class AnalyticsExportController{private final JdbcClient db;AnalyticsExportController(JdbcClient d){db=d;}@GetMapping("/internal/analytics/crop-batches")List<Map<String,Object>>batches(@RequestParam(defaultValue="0")int page,@RequestParam(defaultValue="100")int size){return db.sql("select id as \"batchId\",crop_id as \"cropId\",farmer_id as \"farmerId\",initial_quantity as \"initialQuantity\",available_quantity as \"availableQuantity\",reserved_quantity as \"reservedQuantity\",sold_quantity as \"soldQuantity\",province,expiry_date as \"expiryDate\",status from crop_batches order by id limit :s offset :o").param("s",size).param("o",page*size).query().listOfRows();}}
+package com.agriconnect.crop;
+
+import java.util.*;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+class AnalyticsExportController {
+    private final JdbcClient db;
+
+    AnalyticsExportController(JdbcClient d) {
+        db = d;
+    }
+
+    @GetMapping("/internal/analytics/crop-batches")
+    List<Map<String, Object>> batches(@RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return db.sql(
+                "select id as \"batchId\",crop_id as \"cropId\",farmer_id as \"farmerId\",initial_quantity as \"initialQuantity\",available_quantity as \"availableQuantity\",reserved_quantity as \"reservedQuantity\",sold_quantity as \"soldQuantity\",province,expiry_date as \"expiryDate\",status from crop_batches order by id limit :s offset :o")
+                .param("s", size).param("o", page * size).query().listOfRows();
+    }
+}
